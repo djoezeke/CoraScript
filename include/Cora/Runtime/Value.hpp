@@ -11,6 +11,7 @@ namespace cora
 
         enum class ValueKind
         {
+            Any,
             Null,
             Bool,
             Byte,
@@ -19,14 +20,16 @@ namespace cora
             Object,
             String,
             Integer,
-
+            Pointer,
+            Reference,
+            Undefined,
         };
 
         class Value
         {
         public:
             Value() = default;
-            virtual ~Value();
+            virtual ~Value() {};
 
             Value(ValueKind valuekind) { m_Kind = valuekind; };
 
@@ -47,14 +50,14 @@ namespace cora
              *
              * @return ValueKind
              */
-            virtual ValueKind GetValueKind() = 0;
+            ValueKind GetValueKind() const { return m_Kind; };
 
             /**
              * @brief Return the value kind string
              *
              * @return const std::string&
              */
-            virtual std::string GetValueKindString() = 0;
+            std::string GetValueKindString() const { return m_KindString; };
 
             /**
              * @brief Set the value kind object
@@ -75,36 +78,64 @@ namespace cora
             std::string m_KindString;
         };
 
+        struct Any : public Value
+        {
+            virtual std::string Repr() override;
+        };
+
         struct Null : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Byte : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Null : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Float : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Array : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Object : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct String : public Value
         {
+            virtual std::string Repr() override;
         };
 
         struct Integer : public Value
         {
+            virtual std::string Repr() override;
+        };
+
+        struct Pointer : public Value
+        {
+            virtual std::string Repr() override;
+        };
+
+        struct Reference : public Value
+        {
+            virtual std::string Repr() override;
+        };
+
+        struct Undefined : public Value
+        {
+            virtual std::string Repr() override;
         };
 
         std::ostream &operator<<(std::ostream &ostream, const Value *value);
