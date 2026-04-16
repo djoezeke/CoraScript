@@ -1,4 +1,4 @@
-#include "Cora/AST/ASTNode.hpp"
+#include <Cora/Compiler/AST/ASTNode.hpp>
 
 namespace cora
 {

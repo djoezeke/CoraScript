@@ -1,4 +1,4 @@
-#include "Cora/AST/Expressions.hpp"
+#include <Cora/Compiler/AST/Expressions.hpp>
 
 namespace cora
 {

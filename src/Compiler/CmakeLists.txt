@@ -1,0 +1,43 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(COMPILER_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(COMPILER_SOURCES 
+
+    "${COMPILER_DIR}/Basic/SourceManager.cpp"
+    "${COMPILER_DIR}/Basic/SourceLocation.cpp"
+
+    "${COMPILER_DIR}/AST/ScriptAST.cpp"
+
+    "${COMPILER_DIR}/Parser/Token.cpp"
+    "${COMPILER_DIR}/Parser/Lexer.cpp"
+    "${COMPILER_DIR}/Parser/Parser.cpp"
+
+    "${COMPILER_DIR}/Runtime/Scope.cpp"
+    "${COMPILER_DIR}/Runtime/Value.cpp"
+    "${COMPILER_DIR}/Runtime/Variable.cpp"
+    "${COMPILER_DIR}/Runtime/Interpreter.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build Compiler Library.
+#--------------------------------------------------------------------
+
+add_library(Compiler STATIC ${COMPILER_SOURCES})
+
+add_library(Cora::Compiler ALIAS Compiler)
+
+target_include_directories(Compiler
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+# ===================================================================

@@ -1,0 +1,16 @@
+print("-- for-range demo --")
+int sum = 0
+for i in range(0, 10, 2):
+    if i == 6:
+        continue
+    sum = sum + i
+print("sum=" + sum)
+
+print("-- c-style for demo --")
+for (int j = 0; j < 5; j = j + 1) {
+    if j == 3 {
+        break;
+    }
+    pass;
+    print("j=" + j);
+}

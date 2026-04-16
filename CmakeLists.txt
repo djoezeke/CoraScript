@@ -1,0 +1,37 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+cmake_minimum_required(VERSION 3.16)
+
+#--------------------------------------------------------------------
+# Project.
+#--------------------------------------------------------------------
+
+project(CoraScript
+        VERSION "0.1.0" 
+        DESCRIPTION "Cora Scripting Language "
+        HOMEPAGE_URL "https://github.com/djoezeke/CoraScript"
+        LANGUAGES  C CXX
+)
+
+#--------------------------------------------------------------------
+# Configure variables for the project.   
+#--------------------------------------------------------------------
+
+option(MYTOML_BUILD_COMPILER "Build Compiler" ON)
+option(MYTOML_BUILD_CORASCRIPT "Build CoraScript" ON)
+option(MYTOML_BUILD_CORASCRIPTEN "Build CoraScripten" OFF)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+#--------------------------------------------------------------------
+# Add project source directories.
+#--------------------------------------------------------------------
+
+add_subdirectory(src)
+
+# ===================================================================

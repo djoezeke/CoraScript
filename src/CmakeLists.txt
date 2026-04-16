@@ -1,0 +1,25 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Add project subdirectories.
+#--------------------------------------------------------------------
+
+# Build
+if(MYTOML_BUILD_COMPILER)
+    add_subdirectory(Compiler)
+endif()
+
+# Build
+if(MYTOML_BUILD_CORASCRIPT)
+    add_subdirectory(CoraScript)
+endif()
+
+# Build    
+if(MYTOML_BUILD_CORASCRIPTEN)
+    add_subdirectory(CoraScripten)
+endif()
+
+# ===================================================================

@@ -1,4 +1,4 @@
-#include "Cora/AST/Statements.hpp"
+#include <Cora/Compiler/AST/Statements.hpp>
 
 namespace cora
 {

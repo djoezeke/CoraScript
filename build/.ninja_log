@@ -1,0 +1,13 @@
+# ninja log v6
+22	815	7980234906836384	src/Compiler/CMakeFiles/Compiler.dir/Basic/SourceManager.cpp.obj	eb60a01cfa5f256d
+36	981	7980234906981308	src/Compiler/CMakeFiles/Compiler.dir/Basic/SourceLocation.cpp.obj	e81c5683f0c17745
+93	1189	7980234907555259	src/Compiler/CMakeFiles/Compiler.dir/Parser/Token.cpp.obj	d5fc92eb2ab3f1c3
+31869	163110	7980254960349413	src/Compiler/CMakeFiles/Compiler.dir/Parser/Lexer.cpp.obj	d66702dec258d5a8
+33049	163087	7980254972148559	src/Compiler/CMakeFiles/Compiler.dir/Parser/Parser.cpp.obj	53bdf720a9702e6e
+34340	163093	7980254985018111	src/Compiler/CMakeFiles/Compiler.dir/Runtime/Interpreter.cpp.obj	e9fbe6f836dbcd7d
+187069	205951	7980256512318540	src/CoraScript/Corascript.exe	b23362dd13ba5b18
+162504	171849	7980256266631915	src/CoraScript/CMakeFiles/Corascript.dir/main.cpp.obj	c00af2af88a45031
+33200	162991	7980254973653048	src/Compiler/CMakeFiles/Compiler.dir/Runtime/Scope.cpp.obj	20d4b0436076b692
+33591	161353	7980254977558153	src/Compiler/CMakeFiles/Compiler.dir/Runtime/Variable.cpp.obj	1772410ebc57df2e
+33320	162989	7980254974851429	src/Compiler/CMakeFiles/Compiler.dir/Runtime/Value.cpp.obj	42713364b0131c04
+163114	187069	7980256272795718	src/Compiler/libCompiler.a	bb31f994650c9f0b

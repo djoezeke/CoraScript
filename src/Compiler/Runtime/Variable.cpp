@@ -1,4 +1,4 @@
-#include "Cora/Runtime/Variable.hpp"
+#include "Cora/Compiler/Runtime/Variable.hpp"
 
 namespace cora
 {

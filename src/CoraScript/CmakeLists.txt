@@ -1,0 +1,25 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+set(CORASCRIPT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(CORASCRIPT_SOURCES 
+	"${CORASCRIPT_DIR}/main.cpp"
+)
+
+add_executable(Corascript ${CORASCRIPT_SOURCES})
+
+target_include_directories(Corascript
+	PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(Corascript
+	PRIVATE
+		Cora::Compiler
+)
+
+# ===================================================================

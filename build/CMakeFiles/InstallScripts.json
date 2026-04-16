@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/cmake_install.cmake",
+		"C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/cmake_install.cmake",
+		"C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/Compiler/cmake_install.cmake",
+		"C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/CoraScript/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
