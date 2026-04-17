@@ -1,20 +1,69 @@
-#ifndef CORA_PARSER_TOKEN_H
-#define CORA_PARSER_TOKEN_H
+#ifndef CORA_COMPILER_PARSER_TOKEN_H
+#define CORA_COMPILER_PARSER_TOKEN_H
 
 #include "Cora/Compiler/Basic/SourceLocation.h"
 #include <string>
 
-namespace cora
+namespace cora::compiler
 {
 	using namespace basic;
 
 	namespace parser
 	{
 
-		enum class TokenKind
+		enum class TokenType
 		{
 
-			T_UNKNOW = 257,
+			End,
+			Newline,
+			Indent,
+			Dedent,
+			Identifier,
+			Number,
+			String,
+			Null,
+			True,
+			False,
+			Let,
+			Int,
+			Float,
+			Bool,
+			StringType,
+			If,
+			Elif,
+			Else,
+			While,
+			For,
+			In,
+			Range,
+			Break,
+			Continue,
+			Pass,
+			Print,
+			And,
+			Or,
+			Not,
+			LParen,
+			RParen,
+			LBrace,
+			RBrace,
+			Colon,
+			Comma,
+			Semicolon,
+			Assign,
+			Plus,
+			Minus,
+			Star,
+			Slash,
+			Percent,
+			Equal,
+			NotEqual,
+			Less,
+			LessEqual,
+			Greater,
+			GreaterEqual,
+
+			T_UNKNOW,
 
 			// others
 			T_NEWLINE,
@@ -150,161 +199,124 @@ namespace cora
 
 			T_EOF,
 
-		} TokenType;
+		};
 
 		class Token
 		{
 		public:
-			Token() = default;
+			Token();
 
-			Token(TokenKind tokenkind, std::string tokentext, unsigned int line, unsigned int column)
-			{
-				m_Kind = tokenkind, m_TokenText = tokentext;
-				SourceLocation start(line, column);
-				SourceLocation end(line, column + tokentext.size());
-				m_Range = SourceRange(start, end);
-			};
+			Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column);
 
-			Token(TokenKind tokenkind, unsigned int line, unsigned int column)
-			{
-				m_Kind = tokenkind;
-				SourceLocation start(line, column);
-				m_Range = SourceRange(start);
-			};
+			Token(TokenType tokentype, unsigned int line, unsigned int column);
 
-			Token(TokenKind tokenkind, std::string kinsdtring, unsigned int line, unsigned int column)
-			{
-				m_Kind = tokenkind;
-				m_KindString = kinsdtring;
-				SourceLocation start(line, column);
-				m_Range = SourceRange(start);
-			};
-
-			Token(TokenKind tokenkind, std::string kinsdtring, std::string tokentext, unsigned int line, unsigned int column)
-			{
-				m_Kind = tokenkind;
-				m_KindString = kinsdtring;
-				m_TokenText = tokentext;
-				SourceLocation start(line, column);
-				SourceLocation end(line, column + tokentext.size());
-				m_Range = SourceRange(start, end);
-			};
+			Token(TokenType tokentype, std::string kinsdtring, std::string tokentext, unsigned int line, unsigned int column);
 
 			/**
 			 * @brief Compute a representation of the token.
 			 * @return String representation of the token
 			 */
-			std::string Repr() { return GetText(); };
+			std::string Repr();
 
 			/**
 			 * @brief Return the token kind
 			 *
-			 * @return TokenKind
+			 * @return TokenType
 			 */
-			TokenKind GetTokenKind() const { return m_Kind; };
+			TokenType GetTokenType() const;
 
 			/**
 			 * @brief Return the token kind string
 			 *
 			 * @return const std::string&
 			 */
-			std::string GetTokenKindString() const { return ""; };
+			std::string GetTokenTypeString() const;
 
-			bool Is(TokenKind tokenkind) const { return m_Kind == tokenkind; };
-			bool IsNot(TokenKind tokenkind) const { return m_Kind != tokenkind; };
+			bool Is(TokenType tokentype) const;
 
-			bool IsAny(TokenKind tokenkind) const
-			{
-				return Is(tokenkind);
-			}
+			bool IsNot(TokenType tokentype) const;
+
+			bool IsAny(TokenType tokentype) const;
 
 			template <typename... T>
-			bool IsAny(TokenKind kind1, TokenKind kind2, T... tokenkinds) const
-			{
-				if (Is(kind1))
-					return true;
-				return IsAny(kind2, tokenkinds...);
-			}
+			bool IsAny(TokenType kind1, TokenType kind2, T... tokentypes) const;
 
 			template <typename... T>
-			bool IsNotAny(TokenKind tokenkind, T... tokenkinds) const
-			{
-				return !IsAny(tokenkind, tokenkinds...);
-			}
+			bool IsNotAny(TokenType tokentype, T... tokentypes) const;
 
-			std::string GetText() const { return m_TokenText; };
+			std::string GetText() const;
 
-			unsigned int GetLenght() const { return m_TokenText.size(); };
+			unsigned int GetLenght() const;
 
 			/**
 			 * @brief Get the start position of the node
 			 *
 			 * @return Position
 			 */
-			SourceLocation GetStartPosition() const noexcept { return m_Range.GetStart(); };
+			SourceLocation GetStartPosition() const noexcept;
 
 			/**
 			 * @brief Get the end position of the node
 			 *
 			 * @return Position
 			 */
-			SourceLocation GetEndPosition() const noexcept { return m_Range.GetEnd(); };
+			SourceLocation GetEndPosition() const noexcept;
 
 			/**
 			 * @brief Get the source range of the node
 			 *
 			 * @return SourceRange
 			 */
-			SourceRange GetSourceRange() const { return m_Range; };
+			SourceRange GetSourceRange() const;
 
-			void SetText(std::string text) { m_TokenText = text; };
+			void SetText(std::string text);
 
 			/**
 			 * @brief Set the token kind object
 			 *
-			 * @param tokenkind
+			 * @param tokentype
 			 */
-			void SetTokenKind(TokenKind tokenkind) noexcept { m_Kind = tokenkind; };
+			void SetTokenType(TokenType tokentype) noexcept;
 
 			/**
 			 * @brief Set the token kind string
 			 *
 			 * @param kindstring
 			 */
-			void SetTokenKindString(std::string kindstring) noexcept { m_KindString = kindstring; };
+			void SetTokenTypeString(std::string kindstring) noexcept;
 
 			/**
 			 * @brief Set the Node start position
 			 *
 			 * @param start
 			 */
-			void SetStartPosition(SourceLocation start) noexcept { m_Range.SetStart(start); };
+			void SetStartPosition(SourceLocation start) noexcept;
 
 			/**
 			 * @brief Set the Node end position
 			 *
 			 * @param end
 			 */
-			void SetEndPosition(SourceLocation end) noexcept { m_Range.SetEnd(end); };
+			void SetEndPosition(SourceLocation end) noexcept;
 
 			/**
 			 * @brief Set the Node source range.
 			 *
 			 * @param range
 			 */
-			void SetSourceRange(SourceRange range) noexcept { m_Range = range; };
+			void SetSourceRange(SourceRange range) noexcept;
 
 		private:
-			TokenKind m_Kind;
+			TokenType m_Type;
 			SourceRange m_Range;
 			std::string m_TokenText;
-			std::string m_KindString;
+			std::string m_TypeString;
 		};
 
 		std::ostream &operator<<(std::ostream &ostream, Token token);
 
 	} // namespace parser
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_PARSER_TOKEN_H
+#endif // CORA_COMPILER_PARSER_TOKEN_H

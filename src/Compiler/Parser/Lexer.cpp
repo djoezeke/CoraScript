@@ -1,56 +1,19 @@
-#include "Cora/Compiler/Runtime/Interpreter.hpp"
+#include "Cora/Compiler/Parser/Lexer.hpp"
 
 #include <cctype>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
 
-namespace cora
+namespace cora::compiler
 {
-    namespace script
+    namespace parser
     {
-        namespace
-        {
-            std::string Trim(const std::string &line)
-            {
-                std::size_t start = 0;
-                while (start < line.size() && std::isspace(static_cast<unsigned char>(line[start])))
-                {
-                    ++start;
-                }
 
-                std::size_t end = line.size();
-                while (end > start && std::isspace(static_cast<unsigned char>(line[end - 1])))
-                {
-                    --end;
-                }
+        Lexer::Lexer() {
+        };
 
-                return line.substr(start, end - start);
-            }
-
-            int CountIndent(const std::string &line)
-            {
-                int count = 0;
-                for (char c : line)
-                {
-                    if (c == ' ')
-                    {
-                        ++count;
-                    }
-                    else if (c == '\t')
-                    {
-                        count += 4;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                return count;
-            }
-        }
-
-        std::deque<Token> Interpreter::Lex(const std::string &source) const
+        std::deque<Token> Lexer::Lex(const std::string &source) const
         {
             std::deque<Token> tokens;
             std::istringstream stream(source);
@@ -346,7 +309,56 @@ namespace cora
             }
 
             tokens.push_back({TokenType::End, "<eof>", lineNo, 1});
-            return std::move(tokens);
+            return tokens;
+        };
+
+        std::string Lexer::Trim(const std::string &line) const
+        {
+            std::size_t start = 0;
+            while (start < line.size() && std::isspace(static_cast<unsigned char>(line[start])))
+            {
+                ++start;
+            }
+
+            std::size_t end = line.size();
+            while (end > start && std::isspace(static_cast<unsigned char>(line[end - 1])))
+            {
+                --end;
+            }
+
+            return line.substr(start, end - start);
         }
+
+        int Lexer::CountIndent(const std::string &line) const
+        {
+            int count = 0;
+            for (char c : line)
+            {
+                if (c == ' ')
+                {
+                    ++count;
+                }
+                else if (c == '\t')
+                {
+                    count += 4;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return count;
+        }
+
+        Lexer::~Lexer() {
+        };
+    } // namespace parser
+
+} // namespace cora::compiler
+
+namespace cora::script
+{
+    namespace
+    {
     }
 }

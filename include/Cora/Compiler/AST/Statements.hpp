@@ -1,9 +1,14 @@
-#ifndef CORA_AST_STATEMENT_H
-#define CORA_AST_STATEMENT_H
+#ifndef CORA_COMPILER_AST_STATEMENTS_H
+#define CORA_COMPILER_AST_STATEMENTS_H
 
-#include "Cora/Compiler/AST/ASTNode.hpp"
+#include "Cora/Compiler/AST/Expressions.hpp"
 
-namespace cora
+#include <deque>
+#include <optional>
+#include <string>
+#include <utility>
+
+namespace cora::compiler
 {
     namespace ast
     {
@@ -11,169 +16,196 @@ namespace cora
         class Statement : public Node
         {
         public:
-            Statement()
-                : Node(NodeKind::Statement, "Statement") {};
-
-            ~Statement() override = default;
-
-            StatementKind GetStmtKind() const { return m_StmtKind; };
+            Statement();
+            explicit Statement(StatementType kind);
+            StatementType GetStmtType() const;
+            std::string Repr() override;
+            ~Statement() override;
 
         private:
-            StatementKind m_StmtKind;
+            StatementType m_StmtType;
         };
 
-        /**
-         * If AST node representation
-         */
+        class ExprStmt : public Statement
+        {
+        public:
+            explicit ExprStmt(Expression *expr);
+            Expression *GetExpression() const;
+            ~ExprStmt() override;
+
+        private:
+            Expression *m_Expr;
+        };
+
+        class PrintStmt : public Statement
+        {
+        public:
+            PrintStmt();
+            std::deque<Expression *> expressions;
+            ~PrintStmt() override;
+        };
+
+        class AssignStmt : public Statement
+        {
+        public:
+            AssignStmt(std::string name, Expression *expr);
+            const std::string &GetName() const;
+            Expression *GetExpression() const;
+            ~AssignStmt() override;
+
+        private:
+            std::string m_Name;
+            Expression *m_Expr;
+        };
+
+        class VarDeclStmt : public Statement
+        {
+        public:
+            VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr);
+            const std::string &GetName() const;
+            const std::optional<std::string> &GetDeclaredType() const;
+            Expression *GetExpression() const;
+            ~VarDeclStmt() override;
+
+        private:
+            std::string m_Name;
+            std::optional<std::string> m_DeclaredType;
+            Expression *m_Expr;
+        };
+
         class IfStmt : public Statement
         {
         public:
-            explicit IfStmt() {};
-            ~IfStmt() override = default;
+            IfStmt();
+            std::deque<std::pair<Expression *, class BlockStmt *>> branches;
+            class BlockStmt *elseBlock;
+            ~IfStmt() override;
         };
 
-        /**
-         * Do AST node representation
-         */
         class DoStmt : public Statement
         {
         public:
-            explicit DoStmt() {};
-            ~DoStmt() override = default;
+            DoStmt();
+            ~DoStmt() override;
         };
 
-        /**
-         * For AST node representation
-         */
         class ForStmt : public Statement
         {
         public:
-            explicit ForStmt() {};
-            ~ForStmt() override = default;
+            ForStmt();
+            ~ForStmt() override;
         };
 
-        /**
-         * New AST node representation
-         */
         class NewStmt : public Statement
         {
         public:
-            explicit NewStmt() {};
-            ~NewStmt() override = default;
+            NewStmt();
+            ~NewStmt() override;
         };
 
-        /**
-         * Pass AST node representation
-         */
         class PassStmt : public Statement
         {
         public:
-            explicit PassStmt() {};
-            ~PassStmt() override = default;
+            PassStmt();
         };
 
-        /**
-         * While AST node representation
-         */
         class WhileStmt : public Statement
         {
         public:
-            explicit WhileStmt() {};
-            ~WhileStmt() override = default;
+            WhileStmt();
+            WhileStmt(Expression *condition, class BlockStmt *block);
+            Expression *condition;
+            class BlockStmt *block;
+            ~WhileStmt() override;
         };
 
-        /**
-         * Break AST node representation
-         */
         class BreakStmt : public Statement
         {
         public:
-            explicit BreakStmt() {};
-            ~BreakStmt() override = default;
+            BreakStmt();
         };
 
-        /**
-         * Brace {} AST node representation
-         */
-        class BraceStmt : public Statement
+        class BlockStmt : public Statement
         {
         public:
-            explicit BraceStmt() {};
-            ~BraceStmt() override = default;
+            BlockStmt();
+            std::deque<Statement *> statements;
+            ~BlockStmt() override;
         };
 
-        /**
-         * Yield AST node representation
-         */
         class YieldStmt : public Statement
         {
         public:
-            explicit YieldStmt() {};
-            ~YieldStmt() override = default;
+            YieldStmt();
+            ~YieldStmt() override;
         };
 
-        /**
-         * Throw AST node representation
-         */
         class ThrowStmt : public Statement
         {
         public:
-            explicit ThrowStmt() {};
-            ~ThrowStmt() override = default;
+            ThrowStmt();
+            ~ThrowStmt() override;
         };
 
-        /**
-         * Delete AST node representation
-         */
         class DeleteStmt : public Statement
         {
         public:
-            explicit DeleteStmt() {};
-            ~DeleteStmt() override = default;
+            DeleteStmt();
+            ~DeleteStmt() override;
         };
 
-        /**
-         * Switch AST node representation
-         */
         class SwitchStmt : public Statement
         {
         public:
-            explicit SwitchStmt() {};
-            ~SwitchStmt() override = default;
+            SwitchStmt();
+            ~SwitchStmt() override;
         };
 
-        /**
-         * Return AST node representation
-         */
         class ReturnStmt : public Statement
         {
         public:
-            explicit ReturnStmt() {};
-            ~ReturnStmt() override = default;
+            ReturnStmt();
+            ~ReturnStmt() override;
         };
 
-        /**
-         * ForEach AST node representation
-         */
         class ForEachStmt : public Statement
         {
         public:
-            explicit ForEachStmt() {};
-            ~ForEachStmt() override = default;
+            ForEachStmt();
+            ~ForEachStmt() override;
         };
 
-        /**
-         * Continue AST node representation
-         */
         class ContinueStmt : public Statement
         {
         public:
-            explicit ContinueStmt() {};
-            ~ContinueStmt() override = default;
+            ContinueStmt();
+        };
+
+        class ForRangeStmt : public Statement
+        {
+        public:
+            ForRangeStmt(std::string name, Expression *start, Expression *end, Expression *step, BlockStmt *block);
+            std::string name;
+            Expression *start;
+            Expression *end;
+            Expression *step;
+            BlockStmt *block;
+            ~ForRangeStmt() override;
+        };
+
+        class ForCStyleStmt : public Statement
+        {
+        public:
+            ForCStyleStmt(Statement *init, Expression *condition, Statement *update, BlockStmt *block);
+            Statement *init;
+            Expression *condition;
+            Statement *update;
+            BlockStmt *block;
+            ~ForCStyleStmt() override;
         };
 
     } // namespace ast
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_AST_STATEMENT_H
+#endif // CORA_COMPILER_AST_STATEMENTS_H

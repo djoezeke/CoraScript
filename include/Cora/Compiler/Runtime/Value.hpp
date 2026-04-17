@@ -1,10 +1,11 @@
-#ifndef CORA_RUNTIME_VALUE_H
-#define CORA_RUNTIME_VALUE_H
+#ifndef CORA_COMPILER_RUNTIME_VALUE_H
+#define CORA_COMPILER_RUNTIME_VALUE_H
 
 #include <ostream>
 #include <string>
+#include <variant>
 
-namespace cora
+namespace cora::compiler
 {
     namespace runtime
     {
@@ -28,115 +29,115 @@ namespace cora
         class Value
         {
         public:
-            Value() = default;
-            virtual ~Value() {};
+            using Data = std::variant<std::monostate, bool, double, std::string>;
 
-            Value(ValueKind valuekind) { m_Kind = valuekind; };
+            Value();
+            explicit Value(ValueKind valuekind);
+            Value(ValueKind valuekind, std::string kindstring);
+            explicit Value(std::nullptr_t);
+            explicit Value(bool value);
+            explicit Value(double value);
+            explicit Value(const std::string &value);
+            explicit Value(const char *value);
+            virtual ~Value() = default;
 
-            Value(ValueKind valuekind, std::string kinsdtring)
-            {
-                m_Kind = valuekind;
-                m_KindString = kinsdtring;
-            };
+            virtual std::string Repr() const;
 
-            /**
-             * @brief Compute a representation of the value.
-             * @return String representation of the value
-             */
-            virtual std::string Repr() const = 0;
+            ValueKind GetValueKind() const;
+            std::string GetValueKindString() const;
 
-            /**
-             * @brief Return the value kind
-             *
-             * @return ValueKind
-             */
-            ValueKind GetValueKind() const { return m_Kind; };
+            void SetValueKind(ValueKind valuekind) noexcept;
+            void SetValueKindString(std::string kindstring) noexcept;
 
-            /**
-             * @brief Return the value kind string
-             *
-             * @return const std::string&
-             */
-            std::string GetValueKindString() const { return m_KindString; };
+            const Data &GetData() const;
+            void SetData(Data data);
 
-            /**
-             * @brief Set the value kind object
-             *
-             * @param valuekind
-             */
-            void SetValueKind(ValueKind valuekind) noexcept { m_Kind = valuekind; };
+            bool IsNull() const;
+            bool IsBool() const;
+            bool IsNumber() const;
+            bool IsString() const;
 
-            /**
-             * @brief Set the value kind string
-             *
-             * @param kindstring
-             */
-            void SetValueKindString(std::string kindstring) noexcept { m_KindString = kindstring; };
+            bool AsBool() const;
+            double AsNumber() const;
+            std::string AsString() const;
 
         private:
             ValueKind m_Kind;
             std::string m_KindString;
+            Data m_Data;
         };
 
         struct Any : public Value
         {
-            virtual std::string Repr() const override;
+            Any();
+            std::string Repr() const override;
         };
 
         struct Null : public Value
         {
-            virtual std::string Repr() const override;
+            Null();
+            std::string Repr() const override;
         };
 
         struct Byte : public Value
         {
-            virtual std::string Repr() const override;
+            Byte();
+            std::string Repr() const override;
         };
 
         struct Float : public Value
         {
-            virtual std::string Repr() const override;
+            Float();
+            std::string Repr() const override;
         };
 
         struct Array : public Value
         {
-            virtual std::string Repr() const override;
+            Array();
+            std::string Repr() const override;
         };
 
         struct Object : public Value
         {
-            virtual std::string Repr() const override;
+            Object();
+            std::string Repr() const override;
         };
 
         struct String : public Value
         {
-            virtual std::string Repr() const override;
+            String();
+            explicit String(const std::string &value);
+            std::string Repr() const override;
         };
 
         struct Integer : public Value
         {
-            virtual std::string Repr() const override;
+            Integer();
+            std::string Repr() const override;
         };
 
         struct Pointer : public Value
         {
-            virtual std::string Repr() const override;
+            Pointer();
+            std::string Repr() const override;
         };
 
         struct Reference : public Value
         {
-            virtual std::string Repr() const override;
+            Reference();
+            std::string Repr() const override;
         };
 
         struct Undefined : public Value
         {
-            virtual std::string Repr() const override;
+            Undefined();
+            std::string Repr() const override;
         };
 
         std::ostream &operator<<(std::ostream &ostream, const Value *value);
 
     } // namespace runtime
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_RUNTIME_VALUE_H
+#endif // CORA_COMPILER_RUNTIME_VALUE_H

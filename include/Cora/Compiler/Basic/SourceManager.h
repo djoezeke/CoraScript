@@ -1,13 +1,21 @@
-#ifndef CORA_BASIC_SOURCE_MANAGER_H
-#define CORA_BASIC_SOURCE_MANAGER_H
+#ifndef CORA_COMPILER_BASIC_SOURCE_MANAGER_H
+#define CORA_COMPILER_BASIC_SOURCE_MANAGER_H
 
-namespace cora
+namespace cora::compiler
 {
     namespace basic
     {
+        class SourceManager
+        {
+        private:
+            /* data */
+        public:
+            SourceManager();
+            ~SourceManager();
+        };
 
     } // namespace basic
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_BASIC_SOURCE_MANAGER_H
+#endif // CORA_COMPILER_BASIC_SOURCE_MANAGER_H

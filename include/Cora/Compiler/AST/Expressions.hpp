@@ -1,182 +1,144 @@
-#ifndef CORA_AST_EXPRESSION_H
-#define CORA_AST_EXPRESSION_H
+#ifndef CORA_COMPILER_AST_EXPRESSIONS_H
+#define CORA_COMPILER_AST_EXPRESSIONS_H
 
-#include "Cora/Compiler/AST/ASTNode.hpp"
+#include "Cora/Compiler/AST/Nodes.hpp"
+#include "Cora/Compiler/Parser/Token.hpp"
 
-namespace cora
+#include <deque>
+#include <string>
+#include <variant>
+
+namespace cora::compiler
 {
     namespace ast
     {
 
-        /**
-         * Expression AST node representation
-         */
+        using LiteralValue = std::variant<std::monostate, bool, double, std::string>;
+
         class Expression : public Node
         {
         public:
-            Expression()
-                : Node(NodeKind::Expression, "Expression") {};
-
-            ~Expression() override = default;
-
-            ExpressionKind GetExprKind() const { return m_ExprKind; };
+            Expression();
+            explicit Expression(ExpressionType kind);
+            ExpressionType GetExprType() const;
+            std::string Repr() override;
+            ~Expression() override;
 
         private:
-            ExpressionKind m_ExprKind;
+            ExpressionType m_ExprType;
         };
 
-        /**
-         * Null AST node representation
-         */
+        class LiteralExpr : public Expression
+        {
+        public:
+            explicit LiteralExpr(LiteralValue value);
+            explicit LiteralExpr(double value);
+            explicit LiteralExpr(bool value);
+            explicit LiteralExpr(const std::string &value);
+            const LiteralValue &GetValue() const;
+            std::string Repr() override;
+
+        private:
+            LiteralValue m_Value;
+        };
+
+        class VariableExpr : public Expression
+        {
+        public:
+            explicit VariableExpr(std::string name);
+            const std::string &GetName() const;
+            std::string Repr() override;
+
+        private:
+            std::string m_Name;
+        };
+
+        class UnaryExpr : public Expression
+        {
+        public:
+            UnaryExpr(parser::TokenType op, Expression *rhs);
+            parser::TokenType GetOperator() const;
+            Expression *GetRhs() const;
+            std::string Repr() override;
+            ~UnaryExpr() override;
+
+        private:
+            parser::TokenType m_Operator;
+            Expression *m_Rhs;
+        };
+
         class Null : public Expression
         {
         public:
-            explicit Null() {};
-            ~Null() override = default;
+            Null();
         };
 
-        /**
-         * Boolean AST node representation
-         */
         class Bool : public Expression
         {
         public:
-            explicit Bool(bool const value) : m_Value(value) {}
-
-            ~Bool() override = default;
-
-            /**
-             * @brief Return the node value
-             *
-             * @return bool
-             */
-            bool GetValue() const { return m_Value; }
+            explicit Bool(bool const value);
+            bool GetValue() const;
 
         private:
             bool m_Value{false};
         };
 
-        /**
-         * Byte AST node representation
-         */
         class Byte : public Expression
         {
         public:
-            explicit Byte(char const value) : m_Value(value) {}
-
-            ~Byte() override = default;
-
-            /**
-             * @brief Return the node value
-             *
-             * @return char
-             */
-            char GetValue() const { return m_Value; }
+            explicit Byte(char const value);
+            char GetValue() const;
 
         private:
             char m_Value{0};
         };
 
-        /**
-         * Float AST node representation
-         */
         class Float : public Expression
         {
         public:
-            explicit Float(double value) : m_Value(value) {}
-
-            ~Float() override = default;
-
-            /**
-             * @brief Return the node value
-             *
-             * @return double
-             */
-            double GetValue() const { return m_Value; }
+            explicit Float(double value);
+            double GetValue() const;
 
         private:
             double m_Value{0.0};
         };
 
-        /**
-         * Array AST node representation
-         */
         class Array : public Expression
         {
         public:
-            explicit Array(std::vector<Expression *> array) : m_Elements(array) {}
-
-            ~Array() override = default;
-
-            /**
-             * @brief Return the vector of elements
-             *
-             * @return std::vector
-             */
-            std::vector<Expression *> GetElements() const { return m_Elements; }
+            explicit Array(std::deque<Expression *> array);
+            std::deque<Expression *> GetElements() const;
+            ~Array() override;
 
         private:
-            std::vector<Expression *> m_Elements;
+            std::deque<Expression *> m_Elements;
         };
 
-        /**
-         * String AST node representation
-         */
         class String : public Expression
         {
         public:
-            explicit String(std::string value) : m_Value(value) {}
-
-            ~String() override = default;
-
-            /**
-             * @brief Return the node value
-             *
-             * @return std::string
-             */
-            std::string GetValue() const { return m_Value; }
+            explicit String(std::string value);
+            std::string GetValue() const;
 
         private:
-            std::string m_Value{0};
+            std::string m_Value;
         };
 
-        /**
-         * Integer AST node representation
-         */
         class Integer : public Expression
         {
         public:
-            explicit Integer(long long value) : m_Value(value) {}
-
-            ~Integer() override = default;
-
-            /**
-             * @brief Return the node value
-             *
-             * @return int
-             */
-            int GetValue() const { return m_Value; }
+            explicit Integer(long long value);
+            int GetValue() const;
 
         private:
             int m_Value{0};
         };
 
-        /**
-         * Identifier AST node representation
-         */
         class Identifier : public Expression
         {
         public:
-            Identifier(std::string name) : m_Value(std::move(name)) {}
-
-            ~Identifier() override = default;
-
-            /**
-             * @brief Return the identifier name
-             *
-             * @return std::string
-             */
-            std::string GetName() const { return m_Value; }
+            explicit Identifier(std::string name);
+            std::string GetName() const;
 
         private:
             std::string m_Value;
@@ -185,91 +147,99 @@ namespace cora
         class TryExpr : public Expression
         {
         public:
-            explicit TryExpr() {};
-            ~TryExpr() override = default;
+            TryExpr();
+            ~TryExpr() override;
         };
 
         class CastExpr : public Expression
         {
         public:
-            explicit CastExpr() {};
-            ~CastExpr() override = default;
+            CastExpr();
+            ~CastExpr() override;
         };
 
         class CallExpr : public Expression
         {
         public:
-            explicit CallExpr() {};
-            ~CallExpr() override = default;
+            CallExpr();
+            ~CallExpr() override;
         };
 
         class BlockExpr : public Expression
         {
         public:
-            explicit BlockExpr() {};
-            ~BlockExpr() override = default;
+            BlockExpr();
+            ~BlockExpr() override;
         };
 
         class AssignExpr : public Expression
         {
         public:
-            explicit AssignExpr() {};
-            ~AssignExpr() override = default;
+            AssignExpr();
+            ~AssignExpr() override;
         };
 
         class BinaryExpr : public Expression
         {
         public:
-            explicit BinaryExpr() {};
-            ~BinaryExpr() override = default;
+            BinaryExpr(Expression *left, parser::TokenType op, Expression *right);
+            Expression *GetLeft() const;
+            parser::TokenType GetOperator() const;
+            Expression *GetRight() const;
+            std::string Repr() override;
+            ~BinaryExpr() override;
+
+        private:
+            Expression *m_Left;
+            parser::TokenType m_Operator;
+            Expression *m_Right;
         };
 
-        /**
-         * Ternary Operator AST representation node
-         * coditionalExpr ? thenExpr : elseExpr
-         */
         class TernaryExpr : public Expression
         {
         public:
-            explicit TernaryExpr(Expression *condExpr, Expression *thenExpr, Expression *elseExpr)
-                : m_CondExpr(condExpr), m_ThenExpr(thenExpr), m_ElseExpr(elseExpr) {};
-
-            ~TernaryExpr() override
-            {
-                delete m_CondExpr;
-                delete m_ThenExpr;
-                delete m_ElseExpr;
-            }
+            TernaryExpr(Expression *condExpr, Expression *thenExpr, Expression *elseExpr);
+            ~TernaryExpr() override;
 
         private:
-            Expression *m_CondExpr{nullptr};
-            Expression *m_ThenExpr{nullptr};
-            Expression *m_ElseExpr{nullptr};
+            Expression *m_CondExpr;
+            Expression *m_ThenExpr;
+            Expression *m_ElseExpr;
         };
 
         class ArrayAccessExpr : public Expression
         {
         public:
-            explicit ArrayAccessExpr() {};
-            ~ArrayAccessExpr() override = default;
+            ArrayAccessExpr();
+            ~ArrayAccessExpr() override;
         };
 
         class PrefixUnaryExpr : public Expression
         {
         public:
-            explicit PrefixUnaryExpr() {};
-            ~PrefixUnaryExpr() override = default;
+            PrefixUnaryExpr(parser::TokenType op, Expression *operand);
+            PrefixUnaryExpr(Expression *operand, parser::TokenType op);
+            ~PrefixUnaryExpr() override;
+
+        private:
+            parser::TokenType m_Operator;
+            Expression *m_Operand;
         };
 
         class PostfixUnaryExpr : public Expression
         {
         public:
-            explicit PostfixUnaryExpr() {};
-            ~PostfixUnaryExpr() override = default;
+            PostfixUnaryExpr(parser::TokenType op, Expression *operand);
+            PostfixUnaryExpr(Expression *operand, parser::TokenType op);
+            ~PostfixUnaryExpr() override;
+
+        private:
+            parser::TokenType m_Operator;
+            Expression *m_Operand;
         };
 
     } // namespace ast
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_AST_EXPRESSION_H
+#endif // CORA_COMPILER_AST_EXPRESSIONS_H

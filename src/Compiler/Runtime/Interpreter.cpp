@@ -6,16 +6,27 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace cora
+namespace cora::compiler
 {
-    namespace script
+    namespace runtime
     {
+        namespace
+        {
+            struct BreakSignal
+            {
+            };
+
+            struct ContinueSignal
+            {
+            };
+        }
+
         void Interpreter::Run(const std::string &source)
         {
-            std::deque<Token> tokens = Lex(source);
-            std::deque<Stmt *> program = Parse(tokens);
+            parser::Parser parser;
+            std::deque<Statement *> program = parser.ParseProgram(source);
             Execute(program);
-            for (Stmt *stmt : program)
+            for (Statement *stmt : program)
             {
                 delete stmt;
             }
@@ -28,82 +39,98 @@ namespace cora
             {
                 throw std::runtime_error("Unable to open file: " + path);
             }
+
             std::stringstream buffer;
             buffer << input.rdbuf();
             Run(buffer.str());
         }
 
-        void Interpreter::Execute(const std::deque<Stmt *> &program)
+        void Interpreter::Execute(const std::deque<Statement *> &program)
         {
-            for (Stmt *stmt : program)
+            for (Statement *stmt : program)
             {
                 ExecStmt(stmt);
             }
         }
 
-        Interpreter::Value Interpreter::EvalExpr(Expr *expr)
+        runtime::Value Interpreter::EvalExpr(Expression *expr)
         {
-            if (auto *lit = dynamic_cast<LiteralExpr *>(expr))
+            if (auto *lit = dynamic_cast<ast::LiteralExpr *>(expr))
             {
-                return lit->value;
-            }
-
-            if (auto *var = dynamic_cast<VariableExpr *>(expr))
-            {
-                auto it = m_Symbols.find(var->name);
-                if (it == m_Symbols.end())
+                const ast::LiteralValue &value = lit->GetValue();
+                if (std::holds_alternative<std::monostate>(value))
                 {
-                    throw std::runtime_error("Undefined variable: " + var->name);
+                    return runtime::Value(nullptr);
                 }
-                return it->second.value;
+                if (std::holds_alternative<bool>(value))
+                {
+                    return runtime::Value(std::get<bool>(value));
+                }
+                if (std::holds_alternative<double>(value))
+                {
+                    return runtime::Value(std::get<double>(value));
+                }
+                return runtime::Value(std::get<std::string>(value));
             }
 
-            if (auto *unary = dynamic_cast<UnaryExpr *>(expr))
+            if (auto *var = dynamic_cast<ast::VariableExpr *>(expr))
             {
-                Value rhs = EvalExpr(unary->rhs);
-                return ApplyUnary(unary->op, rhs);
+                Scope *scope = m_CurrentScope->ResolveVariable(var->GetName());
+                if (scope == nullptr)
+                {
+                    throw std::runtime_error("Undefined variable: " + var->GetName());
+                }
+
+                Variable *variable = scope->GetVariable(var->GetName());
+                if (variable == nullptr || variable->GetValue() == nullptr)
+                {
+                    throw std::runtime_error("Undefined variable: " + var->GetName());
+                }
+
+                return *(variable->GetValue());
             }
 
-            if (auto *binary = dynamic_cast<BinaryExpr *>(expr))
+            if (auto *unary = dynamic_cast<ast::UnaryExpr *>(expr))
             {
-                Value lhs = EvalExpr(binary->lhs);
-                if (binary->op == TokenType::And)
+                runtime::Value rhs = EvalExpr(unary->GetRhs());
+                return ApplyUnary(unary->GetOperator(), rhs);
+            }
+
+            if (auto *binary = dynamic_cast<ast::BinaryExpr *>(expr))
+            {
+                runtime::Value lhs = EvalExpr(binary->GetLeft());
+                const TokenType op = binary->GetOperator();
+
+                if (op == TokenType::And)
                 {
                     if (!IsTruthy(lhs))
                     {
-                        return false;
+                        return runtime::Value(false);
                     }
-                    return IsTruthy(EvalExpr(binary->rhs));
+                    return runtime::Value(IsTruthy(EvalExpr(binary->GetRight())));
                 }
-                if (binary->op == TokenType::Or)
+                if (op == TokenType::Or)
                 {
                     if (IsTruthy(lhs))
                     {
-                        return true;
+                        return runtime::Value(true);
                     }
-                    return IsTruthy(EvalExpr(binary->rhs));
+                    return runtime::Value(IsTruthy(EvalExpr(binary->GetRight())));
                 }
 
-                Value rhs = EvalExpr(binary->rhs);
-                return ApplyBinary(binary->op, lhs, rhs);
+                runtime::Value rhs = EvalExpr(binary->GetRight());
+                return ApplyBinary(op, lhs, rhs);
             }
 
             throw std::runtime_error("Unknown expression node");
         }
 
-        void Interpreter::ExecStmt(Stmt *stmt)
+        void Interpreter::ExecStmt(Statement *stmt)
         {
-            struct BreakSignal
-            {
-            };
-            struct ContinueSignal
-            {
-            };
-
-            if (auto *print = dynamic_cast<PrintStmt *>(stmt))
+            if (auto *print = dynamic_cast<ast::PrintStmt *>(stmt))
             {
                 bool first = true;
-                for (Expr *expr : print->expressions)
+                for (Expression *expr : print->expressions)
                 {
                     if (!first)
                     {
@@ -116,44 +143,47 @@ namespace cora
                 return;
             }
 
-            if (auto *exprStmt = dynamic_cast<ExprStmt *>(stmt))
+            if (auto *exprStmt = dynamic_cast<ast::ExprStmt *>(stmt))
             {
-                (void)EvalExpr(exprStmt->expr);
+                (void)EvalExpr(exprStmt->GetExpression());
                 return;
             }
 
-            if (auto *assign = dynamic_cast<AssignStmt *>(stmt))
+            if (auto *assign = dynamic_cast<ast::AssignStmt *>(stmt))
             {
-                auto it = m_Symbols.find(assign->name);
-                if (it == m_Symbols.end())
+                Scope *scope = m_CurrentScope->ResolveVariable(assign->GetName());
+                if (scope == nullptr)
                 {
-                    throw std::runtime_error("Assignment to undefined variable: " + assign->name);
+                    throw std::runtime_error("Assignment to undefined variable: " + assign->GetName());
                 }
-                Value value = EvalExpr(assign->expr);
-                CheckTypeCompatibility(it->second.declaredType, value, assign->name);
-                it->second.value = std::move(value);
+
+                Variable *variable = scope->GetVariable(assign->GetName());
+                runtime::Value value = EvalExpr(assign->GetExpression());
+                CheckTypeCompatibility(std::nullopt, value, assign->GetName());
+                variable->SetValue(new runtime::Value(value));
                 return;
             }
 
-            if (auto *decl = dynamic_cast<VarDeclStmt *>(stmt))
+            if (auto *decl = dynamic_cast<ast::VarDeclStmt *>(stmt))
             {
-                if (m_Symbols.find(decl->name) != m_Symbols.end())
+                if (m_CurrentScope->GetVariable(decl->GetName()) != nullptr)
                 {
-                    throw std::runtime_error("Variable already declared: " + decl->name);
+                    throw std::runtime_error("Variable already declared: " + decl->GetName());
                 }
-                Value value = EvalExpr(decl->expr);
-                CheckTypeCompatibility(decl->declaredType, value, decl->name);
-                m_Symbols.emplace(decl->name, Symbol{std::move(value), decl->declaredType});
+
+                runtime::Value value = EvalExpr(decl->GetExpression());
+                CheckTypeCompatibility(decl->GetDeclaredType(), value, decl->GetName());
+                m_CurrentScope->NewVariableValue(decl->GetName(), new runtime::Value(value), false);
                 return;
             }
 
-            if (auto *block = dynamic_cast<BlockStmt *>(stmt))
+            if (auto *block = dynamic_cast<ast::BlockStmt *>(stmt))
             {
                 ExecBlock(block);
                 return;
             }
 
-            if (auto *ifStmt = dynamic_cast<IfStmt *>(stmt))
+            if (auto *ifStmt = dynamic_cast<ast::IfStmt *>(stmt))
             {
                 for (const auto &branch : ifStmt->branches)
                 {
@@ -163,6 +193,7 @@ namespace cora
                         return;
                     }
                 }
+
                 if (ifStmt->elseBlock != nullptr)
                 {
                     ExecBlock(ifStmt->elseBlock);
@@ -170,7 +201,7 @@ namespace cora
                 return;
             }
 
-            if (auto *whileStmt = dynamic_cast<WhileStmt *>(stmt))
+            if (auto *whileStmt = dynamic_cast<ast::WhileStmt *>(stmt))
             {
                 while (IsTruthy(EvalExpr(whileStmt->condition)))
                 {
@@ -190,7 +221,7 @@ namespace cora
                 return;
             }
 
-            if (auto *forRange = dynamic_cast<ForRangeStmt *>(stmt))
+            if (auto *forRange = dynamic_cast<ast::ForRangeStmt *>(stmt))
             {
                 const double start = AsNumber(EvalExpr(forRange->start));
                 const double end = AsNumber(EvalExpr(forRange->end));
@@ -202,15 +233,15 @@ namespace cora
 
                 for (double i = start; step > 0.0 ? i < end : i > end; i += step)
                 {
-                    auto it = m_Symbols.find(forRange->name);
-                    if (it == m_Symbols.end())
+                    Scope *scope = m_CurrentScope->ResolveVariable(forRange->name);
+                    if (scope == nullptr)
                     {
-                        m_Symbols.emplace(forRange->name, Symbol{i, std::nullopt});
+                        m_CurrentScope->NewVariableValue(forRange->name, new runtime::Value(i), false);
                     }
                     else
                     {
-                        CheckTypeCompatibility(it->second.declaredType, i, forRange->name);
-                        it->second.value = i;
+                        Variable *var = scope->GetVariable(forRange->name);
+                        var->SetValue(new runtime::Value(i));
                     }
 
                     try
@@ -229,7 +260,7 @@ namespace cora
                 return;
             }
 
-            if (auto *forCStyle = dynamic_cast<ForCStyleStmt *>(stmt))
+            if (auto *forCStyle = dynamic_cast<ast::ForCStyleStmt *>(stmt))
             {
                 if (forCStyle->init != nullptr)
                 {
@@ -265,17 +296,17 @@ namespace cora
                 return;
             }
 
-            if (dynamic_cast<BreakStmt *>(stmt) != nullptr)
+            if (dynamic_cast<ast::BreakStmt *>(stmt) != nullptr)
             {
                 throw BreakSignal{};
             }
 
-            if (dynamic_cast<ContinueStmt *>(stmt) != nullptr)
+            if (dynamic_cast<ast::ContinueStmt *>(stmt) != nullptr)
             {
                 throw ContinueSignal{};
             }
 
-            if (dynamic_cast<PassStmt *>(stmt) != nullptr)
+            if (dynamic_cast<ast::PassStmt *>(stmt) != nullptr)
             {
                 return;
             }
@@ -285,158 +316,109 @@ namespace cora
 
         void Interpreter::ExecBlock(BlockStmt *block)
         {
-            for (Stmt *stmt : block->statements)
+            Scope blockScope(m_CurrentScope, ScopeKind::Block);
+            Scope *parent = m_CurrentScope;
+            m_CurrentScope = &blockScope;
+
+            try
             {
-                ExecStmt(stmt);
+                for (Statement *stmt : block->statements)
+                {
+                    ExecStmt(stmt);
+                }
             }
+            catch (...)
+            {
+                m_CurrentScope = parent;
+                throw;
+            }
+
+            m_CurrentScope = parent;
         }
 
-        bool Interpreter::IsTruthy(const Value &value) const
+        bool Interpreter::IsTruthy(const runtime::Value &value) const
         {
-            if (std::holds_alternative<std::monostate>(value))
-            {
-                return false;
-            }
-            if (std::holds_alternative<bool>(value))
-            {
-                return std::get<bool>(value);
-            }
-            if (std::holds_alternative<double>(value))
-            {
-                return std::get<double>(value) != 0.0;
-            }
-            if (std::holds_alternative<std::string>(value))
-            {
-                return !std::get<std::string>(value).empty();
-            }
-            return false;
+            return value.AsBool();
         }
 
-        double Interpreter::AsNumber(const Value &value) const
+        double Interpreter::AsNumber(const runtime::Value &value) const
         {
-            if (!std::holds_alternative<double>(value))
-            {
-                throw std::runtime_error("Expected numeric value");
-            }
-            return std::get<double>(value);
+            return value.AsNumber();
         }
 
-        std::string Interpreter::ToString(const Value &value) const
+        std::string Interpreter::ToString(const runtime::Value &value) const
         {
-            if (std::holds_alternative<std::monostate>(value))
-            {
-                return "null";
-            }
-            if (std::holds_alternative<double>(value))
-            {
-                std::ostringstream out;
-                out << std::get<double>(value);
-                return out.str();
-            }
-            if (std::holds_alternative<bool>(value))
-            {
-                return std::get<bool>(value) ? "true" : "false";
-            }
-            return std::get<std::string>(value);
+            return value.AsString();
         }
 
-        Interpreter::Value Interpreter::ApplyBinary(TokenType op, const Value &lhs, const Value &rhs) const
+        runtime::Value Interpreter::ApplyBinary(TokenType op, const runtime::Value &lhs, const runtime::Value &rhs) const
         {
             switch (op)
             {
             case TokenType::Plus:
-                if (std::holds_alternative<std::string>(lhs) || std::holds_alternative<std::string>(rhs))
+                if (lhs.IsString() || rhs.IsString())
                 {
-                    return ToString(lhs) + ToString(rhs);
+                    return runtime::Value(ToString(lhs) + ToString(rhs));
                 }
-                return AsNumber(lhs) + AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) + AsNumber(rhs));
             case TokenType::Minus:
-                return AsNumber(lhs) - AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) - AsNumber(rhs));
             case TokenType::Star:
-                return AsNumber(lhs) * AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) * AsNumber(rhs));
             case TokenType::Slash:
                 if (AsNumber(rhs) == 0.0)
                 {
                     throw std::runtime_error("Division by zero");
                 }
-                return AsNumber(lhs) / AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) / AsNumber(rhs));
             case TokenType::Percent:
                 if (AsNumber(rhs) == 0.0)
                 {
                     throw std::runtime_error("Modulo by zero");
                 }
-                return std::fmod(AsNumber(lhs), AsNumber(rhs));
+                return runtime::Value(std::fmod(AsNumber(lhs), AsNumber(rhs)));
             case TokenType::Equal:
-                return ValuesEqual(lhs, rhs);
+                return runtime::Value(ValuesEqual(lhs, rhs));
             case TokenType::NotEqual:
-                return !ValuesEqual(lhs, rhs);
+                return runtime::Value(!ValuesEqual(lhs, rhs));
             case TokenType::Less:
-                return AsNumber(lhs) < AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) < AsNumber(rhs));
             case TokenType::LessEqual:
-                return AsNumber(lhs) <= AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) <= AsNumber(rhs));
             case TokenType::Greater:
-                return AsNumber(lhs) > AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) > AsNumber(rhs));
             case TokenType::GreaterEqual:
-                return AsNumber(lhs) >= AsNumber(rhs);
+                return runtime::Value(AsNumber(lhs) >= AsNumber(rhs));
             case TokenType::And:
-                return IsTruthy(lhs) && IsTruthy(rhs);
+                return runtime::Value(IsTruthy(lhs) && IsTruthy(rhs));
             case TokenType::Or:
-                return IsTruthy(lhs) || IsTruthy(rhs);
+                return runtime::Value(IsTruthy(lhs) || IsTruthy(rhs));
             default:
                 throw std::runtime_error("Unsupported binary operator");
             }
         }
 
-        bool Interpreter::ValuesEqual(const Value &lhs, const Value &rhs) const
+        bool Interpreter::ValuesEqual(const runtime::Value &lhs, const runtime::Value &rhs) const
         {
-            if (lhs.index() == rhs.index())
-            {
-                if (std::holds_alternative<std::monostate>(lhs))
-                {
-                    return true;
-                }
-                if (std::holds_alternative<double>(lhs))
-                {
-                    return std::get<double>(lhs) == std::get<double>(rhs);
-                }
-                if (std::holds_alternative<bool>(lhs))
-                {
-                    return std::get<bool>(lhs) == std::get<bool>(rhs);
-                }
-                if (std::holds_alternative<std::string>(lhs))
-                {
-                    return std::get<std::string>(lhs) == std::get<std::string>(rhs);
-                }
-            }
-
-            if (std::holds_alternative<double>(lhs) && std::holds_alternative<bool>(rhs))
-            {
-                return std::get<double>(lhs) == (std::get<bool>(rhs) ? 1.0 : 0.0);
-            }
-            if (std::holds_alternative<bool>(lhs) && std::holds_alternative<double>(rhs))
-            {
-                return (std::get<bool>(lhs) ? 1.0 : 0.0) == std::get<double>(rhs);
-            }
-
-            return ToString(lhs) == ToString(rhs);
+            return lhs.GetData() == rhs.GetData();
         }
 
-        Interpreter::Value Interpreter::ApplyUnary(TokenType op, const Value &rhs) const
+        runtime::Value Interpreter::ApplyUnary(TokenType op, const runtime::Value &rhs) const
         {
             switch (op)
             {
             case TokenType::Minus:
-                return -AsNumber(rhs);
+                return runtime::Value(-AsNumber(rhs));
             case TokenType::Plus:
-                return +AsNumber(rhs);
+                return runtime::Value(+AsNumber(rhs));
             case TokenType::Not:
-                return !IsTruthy(rhs);
+                return runtime::Value(!IsTruthy(rhs));
             default:
                 throw std::runtime_error("Unsupported unary operator");
             }
         }
 
-        void Interpreter::CheckTypeCompatibility(const std::optional<std::string> &declaredType, const Value &value, const std::string &name) const
+        void Interpreter::CheckTypeCompatibility(const std::optional<std::string> &declaredType, const runtime::Value &value, const std::string &name) const
         {
             if (!declaredType.has_value())
             {
@@ -446,7 +428,7 @@ namespace cora
             const std::string &type = declaredType.value();
             if (type == "int" || type == "float")
             {
-                if (!std::holds_alternative<double>(value))
+                if (!value.IsNumber())
                 {
                     throw std::runtime_error("Type mismatch for '" + name + "': expected number");
                 }
@@ -454,7 +436,7 @@ namespace cora
             }
             if (type == "bool")
             {
-                if (!std::holds_alternative<bool>(value))
+                if (!value.IsBool())
                 {
                     throw std::runtime_error("Type mismatch for '" + name + "': expected bool");
                 }
@@ -462,12 +444,14 @@ namespace cora
             }
             if (type == "string")
             {
-                if (!std::holds_alternative<std::string>(value))
+                if (!value.IsString())
                 {
                     throw std::runtime_error("Type mismatch for '" + name + "': expected string");
                 }
                 return;
             }
         }
-    }
-}
+
+    } // namespace runtime
+
+} // namespace cora::compiler

@@ -1,10 +1,10 @@
-#ifndef CORA_RUNTIME_SCOPE_H
-#define CORA_RUNTIME_SCOPE_H
+#ifndef CORA_COMPILER_RUNTIME_SCOPE_H
+#define CORA_COMPILER_RUNTIME_SCOPE_H
 
 #include <string>
 #include <unordered_map>
 
-namespace cora
+namespace cora::compiler
 {
     namespace runtime
     {
@@ -13,7 +13,7 @@ namespace cora
     }
 }
 
-namespace cora
+namespace cora::compiler
 {
     namespace runtime
     {
@@ -32,6 +32,7 @@ namespace cora
         {
         public:
             Scope();
+            explicit Scope(Scope *parent, ScopeKind kind = ScopeKind::Block);
             ~Scope();
 
             ScopeKind GetKind() const { return m_Kind; };
@@ -40,20 +41,7 @@ namespace cora
             Scope *GetParent() const { return m_Parent; };
             void SetParent(Scope *parent) { m_Parent = parent; };
 
-            Scope *ResolveVariable(const std::string &name)
-            {
-                if (m_Variables.find(name) != m_Variables.end())
-                {
-                    return this;
-                }
-
-                if (m_Parent == nullptr)
-                {
-                    // throw std::runtime_error("Undefined variable referenced in scope: " + name);
-                }
-
-                return m_Parent->ResolveVariable(name);
-            }
+            Scope *ResolveVariable(const std::string &name);
 
             Variable *GetVariable(const std::string &name) const;
             void SetVariable(const std::string &name, Variable *variable);
@@ -71,6 +59,6 @@ namespace cora
 
     } // namespace runtime
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_RUNTIME_SCOPE_H
+#endif // CORA_COMPILER_RUNTIME_SCOPE_H

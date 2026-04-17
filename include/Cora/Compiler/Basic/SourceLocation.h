@@ -1,7 +1,7 @@
-#ifndef CORA_BASIC_SOURCE_LOCATION_H
-#define CORA_BASIC_SOURCE_LOCATION_H
+#ifndef CORA_COMPILER_BASIC_SOURCE_LOCATION_H
+#define CORA_COMPILER_BASIC_SOURCE_LOCATION_H
 
-namespace cora
+namespace cora::compiler
 {
     namespace basic
     {
@@ -14,28 +14,17 @@ namespace cora
             friend class CharSourceRange;
 
         public:
-            SourceLocation()
-            {
-                m_line = 0;
-                m_Column = 0;
-            };
+            SourceLocation();
 
-            SourceLocation(unsigned int line)
-            {
-                m_line = line;
-                m_Column = 0;
-            };
+            SourceLocation(unsigned int line);
 
-            SourceLocation(unsigned int line, unsigned int column)
-            {
-                m_line = line;
-                m_Column = column;
-            };
+            SourceLocation(unsigned int line, unsigned int column);
 
-            unsigned int Line() const { return m_line; };
-            unsigned int Column() const { return m_Column; };
+            unsigned int Line() const;
 
-            bool Valid() const { return m_line != 0 && m_Column != 0; };
+            unsigned int Column() const;
+
+            bool Valid() const;
 
             bool operator==(const SourceLocation &other) const;
             bool operator!=(const SourceLocation &other) const;
@@ -48,31 +37,24 @@ namespace cora
         class SourceRange
         {
         public:
-            SourceRange() = default;
+            SourceRange();
 
-            SourceRange(SourceLocation loc)
-            {
-                m_Start = loc;
-                m_End = loc;
-            };
+            SourceRange(SourceLocation loc);
 
-            SourceRange(SourceLocation start, SourceLocation end)
-            {
-                m_Start = start;
-                m_End = end;
-            };
+            SourceRange(SourceLocation start, SourceLocation end);
 
-            SourceLocation GetStart() const { return m_Start; };
+            SourceLocation GetStart() const;
 
-            SourceLocation GetEnd() const { return m_End; };
+            SourceLocation GetEnd() const;
 
-            void SetStart(SourceLocation start) noexcept { m_Start = start; };
-            void SetEnd(SourceLocation end) noexcept { m_End = end; };
+            void SetStart(SourceLocation start) noexcept;
+            void SetEnd(SourceLocation end) noexcept;
 
-            bool Valid() const { return m_Start.Valid() && m_End.Valid(); };
-            bool Invalid() const { return !Valid(); };
+            bool Valid() const;
+            bool Invalid() const;
 
             bool operator==(const SourceRange &other) const;
+
             bool operator!=(const SourceRange &other) const;
 
         private:
@@ -82,56 +64,83 @@ namespace cora
 
         class CharSourceRange
         {
+        public:
+            CharSourceRange();
+
+            CharSourceRange(SourceLocation start, unsigned int bytelenght);
+
+            CharSourceRange(SourceLocation start, SourceLocation end);
+
+            bool Valid() const;
+
+            bool Invalid() const;
+
+            SourceLocation Start() const;
+
+            SourceLocation End() const;
+
+            bool operator==(const CharSourceRange &other) const;
+
+            bool operator!=(const CharSourceRange &other) const;
+
         private:
             SourceLocation m_Start;
             unsigned int m_ByteLenght;
-
-        public:
-            CharSourceRange() = default;
-
-            CharSourceRange(SourceLocation start, unsigned int bytelenght)
-            {
-                m_Start = start;
-                m_ByteLenght = bytelenght;
-            };
-
-            CharSourceRange(SourceLocation start, SourceLocation end)
-            {
-                m_Start = start;
-                m_ByteLenght = end.Column() - m_Start.Column();
-            };
-
-            bool Valid() const;
-            bool Invalid() const;
-
-            SourceLocation Start() const { return m_Start; };
-
-            SourceLocation End() const { return SourceLocation(m_Start.Line(), m_Start.Column() + m_ByteLenght); };
-
-            bool operator==(const CharSourceRange &other) const;
-            bool operator!=(const CharSourceRange &other) const;
         };
 
         template <typename T>
         class Location
         {
-        private:
-            T m_Item;
-            SourceLocation m_Loc;
-
         public:
-            Location();
             Location(T item, SourceLocation loc);
 
             T Item() const;
+
             SourceLocation Located() const;
+
+        private:
+            T m_Item;
+            SourceLocation m_Loc;
         };
 
         template <typename T>
         bool operator==(const Location<T> &lhs, const Location<T> &rhs);
 
+        template <typename T>
+        bool operator!=(const Location<T> &lhs, const Location<T> &rhs);
+
+        template <typename T>
+        Location<T>::Location(T item, SourceLocation loc)
+            : m_Item(item), m_Loc(loc)
+        {
+        }
+
+        template <typename T>
+        T Location<T>::Item() const
+        {
+            return m_Item;
+        }
+
+        template <typename T>
+        SourceLocation Location<T>::Located() const
+        {
+            return m_Loc;
+        }
+
+        template <typename T>
+        bool operator==(const Location<T> &lhs, const Location<T> &rhs)
+        {
+            return lhs.Item() == rhs.Item() && lhs.Located() == rhs.Located();
+        }
+
+        template <typename T>
+        bool operator!=(const Location<T> &lhs, const Location<T> &rhs)
+        {
+            return !(lhs == rhs);
+        }
+
     } // namespace basic
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_BASIC_SOURCE_LOCATION_H
+#endif // CORA_COMPILER_BASIC_SOURCE_LOCATION_H

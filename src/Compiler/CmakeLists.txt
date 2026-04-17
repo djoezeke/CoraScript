@@ -14,7 +14,9 @@ set(COMPILER_SOURCES
     "${COMPILER_DIR}/Basic/SourceManager.cpp"
     "${COMPILER_DIR}/Basic/SourceLocation.cpp"
 
-    "${COMPILER_DIR}/AST/ScriptAST.cpp"
+    "${COMPILER_DIR}/AST/Nodes.cpp"
+    "${COMPILER_DIR}/AST/Statements.cpp"
+    "${COMPILER_DIR}/AST/Expressions.cpp"
 
     "${COMPILER_DIR}/Parser/Token.cpp"
     "${COMPILER_DIR}/Parser/Lexer.cpp"

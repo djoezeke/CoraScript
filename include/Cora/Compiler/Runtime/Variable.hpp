@@ -1,9 +1,9 @@
-#ifndef CORA_RUNTIME_VARIABLE_H
-#define CORA_RUNTIME_VARIABLE_H
+#ifndef CORA_COMPILER_RUNTIME_VARIABLE_H
+#define CORA_COMPILER_RUNTIME_VARIABLE_H
 
 #include "Cora/Compiler/Runtime/Value.hpp"
 
-namespace cora
+namespace cora::compiler
 {
     namespace runtime
     {
@@ -18,6 +18,7 @@ namespace cora
         {
         public:
             Variable(Value *value, VariableScope type, bool constant);
+            ~Variable();
 
             static Variable *LocalVariable(Value *value, bool constant = false)
             {
@@ -41,7 +42,7 @@ namespace cora
              *
              * @param value
              */
-            void SetValue(Value *value) noexcept { m_Value = value; }
+            void SetValue(Value *value);
 
             /**
              * @brief Return the value kind
@@ -71,6 +72,6 @@ namespace cora
 
     } // namespace runtime
 
-} // namespace cora
+} // namespace cora::compiler
 
-#endif // CORA_RUNTIME_VARIABLE_H
+#endif // CORA_COMPILER_RUNTIME_VARIABLE_H

@@ -13,9 +13,21 @@
 },
 {
   "directory": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build",
-  "command": "C:\\Users\\ZEKE\\mingw64\\bin\\c++.exe -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/include -std=c++17 -o src\\Compiler\\CMakeFiles\\Compiler.dir\\AST\\ScriptAST.cpp.obj -c C:\\Users\\ZEKE\\Projects\\Libraries\\Language\\CoraScript\\src\\Compiler\\AST\\ScriptAST.cpp",
-  "file": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler/AST/ScriptAST.cpp",
-  "output": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/Compiler/CMakeFiles/Compiler.dir/AST/ScriptAST.cpp.obj"
+  "command": "C:\\Users\\ZEKE\\mingw64\\bin\\c++.exe -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/include -std=c++17 -o src\\Compiler\\CMakeFiles\\Compiler.dir\\AST\\Nodes.cpp.obj -c C:\\Users\\ZEKE\\Projects\\Libraries\\Language\\CoraScript\\src\\Compiler\\AST\\Nodes.cpp",
+  "file": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler/AST/Nodes.cpp",
+  "output": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/Compiler/CMakeFiles/Compiler.dir/AST/Nodes.cpp.obj"
+},
+{
+  "directory": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build",
+  "command": "C:\\Users\\ZEKE\\mingw64\\bin\\c++.exe -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/include -std=c++17 -o src\\Compiler\\CMakeFiles\\Compiler.dir\\AST\\Statements.cpp.obj -c C:\\Users\\ZEKE\\Projects\\Libraries\\Language\\CoraScript\\src\\Compiler\\AST\\Statements.cpp",
+  "file": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler/AST/Statements.cpp",
+  "output": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/Compiler/CMakeFiles/Compiler.dir/AST/Statements.cpp.obj"
+},
+{
+  "directory": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build",
+  "command": "C:\\Users\\ZEKE\\mingw64\\bin\\c++.exe -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler -IC:/Users/ZEKE/Projects/Libraries/Language/CoraScript/include -std=c++17 -o src\\Compiler\\CMakeFiles\\Compiler.dir\\AST\\Expressions.cpp.obj -c C:\\Users\\ZEKE\\Projects\\Libraries\\Language\\CoraScript\\src\\Compiler\\AST\\Expressions.cpp",
+  "file": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/src/Compiler/AST/Expressions.cpp",
+  "output": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build/src/Compiler/CMakeFiles/Compiler.dir/AST/Expressions.cpp.obj"
 },
 {
   "directory": "C:/Users/ZEKE/Projects/Libraries/Language/CoraScript/build",

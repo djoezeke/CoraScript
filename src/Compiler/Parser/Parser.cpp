@@ -1,503 +1,512 @@
-#include "Cora/Compiler/Runtime/Interpreter.hpp"
+#include "Cora/Compiler/Parser/Parser.hpp"
 
 #include <stdexcept>
 
-namespace cora
+namespace cora::compiler
 {
-	namespace script
-	{
-		std::deque<Stmt *> Interpreter::Parse(const std::deque<Token> &tokens)
-		{
-			Parser parser(tokens);
-			return parser.ParseProgram();
-		}
+    namespace parser
+    {
 
-		std::deque<Stmt *> Interpreter::Parser::ParseProgram()
-		{
-			std::deque<Stmt *> program;
-			SkipNewlines();
-			while (!Check(TokenType::End))
-			{
-				program.push_back(ParseStatement());
-				SkipNewlines();
-			}
-			return std::move(program);
-		}
+        Parser::Parser() = default;
 
-		std::deque<Stmt *> Interpreter::Parser::ParseBlockBody(TokenType blockEnd, bool useIndent)
-		{
-			std::deque<Stmt *> statements;
-			SkipNewlines();
-			while (!Check(blockEnd) && !Check(TokenType::End))
-			{
-				statements.push_back(ParseStatement());
-				SkipNewlines();
-			}
+        Parser::Parser(const std::deque<Token> &tokens)
+            : m_Tokens(tokens), m_Current(0) {}
 
-			if (useIndent)
-			{
-				Consume(TokenType::Dedent, "Expected dedent to close block");
-			}
-			else
-			{
-				Consume(blockEnd, "Expected '}' to close block");
-			}
-			return std::move(statements);
-		}
+        std::deque<ast::Statement *> Parser::ParseProgram(const std::string &source)
+        {
+            m_Tokens = m_Lexer.Lex(source);
+            m_Current = 0;
+            return ParseProgram();
+        }
 
-		BlockStmt *Interpreter::Parser::ParseBlock()
-		{
-			auto *block = new BlockStmt();
+        std::deque<ast::Statement *> Parser::ParseProgram()
+        {
+            std::deque<Statement *> program;
+            SkipNewlines();
+            while (!Check(TokenType::End))
+            {
+                program.push_back(ParseStatement());
+                SkipNewlines();
+            }
+            return program;
+        }
 
-			if (Match(TokenType::LBrace))
-			{
-				block->statements = std::move(ParseBlockBody(TokenType::RBrace, false));
-				return block;
-			}
+        std::deque<Statement *> Parser::ParseBlockBody(TokenType blockEnd, bool useIndent)
+        {
+            std::deque<Statement *> statements;
+            SkipNewlines();
+            while (!Check(blockEnd) && !Check(TokenType::End))
+            {
+                statements.push_back(ParseStatement());
+                SkipNewlines();
+            }
 
-			if (Match(TokenType::Colon))
-			{
-				Consume(TokenType::Newline, "Expected newline after ':'");
-				Consume(TokenType::Indent, "Expected indented block");
-				block->statements = std::move(ParseBlockBody(TokenType::Dedent, true));
-				return block;
-			}
+            if (useIndent)
+            {
+                Consume(TokenType::Dedent, "Expected dedent to close block");
+            }
+            else
+            {
+                Consume(blockEnd, "Expected '}' to close block");
+            }
+            return statements;
+        }
 
-			block->statements.push_back(ParseStatement());
-			return block;
-		}
+        BlockStmt *Parser::ParseBlock()
+        {
+            auto *block = new BlockStmt();
 
-		Stmt *Interpreter::Parser::ParseStatement()
-		{
-			if (Match(TokenType::If))
-			{
-				return ParseIf();
-			}
-			if (Match(TokenType::While))
-			{
-				return ParseWhile();
-			}
-			if (Match(TokenType::For))
-			{
-				return ParseFor();
-			}
-			if (Match(TokenType::Break))
-			{
-				ConsumeStatementTerminator();
-				return new BreakStmt();
-			}
-			if (Match(TokenType::Continue))
-			{
-				ConsumeStatementTerminator();
-				return new ContinueStmt();
-			}
-			if (Match(TokenType::Pass))
-			{
-				ConsumeStatementTerminator();
-				return new PassStmt();
-			}
-			if (Match(TokenType::Print))
-			{
-				return ParsePrint();
-			}
-			if (Match(TokenType::Let))
-			{
-				return ParseVarDecl(std::nullopt);
-			}
-			if (Match(TokenType::Int))
-			{
-				return ParseVarDecl(std::string("int"));
-			}
-			if (Match(TokenType::Float))
-			{
-				return ParseVarDecl(std::string("float"));
-			}
-			if (Match(TokenType::Bool))
-			{
-				return ParseVarDecl(std::string("bool"));
-			}
-			if (Match(TokenType::StringType))
-			{
-				return ParseVarDecl(std::string("string"));
-			}
-			return ParseAssignOrExpr();
-		}
+            if (Match(TokenType::LBrace))
+            {
+                block->statements = ParseBlockBody(TokenType::RBrace, false);
+                return block;
+            }
 
-		Stmt *Interpreter::Parser::ParseIf()
-		{
-			auto *ifStmt = new IfStmt();
+            if (Match(TokenType::Colon))
+            {
+                Consume(TokenType::Newline, "Expected newline after ':'");
+                Consume(TokenType::Indent, "Expected indented block");
+                block->statements = ParseBlockBody(TokenType::Dedent, true);
+                return block;
+            }
 
-			Expr *condition = ParseExpression();
-			BlockStmt *body = ParseBlock();
-			ifStmt->branches.emplace_back(condition, body);
+            block->statements.push_back(ParseStatement());
+            return block;
+        }
 
-			while (Match(TokenType::Elif))
-			{
-				Expr *elifCondition = ParseExpression();
-				BlockStmt *elifBody = ParseBlock();
-				ifStmt->branches.emplace_back(elifCondition, elifBody);
-			}
+        Statement *Parser::ParseStatement()
+        {
+            if (Match(TokenType::If))
+            {
+                return ParseIf();
+            }
+            if (Match(TokenType::While))
+            {
+                return ParseWhile();
+            }
+            if (Match(TokenType::For))
+            {
+                return ParseFor();
+            }
+            if (Match(TokenType::Break))
+            {
+                ConsumeStatementTerminator();
+                return new BreakStmt();
+            }
+            if (Match(TokenType::Continue))
+            {
+                ConsumeStatementTerminator();
+                return new ContinueStmt();
+            }
+            if (Match(TokenType::Pass))
+            {
+                ConsumeStatementTerminator();
+                return new PassStmt();
+            }
+            if (Match(TokenType::Print))
+            {
+                return ParsePrint();
+            }
+            if (Match(TokenType::Let))
+            {
+                return ParseVarDecl(std::nullopt);
+            }
+            if (Match(TokenType::Int))
+            {
+                return ParseVarDecl(std::string("int"));
+            }
+            if (Match(TokenType::Float))
+            {
+                return ParseVarDecl(std::string("float"));
+            }
+            if (Match(TokenType::Bool))
+            {
+                return ParseVarDecl(std::string("bool"));
+            }
+            if (Match(TokenType::StringType))
+            {
+                return ParseVarDecl(std::string("string"));
+            }
+            return ParseAssignOrExpr();
+        }
 
-			while (Match(TokenType::Else))
-			{
-				if (Match(TokenType::If))
-				{
-					Expr *elseIfCondition = ParseExpression();
-					BlockStmt *elseIfBody = ParseBlock();
-					ifStmt->branches.emplace_back(elseIfCondition, elseIfBody);
-					continue;
-				}
+        Statement *Parser::ParseIf()
+        {
+            auto *ifStmt = new IfStmt();
 
-				ifStmt->elseBlock = ParseBlock();
-				break;
-			}
+            Expression *condition = ParseExpression();
+            BlockStmt *body = ParseBlock();
+            ifStmt->branches.emplace_back(condition, body);
 
-			return ifStmt;
-		}
+            while (Match(TokenType::Elif))
+            {
+                Expression *elifCondition = ParseExpression();
+                BlockStmt *elifBody = ParseBlock();
+                ifStmt->branches.emplace_back(elifCondition, elifBody);
+            }
 
-		Stmt *Interpreter::Parser::ParseWhile()
-		{
-			Expr *condition = ParseExpression();
-			BlockStmt *body = ParseBlock();
-			return new WhileStmt(condition, body);
-		}
+            while (Match(TokenType::Else))
+            {
+                if (Match(TokenType::If))
+                {
+                    Expression *elseIfCondition = ParseExpression();
+                    BlockStmt *elseIfBody = ParseBlock();
+                    ifStmt->branches.emplace_back(elseIfCondition, elseIfBody);
+                    continue;
+                }
 
-		Stmt *Interpreter::Parser::ParseFor()
-		{
-			if (Match(TokenType::LParen))
-			{
-				Stmt *initializer = nullptr;
-				if (!Check(TokenType::Semicolon))
-				{
-					if (Match(TokenType::Let))
-					{
-						initializer = ParseVarDecl(std::nullopt, false);
-					}
-					else if (Match(TokenType::Int))
-					{
-						initializer = ParseVarDecl(std::string("int"), false);
-					}
-					else if (Match(TokenType::Float))
-					{
-						initializer = ParseVarDecl(std::string("float"), false);
-					}
-					else if (Match(TokenType::Bool))
-					{
-						initializer = ParseVarDecl(std::string("bool"), false);
-					}
-					else if (Match(TokenType::StringType))
-					{
-						initializer = ParseVarDecl(std::string("string"), false);
-					}
-					else
-					{
-						initializer = ParseAssignOrExpr(false);
-					}
-				}
-				Consume(TokenType::Semicolon, "Expected ';' after for initializer");
+                ifStmt->elseBlock = ParseBlock();
+                break;
+            }
 
-				Expr *condition = nullptr;
-				if (!Check(TokenType::Semicolon))
-				{
-					condition = ParseExpression();
-				}
-				Consume(TokenType::Semicolon, "Expected ';' after for condition");
+            return ifStmt;
+        }
 
-				Stmt *update = nullptr;
-				if (!Check(TokenType::RParen))
-				{
-					update = ParseAssignOrExpr(false);
-				}
-				Consume(TokenType::RParen, "Expected ')' after for clauses");
+        Statement *Parser::ParseWhile()
+        {
+            Expression *condition = ParseExpression();
+            BlockStmt *body = ParseBlock();
+            return new WhileStmt(condition, body);
+        }
 
-				BlockStmt *body = ParseBlock();
-				return new ForCStyleStmt(initializer, condition, update, body);
-			}
+        Statement *Parser::ParseFor()
+        {
+            if (Match(TokenType::LParen))
+            {
+                Statement *initializer = nullptr;
+                if (!Check(TokenType::Semicolon))
+                {
+                    if (Match(TokenType::Let))
+                    {
+                        initializer = ParseVarDecl(std::nullopt, false);
+                    }
+                    else if (Match(TokenType::Int))
+                    {
+                        initializer = ParseVarDecl(std::string("int"), false);
+                    }
+                    else if (Match(TokenType::Float))
+                    {
+                        initializer = ParseVarDecl(std::string("float"), false);
+                    }
+                    else if (Match(TokenType::Bool))
+                    {
+                        initializer = ParseVarDecl(std::string("bool"), false);
+                    }
+                    else if (Match(TokenType::StringType))
+                    {
+                        initializer = ParseVarDecl(std::string("string"), false);
+                    }
+                    else
+                    {
+                        initializer = ParseAssignOrExpr(false);
+                    }
+                }
+                Consume(TokenType::Semicolon, "Expected ';' after for initializer");
 
-			const Token &nameToken = Consume(TokenType::Identifier, "Expected loop variable name");
-			Consume(TokenType::In, "Expected 'in' in for-range loop");
-			Consume(TokenType::Range, "Expected 'range' in for-range loop");
-			Consume(TokenType::LParen, "Expected '(' after range");
+                Expression *condition = nullptr;
+                if (!Check(TokenType::Semicolon))
+                {
+                    condition = ParseExpression();
+                }
+                Consume(TokenType::Semicolon, "Expected ';' after for condition");
 
-			Expr *start = new LiteralExpr(0.0);
-			Expr *end = nullptr;
-			Expr *step = new LiteralExpr(1.0);
+                Statement *update = nullptr;
+                if (!Check(TokenType::RParen))
+                {
+                    update = ParseAssignOrExpr(false);
+                }
+                Consume(TokenType::RParen, "Expected ')' after for clauses");
 
-			Expr *first = ParseExpression();
-			if (Match(TokenType::Comma))
-			{
-				delete start;
-				start = first;
-				end = ParseExpression();
+                BlockStmt *body = ParseBlock();
+                return new ForCStyleStmt(initializer, condition, update, body);
+            }
 
-				if (Match(TokenType::Comma))
-				{
-					delete step;
-					step = ParseExpression();
-				}
-			}
-			else
-			{
-				end = first;
-			}
+            const Token &nameToken = Consume(TokenType::Identifier, "Expected loop variable name");
+            Consume(TokenType::In, "Expected 'in' in for-range loop");
+            Consume(TokenType::Range, "Expected 'range' in for-range loop");
+            Consume(TokenType::LParen, "Expected '(' after range");
 
-			Consume(TokenType::RParen, "Expected ')' after range arguments");
+            Expression *start = new LiteralExpr(0.0);
+            Expression *end = nullptr;
+            Expression *step = new LiteralExpr(1.0);
 
-			BlockStmt *body = ParseBlock();
-			return new ForRangeStmt(nameToken.text, start, end, step, body);
-		}
+            Expression *first = ParseExpression();
+            if (Match(TokenType::Comma))
+            {
+                delete start;
+                start = first;
+                end = ParseExpression();
 
-		Stmt *Interpreter::Parser::ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator)
-		{
-			const Token &nameToken = Consume(TokenType::Identifier, "Expected variable name");
-			Consume(TokenType::Assign, "Expected '=' in variable declaration");
-			Expr *initializer = ParseExpression();
-			if (consumeTerminator)
-			{
-				ConsumeStatementTerminator();
-			}
-			return new VarDeclStmt(nameToken.text, explicitType, initializer);
-		}
+                if (Match(TokenType::Comma))
+                {
+                    delete step;
+                    step = ParseExpression();
+                }
+            }
+            else
+            {
+                end = first;
+            }
 
-		Stmt *Interpreter::Parser::ParseAssignOrExpr(bool consumeTerminator)
-		{
-			if (Check(TokenType::Identifier) && CheckNext(TokenType::Assign))
-			{
-				const Token &nameToken = Advance();
-				Advance();
-				Expr *expr = ParseExpression();
-				if (consumeTerminator)
-				{
-					ConsumeStatementTerminator();
-				}
-				return new AssignStmt(nameToken.text, expr);
-			}
+            Consume(TokenType::RParen, "Expected ')' after range arguments");
 
-			Expr *expr = ParseExpression();
-			if (consumeTerminator)
-			{
-				ConsumeStatementTerminator();
-			}
-			return new ExprStmt(expr);
-		}
+            BlockStmt *body = ParseBlock();
+            return new ForRangeStmt(nameToken.GetText(), start, end, step, body);
+        }
 
-		Stmt *Interpreter::Parser::ParsePrint()
-		{
-			Consume(TokenType::LParen, "Expected '(' after print");
-			auto *printStmt = new PrintStmt();
+        Statement *Parser::ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator)
+        {
+            const Token &nameToken = Consume(TokenType::Identifier, "Expected variable name");
+            Consume(TokenType::Assign, "Expected '=' in variable declaration");
+            Expression *initializer = ParseExpression();
+            if (consumeTerminator)
+            {
+                ConsumeStatementTerminator();
+            }
+            return new VarDeclStmt(nameToken.GetText(), explicitType, initializer);
+        }
 
-			if (!Check(TokenType::RParen))
-			{
-				do
-				{
-					printStmt->expressions.push_back(ParseExpression());
-				} while (Match(TokenType::Comma));
-			}
+        Statement *Parser::ParseAssignOrExpr(bool consumeTerminator)
+        {
+            if (Check(TokenType::Identifier) && CheckNext(TokenType::Assign))
+            {
+                const Token &nameToken = Advance();
+                Advance();
+                Expression *expr = ParseExpression();
+                if (consumeTerminator)
+                {
+                    ConsumeStatementTerminator();
+                }
+                return new AssignStmt(nameToken.GetText(), expr);
+            }
 
-			Consume(TokenType::RParen, "Expected ')' after print expression");
-			ConsumeStatementTerminator();
-			return printStmt;
-		}
+            Expression *expr = ParseExpression();
+            if (consumeTerminator)
+            {
+                ConsumeStatementTerminator();
+            }
+            return new ExprStmt(expr);
+        }
 
-		Expr *Interpreter::Parser::ParseExpression()
-		{
-			return ParseOr();
-		}
+        Statement *Parser::ParsePrint()
+        {
+            Consume(TokenType::LParen, "Expected '(' after print");
+            auto *printStmt = new PrintStmt();
 
-		Expr *Interpreter::Parser::ParseOr()
-		{
-			Expr *expr = ParseAnd();
-			while (Match(TokenType::Or))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseAnd();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+            if (!Check(TokenType::RParen))
+            {
+                do
+                {
+                    printStmt->expressions.push_back(ParseExpression());
+                } while (Match(TokenType::Comma));
+            }
 
-		Expr *Interpreter::Parser::ParseAnd()
-		{
-			Expr *expr = ParseEquality();
-			while (Match(TokenType::And))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseEquality();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+            Consume(TokenType::RParen, "Expected ')' after print expression");
+            ConsumeStatementTerminator();
+            return printStmt;
+        }
 
-		Expr *Interpreter::Parser::ParseEquality()
-		{
-			Expr *expr = ParseComparison();
-			while (Match(TokenType::Equal) || Match(TokenType::NotEqual))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseComparison();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+        Expression *Parser::ParseExpression()
+        {
+            return ParseOr();
+        }
 
-		Expr *Interpreter::Parser::ParseComparison()
-		{
-			Expr *expr = ParseTerm();
-			while (Match(TokenType::Less) || Match(TokenType::LessEqual) || Match(TokenType::Greater) || Match(TokenType::GreaterEqual))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseTerm();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+        Expression *Parser::ParseOr()
+        {
+            Expression *expr = ParseAnd();
+            while (Match(TokenType::Or))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseAnd();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-		Expr *Interpreter::Parser::ParseTerm()
-		{
-			Expr *expr = ParseFactor();
-			while (Match(TokenType::Plus) || Match(TokenType::Minus))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseFactor();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+        Expression *Parser::ParseAnd()
+        {
+            Expression *expr = ParseEquality();
+            while (Match(TokenType::And))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseEquality();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-		Expr *Interpreter::Parser::ParseFactor()
-		{
-			Expr *expr = ParseUnary();
-			while (Match(TokenType::Star) || Match(TokenType::Slash) || Match(TokenType::Percent))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseUnary();
-				expr = new BinaryExpr(expr, op, rhs);
-			}
-			return expr;
-		}
+        Expression *Parser::ParseEquality()
+        {
+            Expression *expr = ParseComparison();
+            while (Match(TokenType::Equal) || Match(TokenType::NotEqual))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseComparison();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-		Expr *Interpreter::Parser::ParseUnary()
-		{
-			if (Match(TokenType::Not) || Match(TokenType::Minus) || Match(TokenType::Plus))
-			{
-				TokenType op = Previous().type;
-				Expr *rhs = ParseUnary();
-				return new UnaryExpr(op, rhs);
-			}
-			return ParsePrimary();
-		}
+        Expression *Parser::ParseComparison()
+        {
+            Expression *expr = ParseTerm();
+            while (Match(TokenType::Less) || Match(TokenType::LessEqual) || Match(TokenType::Greater) || Match(TokenType::GreaterEqual))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseTerm();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-		Expr *Interpreter::Parser::ParsePrimary()
-		{
-			if (Match(TokenType::Number))
-			{
-				return new LiteralExpr(std::stod(Previous().text));
-			}
-			if (Match(TokenType::String))
-			{
-				return new LiteralExpr(Previous().text);
-			}
-			if (Match(TokenType::Null))
-			{
-				return new LiteralExpr(std::monostate{});
-			}
-			if (Match(TokenType::True))
-			{
-				return new LiteralExpr(true);
-			}
-			if (Match(TokenType::False))
-			{
-				return new LiteralExpr(false);
-			}
-			if (Match(TokenType::Identifier))
-			{
-				return new VariableExpr(Previous().text);
-			}
-			if (Match(TokenType::LParen))
-			{
-				Expr *expr = ParseExpression();
-				Consume(TokenType::RParen, "Expected ')' after expression");
-				return expr;
-			}
+        Expression *Parser::ParseTerm()
+        {
+            Expression *expr = ParseFactor();
+            while (Match(TokenType::Plus) || Match(TokenType::Minus))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseFactor();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-			const Token &token = Peek();
-			throw std::runtime_error("Unexpected token '" + token.text + "' at line " + std::to_string(token.line));
-		}
+        Expression *Parser::ParseFactor()
+        {
+            Expression *expr = ParseUnary();
+            while (Match(TokenType::Star) || Match(TokenType::Slash) || Match(TokenType::Percent))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseUnary();
+                expr = new BinaryExpr(expr, op, rhs);
+            }
+            return expr;
+        }
 
-		bool Interpreter::Parser::Match(TokenType type)
-		{
-			if (Check(type))
-			{
-				Advance();
-				return true;
-			}
-			return false;
-		}
+        Expression *Parser::ParseUnary()
+        {
+            if (Match(TokenType::Not) || Match(TokenType::Minus) || Match(TokenType::Plus))
+            {
+                TokenType op = Previous().GetTokenType();
+                Expression *rhs = ParseUnary();
+                return new UnaryExpr(op, rhs);
+            }
+            return ParsePrimary();
+        }
 
-		bool Interpreter::Parser::Check(TokenType type) const
-		{
-			return Peek().type == type;
-		}
+        Expression *Parser::ParsePrimary()
+        {
+            if (Match(TokenType::Number))
+            {
+                return new LiteralExpr(std::stod(Previous().GetText()));
+            }
+            if (Match(TokenType::String))
+            {
+                return new LiteralExpr(Previous().GetText());
+            }
+            if (Match(TokenType::Null))
+            {
+                return new LiteralExpr(std::monostate{});
+            }
+            if (Match(TokenType::True))
+            {
+                return new LiteralExpr(true);
+            }
+            if (Match(TokenType::False))
+            {
+                return new LiteralExpr(false);
+            }
+            if (Match(TokenType::Identifier))
+            {
+                return new VariableExpr(Previous().GetText());
+            }
+            if (Match(TokenType::LParen))
+            {
+                Expression *expr = ParseExpression();
+                Consume(TokenType::RParen, "Expected ')' after expression");
+                return expr;
+            }
 
-		bool Interpreter::Parser::CheckNext(TokenType type) const
-		{
-			if (m_Current + 1 >= m_Tokens.size())
-			{
-				return false;
-			}
-			return m_Tokens[m_Current + 1].type == type;
-		}
+            const Token &token = Peek();
+            throw std::runtime_error("Unexpected token '" + token.GetText() + "' at line " + std::to_string(token.GetStartPosition().Line()));
+        }
 
-		const Token &Interpreter::Parser::Advance()
-		{
-			if (!Check(TokenType::End))
-			{
-				++m_Current;
-			}
-			return Previous();
-		}
+        bool Parser::Match(TokenType type)
+        {
+            if (Check(type))
+            {
+                Advance();
+                return true;
+            }
+            return false;
+        }
 
-		const Token &Interpreter::Parser::Peek() const
-		{
-			return m_Tokens[m_Current];
-		}
+        bool Parser::Check(TokenType type) const
+        {
+            return Peek().GetTokenType() == type;
+        }
 
-		const Token &Interpreter::Parser::Previous() const
-		{
-			return m_Tokens[m_Current - 1];
-		}
+        bool Parser::CheckNext(TokenType type) const
+        {
+            if (m_Current + 1 >= m_Tokens.size())
+            {
+                return false;
+            }
+            return m_Tokens[m_Current + 1].GetTokenType() == type;
+        }
 
-		const Token &Interpreter::Parser::Consume(TokenType type, const std::string &message)
-		{
-			if (!Check(type))
-			{
-				const Token &token = Peek();
-				throw std::runtime_error(message + " at line " + std::to_string(token.line) + ", col " + std::to_string(token.column));
-			}
-			return Advance();
-		}
+        const Token &Parser::Advance()
+        {
+            if (!Check(TokenType::End))
+            {
+                ++m_Current;
+            }
+            return Previous();
+        }
 
-		void Interpreter::Parser::ConsumeStatementTerminator()
-		{
-			if (Match(TokenType::Semicolon))
-			{
-				return;
-			}
-			if (Check(TokenType::Newline) || Check(TokenType::Dedent) || Check(TokenType::RBrace) || Check(TokenType::End))
-			{
-				Match(TokenType::Newline);
-				return;
-			}
+        const Token &Parser::Peek() const
+        {
+            return m_Tokens[m_Current];
+        }
 
-			const Token &token = Peek();
-			throw std::runtime_error("Expected statement terminator at line " + std::to_string(token.line));
-		}
+        const Token &Parser::Previous() const
+        {
+            return m_Tokens[m_Current - 1];
+        }
 
-		void Interpreter::Parser::SkipNewlines()
-		{
-			while (Match(TokenType::Newline))
-			{
-			}
-		}
-	}
-}
+        const Token &Parser::Consume(TokenType type, const std::string &message)
+        {
+            if (!Check(type))
+            {
+                const Token &token = Peek();
+                throw std::runtime_error(message + " at line " + std::to_string(token.GetStartPosition().Line()) + ", col " + std::to_string(token.GetStartPosition().Column()));
+            }
+            return Advance();
+        }
+
+        void Parser::ConsumeStatementTerminator()
+        {
+            if (Match(TokenType::Semicolon))
+            {
+                return;
+            }
+            if (Check(TokenType::Newline) || Check(TokenType::Dedent) || Check(TokenType::RBrace) || Check(TokenType::End))
+            {
+                Match(TokenType::Newline);
+                return;
+            }
+
+            const Token &token = Peek();
+            throw std::runtime_error("Expected statement terminator at line " + std::to_string(token.GetStartPosition().Line()));
+        }
+
+        void Parser::SkipNewlines()
+        {
+            while (Match(TokenType::Newline))
+            {
+            }
+        }
+
+    } // namespace parser
+
+} // namespace cora::compiler

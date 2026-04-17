@@ -3,8 +3,11 @@
 #include <exception>
 #include <iostream>
 
+using namespace cora::compiler::runtime;
+
 int main(int argc, char **argv)
 {
+
     if (argc < 2)
     {
         std::cerr << "Usage: corascript <script-file>\n";
@@ -13,7 +16,7 @@ int main(int argc, char **argv)
 
     try
     {
-        cora::script::Interpreter interpreter;
+        Interpreter interpreter;
         interpreter.RunFile(argv[1]);
         return 0;
     }
