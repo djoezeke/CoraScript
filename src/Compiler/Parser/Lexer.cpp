@@ -35,6 +35,16 @@ namespace cora::compiler
             return m_Tokens;
         }
 
+        void Lexer::SetFileName(std::string fileName)
+        {
+            m_FileName = fileName.empty() ? "<memory>" : std::move(fileName);
+        }
+
+        void Lexer::SetModuleName(std::string moduleName)
+        {
+            m_ModuleName = std::move(moduleName);
+        }
+
         Token Lexer::NextToken()
         {
             if (m_Tokens.empty())
@@ -67,6 +77,7 @@ namespace cora::compiler
                 {"else", TokenType::Else},
                 {"while", TokenType::While},
                 {"for", TokenType::For},
+                {"import", TokenType::Import},
                 {"in", TokenType::In},
                 {"range", TokenType::Range},
                 {"break", TokenType::Break},
@@ -91,6 +102,9 @@ namespace cora::compiler
                 {"fun", TokenType::T_FUN},
                 {"return", TokenType::T_RETURN},
                 {"this", TokenType::T_THIS},
+                {"public", TokenType::T_PUBLIC},
+                {"private", TokenType::T_PRIVATE},
+                {"namespace", TokenType::T_NAMESPACE},
             };
 
             std::istringstream stream(m_Source);
@@ -127,7 +141,7 @@ namespace cora::compiler
                     }
                     if (indent != indentStack.back())
                     {
-                        throw std::runtime_error("Indentation mismatch at line " + std::to_string(lineNo));
+                        RaiseLexError("Indentation mismatch", lineNo, 1);
                     }
                 }
 
@@ -246,7 +260,7 @@ namespace cora::compiler
 
                         if (pos >= line.size() || line[pos] != quote)
                         {
-                            throw std::runtime_error("Unterminated string at line " + std::to_string(lineNo));
+                            RaiseLexError("Unterminated string", lineNo, startCol);
                         }
 
                         ++pos;
@@ -313,7 +327,7 @@ namespace cora::compiler
                         --braceDepth;
                         if (braceDepth < 0)
                         {
-                            throw std::runtime_error("Unexpected '}' at line " + std::to_string(lineNo));
+                            RaiseLexError("Unexpected '}'", lineNo, column);
                         }
                         addToken(TokenType::RBrace, "}", 1);
                         break;
@@ -357,7 +371,7 @@ namespace cora::compiler
                         addToken(TokenType::Not, "!", 1);
                         break;
                     default:
-                        throw std::runtime_error("Unexpected character '" + std::string(1, ch) + "' at line " + std::to_string(lineNo));
+                        RaiseLexError("Unexpected character '" + std::string(1, ch) + "'", lineNo, column);
                     }
                 }
 
@@ -416,6 +430,16 @@ namespace cora::compiler
         void Lexer::PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column)
         {
             m_Tokens.emplace_back(type, text, line, column);
+        }
+
+        [[noreturn]] void Lexer::RaiseLexError(const std::string &message, unsigned int line, unsigned int column) const
+        {
+            error::DiagnosticContext context;
+            context.fileName = m_FileName;
+            context.moduleName = m_ModuleName;
+            context.line = line;
+            context.column = column;
+            throw error::LexingError(message, context);
         }
 
         Lexer::~Lexer() = default;

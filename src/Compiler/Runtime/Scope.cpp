@@ -44,6 +44,11 @@ namespace cora::compiler
             return it == m_Variables.end() ? nullptr : it->second;
         }
 
+        const std::unordered_map<std::string, Variable *> &Scope::GetVariables() const
+        {
+            return m_Variables;
+        }
+
         void Scope::SetVariable(const std::string &name, Variable *variable)
         {
             auto it = m_Variables.find(name);

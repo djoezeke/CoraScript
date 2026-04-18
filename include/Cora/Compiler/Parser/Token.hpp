@@ -36,6 +36,7 @@ namespace cora::compiler
 			Else,
 			While,
 			For,
+			Import,
 			In,
 			Range,
 			Break,
@@ -200,6 +201,7 @@ namespace cora::compiler
 			T_EXTERN,
 			T_CONST,
 			T_THIS,
+			T_NAMESPACE,
 
 			T_EOF,
 

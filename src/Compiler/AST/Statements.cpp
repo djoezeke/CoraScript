@@ -46,26 +46,27 @@ namespace cora::compiler
             }
         }
 
-        AssignStmt::AssignStmt(std::string name, Expression *expr)
-            : Statement(StatementType::PassStmt), m_Name(std::move(name)), m_Expr(expr) {}
+        AssignStmt::AssignStmt(Expression *target, Expression *expr)
+            : Statement(StatementType::PassStmt), m_Target(target), m_Value(expr) {}
 
-        const std::string &AssignStmt::GetName() const
+        Expression *AssignStmt::GetTarget() const
         {
-            return m_Name;
+            return m_Target;
         }
 
-        Expression *AssignStmt::GetExpression() const
+        Expression *AssignStmt::GetValue() const
         {
-            return m_Expr;
+            return m_Value;
         }
 
         AssignStmt::~AssignStmt()
         {
-            delete m_Expr;
+            delete m_Target;
+            delete m_Value;
         }
 
-        VarDeclStmt::VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr)
-            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_DeclaredType(std::move(declaredType)), m_Expr(expr) {}
+        VarDeclStmt::VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr, AccessModifier access)
+            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_DeclaredType(std::move(declaredType)), m_Expr(expr), m_Access(access) {}
 
         const std::string &VarDeclStmt::GetName() const
         {
@@ -80,6 +81,11 @@ namespace cora::compiler
         Expression *VarDeclStmt::GetExpression() const
         {
             return m_Expr;
+        }
+
+        AccessModifier VarDeclStmt::GetAccessModifier() const
+        {
+            return m_Access;
         }
 
         VarDeclStmt::~VarDeclStmt()
@@ -185,11 +191,12 @@ namespace cora::compiler
             delete m_Value;
         }
 
-        FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body)
+        FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body, AccessModifier access)
             : Statement(StatementType::NewStmt),
               m_Name(std::move(name)),
               m_Parameters(std::move(parameters)),
-              m_Body(body) {}
+              m_Body(body),
+              m_Access(access) {}
 
         const std::string &FunctionDeclStmt::GetName() const
         {
@@ -206,17 +213,27 @@ namespace cora::compiler
             return m_Body;
         }
 
+        AccessModifier FunctionDeclStmt::GetAccessModifier() const
+        {
+            return m_Access;
+        }
+
         FunctionDeclStmt::~FunctionDeclStmt()
         {
             delete m_Body;
         }
 
-        ClassDeclStmt::ClassDeclStmt(std::string name, std::deque<FunctionDeclStmt *> methods)
-            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Methods(std::move(methods)) {}
+        ClassDeclStmt::ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods)
+            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Fields(std::move(fields)), m_Methods(std::move(methods)) {}
 
         const std::string &ClassDeclStmt::GetName() const
         {
             return m_Name;
+        }
+
+        const std::deque<VarDeclStmt *> &ClassDeclStmt::GetFields() const
+        {
+            return m_Fields;
         }
 
         const std::deque<FunctionDeclStmt *> &ClassDeclStmt::GetMethods() const
@@ -226,11 +243,43 @@ namespace cora::compiler
 
         ClassDeclStmt::~ClassDeclStmt()
         {
+            for (VarDeclStmt *field : m_Fields)
+            {
+                delete field;
+            }
             for (FunctionDeclStmt *method : m_Methods)
             {
                 delete method;
             }
         }
+
+        NamespaceDeclStmt::NamespaceDeclStmt(std::string name, BlockStmt *body)
+            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Body(body) {}
+
+        const std::string &NamespaceDeclStmt::GetName() const
+        {
+            return m_Name;
+        }
+
+        BlockStmt *NamespaceDeclStmt::GetBody() const
+        {
+            return m_Body;
+        }
+
+        NamespaceDeclStmt::~NamespaceDeclStmt()
+        {
+            delete m_Body;
+        }
+
+        ImportStmt::ImportStmt(std::string moduleName)
+            : Statement(StatementType::PassStmt), m_ModuleName(std::move(moduleName)) {}
+
+        const std::string &ImportStmt::GetModuleName() const
+        {
+            return m_ModuleName;
+        }
+
+        ImportStmt::~ImportStmt() = default;
 
         ForEachStmt::ForEachStmt()
             : Statement(StatementType::ForEachStmt) {}

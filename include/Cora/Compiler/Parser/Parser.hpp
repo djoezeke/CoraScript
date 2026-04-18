@@ -11,6 +11,7 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace cora::compiler
 {
@@ -31,6 +32,9 @@ namespace cora::compiler
             std::deque<Statement *> ParseProgram(const std::string &source);
             std::deque<Statement *> ParseProgram();
 
+            void SetFileName(std::string fileName);
+            void SetModuleName(std::string moduleName);
+
         private:
             std::deque<Statement *> ParseBlockBody(TokenType blockEnd, bool useIndent);
 
@@ -39,9 +43,11 @@ namespace cora::compiler
             Statement *ParseWhile();
             Statement *ParseFor();
             Statement *ParseClassDecl();
-            Statement *ParseFunctionDecl(bool requireName = true);
+            Statement *ParseNamespaceDecl();
+            Statement *ParseImport();
+            Statement *ParseFunctionDecl(bool requireName = true, ast::AccessModifier access = ast::AccessModifier::Public);
             Statement *ParseReturn();
-            Statement *ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator = true);
+            Statement *ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator = true, ast::AccessModifier access = ast::AccessModifier::Public);
             Statement *ParseAssignOrExpr(bool consumeTerminator = true);
             Statement *ParsePrint();
             Statement *ParseDelete();
@@ -68,11 +74,23 @@ namespace cora::compiler
             const Token &Consume(TokenType type, const std::string &message);
             void ConsumeStatementTerminator();
             void SkipNewlines();
+            bool IsFunctionDeclAhead() const;
+            bool IsMemberAssignmentAhead() const;
+            Expression *ParseAssignmentTarget();
+            std::optional<ast::AccessModifier> ParseOptionalAccessModifier();
+            error::DiagnosticContext MakeContext(const Token &token) const;
+            [[noreturn]] void RaiseParseError(const std::string &message, const Token &token) const;
+            std::string CurrentNamespacePath() const;
 
         private:
             Lexer m_Lexer;
             std::deque<Token> m_Tokens;
             std::size_t m_Current{0};
+            std::string m_FileName{"<memory>"};
+            std::string m_ModuleName;
+            std::vector<std::string> m_NamespaceStack;
+            std::vector<std::string> m_ClassStack;
+            std::vector<std::string> m_FunctionStack;
         };
 
     } // namespace parser

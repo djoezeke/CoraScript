@@ -12,8 +12,22 @@ namespace cora::compiler
         Parser::Parser(const std::deque<Token> &tokens)
             : m_Tokens(tokens), m_Current(0) {}
 
+        void Parser::SetFileName(std::string fileName)
+        {
+            m_FileName = fileName.empty() ? "<memory>" : std::move(fileName);
+            m_Lexer.SetFileName(m_FileName);
+        }
+
+        void Parser::SetModuleName(std::string moduleName)
+        {
+            m_ModuleName = std::move(moduleName);
+            m_Lexer.SetModuleName(m_ModuleName);
+        }
+
         std::deque<ast::Statement *> Parser::ParseProgram(const std::string &source)
         {
+            m_Lexer.SetFileName(m_FileName);
+            m_Lexer.SetModuleName(m_ModuleName);
             m_Tokens = m_Lexer.Lex(source);
             m_Current = 0;
             return ParseProgram();
@@ -25,7 +39,10 @@ namespace cora::compiler
             SkipNewlines();
             while (!Check(TokenType::End))
             {
-                program.push_back(ParseStatement());
+                const Token start = Peek();
+                Statement *statement = ParseStatement();
+                statement->SetStartPosition(start.GetStartPosition());
+                program.push_back(statement);
                 SkipNewlines();
             }
             return program;
@@ -37,7 +54,10 @@ namespace cora::compiler
             SkipNewlines();
             while (!Check(blockEnd) && !Check(TokenType::End))
             {
-                statements.push_back(ParseStatement());
+                const Token start = Peek();
+                Statement *statement = ParseStatement();
+                statement->SetStartPosition(start.GetStartPosition());
+                statements.push_back(statement);
                 SkipNewlines();
             }
 
@@ -76,6 +96,48 @@ namespace cora::compiler
 
         Statement *Parser::ParseStatement()
         {
+            std::optional<ast::AccessModifier> accessModifier = ParseOptionalAccessModifier();
+            if (accessModifier.has_value())
+            {
+                if (Match(TokenType::T_FUN))
+                {
+                    return ParseFunctionDecl(true, accessModifier.value());
+                }
+                if (Check(TokenType::Identifier) && CheckNext(TokenType::LParen) && IsFunctionDeclAhead())
+                {
+                    return ParseFunctionDecl(true, accessModifier.value());
+                }
+                if (Match(TokenType::Let))
+                {
+                    return ParseVarDecl(std::nullopt, true, accessModifier.value());
+                }
+                if (Match(TokenType::Int))
+                {
+                    return ParseVarDecl(std::string("int"), true, accessModifier.value());
+                }
+                if (Match(TokenType::Float))
+                {
+                    return ParseVarDecl(std::string("float"), true, accessModifier.value());
+                }
+                if (Match(TokenType::Bool))
+                {
+                    return ParseVarDecl(std::string("bool"), true, accessModifier.value());
+                }
+                if (Match(TokenType::StringType))
+                {
+                    return ParseVarDecl(std::string("string"), true, accessModifier.value());
+                }
+                RaiseParseError("Access modifier must precede a function or variable declaration", Peek());
+            }
+
+            if (Match(TokenType::T_NAMESPACE))
+            {
+                return ParseNamespaceDecl();
+            }
+            if (Match(TokenType::Import))
+            {
+                return ParseImport();
+            }
             if (Match(TokenType::If))
             {
                 return ParseIf();
@@ -93,6 +155,10 @@ namespace cora::compiler
                 return ParseClassDecl();
             }
             if (Match(TokenType::T_FUN))
+            {
+                return ParseFunctionDecl(true);
+            }
+            if (Check(TokenType::Identifier) && CheckNext(TokenType::LParen) && IsFunctionDeclAhead())
             {
                 return ParseFunctionDecl(true);
             }
@@ -144,6 +210,40 @@ namespace cora::compiler
                 return ParseVarDecl(std::string("string"));
             }
             return ParseAssignOrExpr();
+        }
+
+        Statement *Parser::ParseNamespaceDecl()
+        {
+            std::string namespaceName = Consume(TokenType::Identifier, "Expected namespace name").GetText();
+            while (Match(TokenType::Dot))
+            {
+                namespaceName += "." + Consume(TokenType::Identifier, "Expected identifier after '.' in namespace name").GetText();
+            }
+
+            m_NamespaceStack.push_back(namespaceName);
+            BlockStmt *body = nullptr;
+            try
+            {
+                body = static_cast<BlockStmt *>(ParseBlock());
+            }
+            catch (...)
+            {
+                m_NamespaceStack.pop_back();
+                throw;
+            }
+            m_NamespaceStack.pop_back();
+            return new NamespaceDeclStmt(namespaceName, body);
+        }
+
+        Statement *Parser::ParseImport()
+        {
+            std::string moduleName = Consume(TokenType::Identifier, "Expected module name after 'import'").GetText();
+            while (Match(TokenType::Dot))
+            {
+                moduleName += "." + Consume(TokenType::Identifier, "Expected identifier after '.' in import path").GetText();
+            }
+            ConsumeStatementTerminator();
+            return new ImportStmt(moduleName);
         }
 
         Statement *Parser::ParseIf()
@@ -262,30 +362,55 @@ namespace cora::compiler
         Statement *Parser::ParseClassDecl()
         {
             const Token &nameToken = Consume(TokenType::Identifier, "Expected class name");
-            auto *classBody = static_cast<BlockStmt *>(ParseBlock());
+            m_ClassStack.push_back(nameToken.GetText());
+            BlockStmt *classBody = nullptr;
+            try
+            {
+                classBody = static_cast<BlockStmt *>(ParseBlock());
+            }
+            catch (...)
+            {
+                m_ClassStack.pop_back();
+                throw;
+            }
+            m_ClassStack.pop_back();
 
+            std::deque<VarDeclStmt *> fields;
             std::deque<FunctionDeclStmt *> methods;
             for (Statement *statement : classBody->statements)
             {
                 auto *method = dynamic_cast<FunctionDeclStmt *>(statement);
-                if (method == nullptr)
+                if (method != nullptr)
                 {
-                    delete classBody;
-                    for (FunctionDeclStmt *existing : methods)
-                    {
-                        delete existing;
-                    }
-                    throw std::runtime_error("Only method declarations are allowed inside class body");
+                    methods.push_back(method);
+                    continue;
                 }
-                methods.push_back(method);
+
+                auto *field = dynamic_cast<VarDeclStmt *>(statement);
+                if (field != nullptr)
+                {
+                    fields.push_back(field);
+                    continue;
+                }
+
+                delete classBody;
+                for (VarDeclStmt *existing : fields)
+                {
+                    delete existing;
+                }
+                for (FunctionDeclStmt *existing : methods)
+                {
+                    delete existing;
+                }
+                RaiseParseError("Only member fields and methods are allowed inside class body", nameToken);
             }
 
             classBody->statements.clear();
             delete classBody;
-            return new ClassDeclStmt(nameToken.GetText(), std::move(methods));
+            return new ClassDeclStmt(nameToken.GetText(), std::move(fields), std::move(methods));
         }
 
-        Statement *Parser::ParseFunctionDecl(bool requireName)
+        Statement *Parser::ParseFunctionDecl(bool requireName, ast::AccessModifier access)
         {
             std::string functionName;
             if (requireName)
@@ -308,8 +433,19 @@ namespace cora::compiler
             }
             Consume(TokenType::RParen, "Expected ')' after parameter list");
 
-            auto *body = static_cast<BlockStmt *>(ParseBlock());
-            return new FunctionDeclStmt(functionName, std::move(parameters), body);
+            m_FunctionStack.push_back(functionName);
+            BlockStmt *body = nullptr;
+            try
+            {
+                body = static_cast<BlockStmt *>(ParseBlock());
+            }
+            catch (...)
+            {
+                m_FunctionStack.pop_back();
+                throw;
+            }
+            m_FunctionStack.pop_back();
+            return new FunctionDeclStmt(functionName, std::move(parameters), body, access);
         }
 
         Statement *Parser::ParseReturn()
@@ -323,7 +459,7 @@ namespace cora::compiler
             return new ReturnStmt(value);
         }
 
-        Statement *Parser::ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator)
+        Statement *Parser::ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator, ast::AccessModifier access)
         {
             const Token &nameToken = Consume(TokenType::Identifier, "Expected variable name");
             Consume(TokenType::Assign, "Expected '=' in variable declaration");
@@ -332,21 +468,21 @@ namespace cora::compiler
             {
                 ConsumeStatementTerminator();
             }
-            return new VarDeclStmt(nameToken.GetText(), explicitType, initializer);
+            return new VarDeclStmt(nameToken.GetText(), explicitType, initializer, access);
         }
 
         Statement *Parser::ParseAssignOrExpr(bool consumeTerminator)
         {
-            if (Check(TokenType::Identifier) && CheckNext(TokenType::Assign))
+            if (IsMemberAssignmentAhead())
             {
-                const Token &nameToken = Advance();
-                Advance();
+                Expression *target = ParseAssignmentTarget();
+                Consume(TokenType::Assign, "Expected '=' in assignment");
                 Expression *expr = ParseExpression();
                 if (consumeTerminator)
                 {
                     ConsumeStatementTerminator();
                 }
-                return new AssignStmt(nameToken.GetText(), expr);
+                return new AssignStmt(target, expr);
             }
 
             Expression *expr = ParseExpression();
@@ -381,7 +517,7 @@ namespace cora::compiler
             if (dynamic_cast<VariableExpr *>(target) == nullptr && dynamic_cast<MemberExpr *>(target) == nullptr)
             {
                 delete target;
-                throw std::runtime_error("delete target must be a variable or member access");
+                RaiseParseError("delete target must be a variable or member access", Peek());
             }
             ConsumeStatementTerminator();
             return new DeleteStmt(target);
@@ -536,7 +672,11 @@ namespace cora::compiler
             }
             if (Match(TokenType::T_NEW))
             {
-                const Token &className = Consume(TokenType::Identifier, "Expected class name after 'new'");
+                std::string className = Consume(TokenType::Identifier, "Expected class name after 'new'").GetText();
+                while (Match(TokenType::Dot))
+                {
+                    className += "." + Consume(TokenType::Identifier, "Expected identifier after '.' in class name").GetText();
+                }
                 Consume(TokenType::LParen, "Expected '(' after class name");
                 std::deque<Expression *> args;
                 if (!Check(TokenType::RParen))
@@ -547,7 +687,7 @@ namespace cora::compiler
                     } while (Match(TokenType::Comma));
                 }
                 Consume(TokenType::RParen, "Expected ')' after constructor arguments");
-                return new NewExpr(className.GetText(), std::move(args));
+                return new NewExpr(std::move(className), std::move(args));
             }
             if (Match(TokenType::Identifier) || Match(TokenType::Int) || Match(TokenType::Float) || Match(TokenType::Bool) || Match(TokenType::StringType) || Match(TokenType::T_THIS))
             {
@@ -561,7 +701,7 @@ namespace cora::compiler
             }
 
             const Token &token = Peek();
-            throw std::runtime_error("Unexpected token '" + token.GetText() + "' at line " + std::to_string(token.GetStartPosition().Line()));
+            RaiseParseError("Unexpected token '" + token.GetText() + "'", token);
         }
 
         bool Parser::Match(TokenType type)
@@ -612,7 +752,7 @@ namespace cora::compiler
             if (!Check(type))
             {
                 const Token &token = Peek();
-                throw std::runtime_error(message + " at line " + std::to_string(token.GetStartPosition().Line()) + ", col " + std::to_string(token.GetStartPosition().Column()));
+                RaiseParseError(message, token);
             }
             return Advance();
         }
@@ -629,7 +769,7 @@ namespace cora::compiler
             }
 
             const Token &token = Peek();
-            throw std::runtime_error("Expected statement terminator at line " + std::to_string(token.GetStartPosition().Line()));
+            RaiseParseError("Expected statement terminator", token);
         }
 
         void Parser::SkipNewlines()
@@ -637,6 +777,131 @@ namespace cora::compiler
             while (Match(TokenType::Newline))
             {
             }
+        }
+
+        bool Parser::IsFunctionDeclAhead() const
+        {
+            if (!Check(TokenType::Identifier) || !CheckNext(TokenType::LParen))
+            {
+                return false;
+            }
+
+            std::size_t index = m_Current + 1;
+            int depth = 0;
+
+            while (index < m_Tokens.size())
+            {
+                TokenType type = m_Tokens[index].GetTokenType();
+                if (type == TokenType::LParen)
+                {
+                    ++depth;
+                }
+                else if (type == TokenType::RParen)
+                {
+                    --depth;
+                    if (depth == 0)
+                    {
+                        ++index;
+                        break;
+                    }
+                }
+                ++index;
+            }
+
+            if (index >= m_Tokens.size())
+            {
+                return false;
+            }
+
+            const TokenType afterParams = m_Tokens[index].GetTokenType();
+            return afterParams == TokenType::Colon || afterParams == TokenType::LBrace;
+        }
+
+        bool Parser::IsMemberAssignmentAhead() const
+        {
+            if (!Check(TokenType::Identifier) && !Check(TokenType::T_THIS))
+            {
+                return false;
+            }
+
+            std::size_t index = m_Current;
+            if (index >= m_Tokens.size())
+            {
+                return false;
+            }
+
+            ++index;
+            while (index + 1 < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Dot && m_Tokens[index + 1].GetTokenType() == TokenType::Identifier)
+            {
+                index += 2;
+            }
+
+            return index < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Assign;
+        }
+
+        Expression *Parser::ParseAssignmentTarget()
+        {
+            const Token &base = Consume(Check(TokenType::T_THIS) ? TokenType::T_THIS : TokenType::Identifier, "Expected assignment target");
+            Expression *target = new VariableExpr(base.GetText());
+
+            while (Match(TokenType::Dot))
+            {
+                const Token &member = Consume(TokenType::Identifier, "Expected member name after '.'");
+                target = new MemberExpr(target, member.GetText());
+            }
+
+            return target;
+        }
+
+        std::optional<ast::AccessModifier> Parser::ParseOptionalAccessModifier()
+        {
+            if (Match(TokenType::T_PUBLIC))
+            {
+                return ast::AccessModifier::Public;
+            }
+            if (Match(TokenType::T_PRIVATE))
+            {
+                return ast::AccessModifier::Private;
+            }
+            return std::nullopt;
+        }
+
+        error::DiagnosticContext Parser::MakeContext(const Token &token) const
+        {
+            error::DiagnosticContext context;
+            context.fileName = m_FileName;
+            context.moduleName = m_ModuleName;
+            context.namespaceName = CurrentNamespacePath();
+            if (!m_ClassStack.empty())
+            {
+                context.className = m_ClassStack.back();
+            }
+            if (!m_FunctionStack.empty())
+            {
+                context.functionName = m_FunctionStack.back();
+            }
+            context.line = token.GetStartPosition().Line();
+            context.column = token.GetStartPosition().Column();
+            return context;
+        }
+
+        [[noreturn]] void Parser::RaiseParseError(const std::string &message, const Token &token) const
+        {
+            throw error::ParsingError(message, MakeContext(token));
+        }
+
+        std::string Parser::CurrentNamespacePath() const
+        {
+            std::string result;
+            for (const auto &ns : m_NamespaceStack)
+            {
+                if (!result.empty())
+                {
+                    result += "::";
+                }
+                result += ns;
+            }
+            return result;
         }
 
     } // namespace parser

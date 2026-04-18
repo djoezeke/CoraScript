@@ -9,7 +9,57 @@ namespace cora::compiler
     {
 
         Object::Object(std::string className)
-            : className(std::move(className)), fields() {}
+            : className(std::move(className)), fields(), privateMembers(), m_Name(this->className) {}
+
+        std::string Object::Name() const
+        {
+            return m_Name;
+        };
+
+        bool Object::IsPrivateMember(const std::string &member) const
+        {
+            return privateMembers.find(member) != privateMembers.end();
+        }
+
+        void Object::SetMemberVisibility(const std::string &member, bool isPrivate)
+        {
+            if (isPrivate)
+            {
+                privateMembers.insert(member);
+                return;
+            }
+            privateMembers.erase(member);
+        }
+
+        ///////////////////////////////////////////
+
+        Method::Method(std::shared_ptr<Object> object, std::string name, Func function)
+            : m_Name(std::move(name)), m_Object(std::move(object)), m_Function(std::move(function)) {};
+
+        Value Method::Call(const std::vector<Value> &arguments)
+        {
+            return m_Function(arguments);
+        };
+
+        std::string Method::Name() const
+        {
+            return m_Object->Name() + m_Name;
+        };
+
+        Function::Function(std::string name, Func function)
+            : m_Name(std::move(name)), m_Function(std::move(function)) {};
+
+        Value Function::Call(const std::vector<Value> &arguments)
+        {
+            return m_Function(arguments);
+        };
+
+        std::string Function::Name() const
+        {
+            return m_Name;
+        };
+
+        ///////////////////////////////////////////
 
         NativeFunction::NativeFunction(std::string name, Fn fn)
             : m_Name(std::move(name)), m_Fn(std::move(fn)) {}

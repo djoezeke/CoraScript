@@ -1,6 +1,7 @@
 #ifndef CORA_COMPILER_PARSER_LEXER_H
 #define CORA_COMPILER_PARSER_LEXER_H
 
+#include "Cora/Compiler/Error/Error.hpp"
 #include "Cora/Compiler/Parser/Token.hpp"
 
 #include <deque>
@@ -19,6 +20,9 @@ namespace cora::compiler
             std::deque<Token> Lex(const std::string &source);
             std::deque<Token> Tokenize();
 
+            void SetFileName(std::string fileName);
+            void SetModuleName(std::string moduleName);
+
             Token NextToken();
             Token PrevToken() const;
 
@@ -30,12 +34,15 @@ namespace cora::compiler
 
             void BuildTokens();
             void PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column);
+            [[noreturn]] void RaiseLexError(const std::string &message, unsigned int line, unsigned int column) const;
 
         private:
             std::string m_Source;
             std::deque<Token> m_Tokens;
             std::size_t m_Position{0};
             Token m_Prev;
+            std::string m_FileName{"<memory>"};
+            std::string m_ModuleName;
         };
 
     } // namespace parser

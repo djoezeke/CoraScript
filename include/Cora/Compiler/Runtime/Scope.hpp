@@ -43,6 +43,7 @@ namespace cora::compiler
             Scope *ResolveVariable(const std::string &name);
 
             Variable *GetVariable(const std::string &name) const;
+            const std::unordered_map<std::string, Variable *> &GetVariables() const;
             void SetVariable(const std::string &name, Variable *variable);
             Variable *NewVariable(const std::string &name, Variable *variable);
             bool DeleteVariable(const std::string &name);

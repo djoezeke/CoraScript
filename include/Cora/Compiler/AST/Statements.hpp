@@ -13,6 +13,12 @@ namespace cora::compiler
     namespace ast
     {
 
+        enum class AccessModifier
+        {
+            Public,
+            Private,
+        };
+
         class Statement : public Node
         {
         public:
@@ -48,29 +54,31 @@ namespace cora::compiler
         class AssignStmt : public Statement
         {
         public:
-            AssignStmt(std::string name, Expression *expr);
-            const std::string &GetName() const;
-            Expression *GetExpression() const;
+            AssignStmt(Expression *target, Expression *expr);
+            Expression *GetTarget() const;
+            Expression *GetValue() const;
             ~AssignStmt() override;
 
         private:
-            std::string m_Name;
-            Expression *m_Expr;
+            Expression *m_Target;
+            Expression *m_Value;
         };
 
         class VarDeclStmt : public Statement
         {
         public:
-            VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr);
+            VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr, AccessModifier access = AccessModifier::Public);
             const std::string &GetName() const;
             const std::optional<std::string> &GetDeclaredType() const;
             Expression *GetExpression() const;
+            AccessModifier GetAccessModifier() const;
             ~VarDeclStmt() override;
 
         private:
             std::string m_Name;
             std::optional<std::string> m_DeclaredType;
             Expression *m_Expr;
+            AccessModifier m_Access;
         };
 
         class IfStmt : public Statement
@@ -179,29 +187,61 @@ namespace cora::compiler
         class FunctionDeclStmt : public Statement
         {
         public:
-            FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body);
+            FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body, AccessModifier access = AccessModifier::Public);
             const std::string &GetName() const;
             const std::deque<std::string> &GetParameters() const;
             class BlockStmt *GetBody() const;
+            AccessModifier GetAccessModifier() const;
             ~FunctionDeclStmt() override;
 
         private:
             std::string m_Name;
             std::deque<std::string> m_Parameters;
             class BlockStmt *m_Body;
+            AccessModifier m_Access;
         };
 
         class ClassDeclStmt : public Statement
         {
         public:
-            ClassDeclStmt(std::string name, std::deque<FunctionDeclStmt *> methods);
+            ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods);
             const std::string &GetName() const;
+            const std::deque<VarDeclStmt *> &GetFields() const;
             const std::deque<FunctionDeclStmt *> &GetMethods() const;
             ~ClassDeclStmt() override;
 
         private:
             std::string m_Name;
+            std::deque<VarDeclStmt *> m_Fields;
             std::deque<FunctionDeclStmt *> m_Methods;
+        };
+
+        class NamespaceDeclStmt : public Statement
+        {
+        public:
+            NamespaceDeclStmt(std::string name, class BlockStmt *body);
+
+            const std::string &GetName() const;
+            class BlockStmt *GetBody() const;
+
+            ~NamespaceDeclStmt() override;
+
+        private:
+            std::string m_Name;
+            class BlockStmt *m_Body;
+        };
+
+        class ImportStmt : public Statement
+        {
+        public:
+            explicit ImportStmt(std::string moduleName);
+
+            const std::string &GetModuleName() const;
+
+            ~ImportStmt() override;
+
+        private:
+            std::string m_ModuleName;
         };
 
         class ForEachStmt : public Statement

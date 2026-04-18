@@ -38,7 +38,7 @@ namespace cora::compiler
 
         Interpreter::Interpreter()
         {
-            builtin::RegisterBuiltinFunctions(m_GlobalScope);
+            builtin::Builtins(m_GlobalScope);
         }
 
         void Interpreter::Run(const std::string &source)
@@ -63,6 +63,11 @@ namespace cora::compiler
             std::stringstream buffer;
             buffer << input.rdbuf();
             Run(buffer.str());
+        }
+
+        void Interpreter::SetFileName(std::string fileName)
+        {
+            m_FileName = std::move(fileName);
         }
 
         void Interpreter::Execute(const std::deque<Statement *> &program)
@@ -380,15 +385,21 @@ namespace cora::compiler
 
             if (auto *assign = dynamic_cast<ast::AssignStmt *>(stmt))
             {
-                Scope *scope = m_CurrentScope->ResolveVariable(assign->GetName());
-                if (scope == nullptr)
+                auto *variableTarget = dynamic_cast<ast::VariableExpr *>(assign->GetTarget());
+                if (variableTarget == nullptr)
                 {
-                    throw std::runtime_error("Assignment to undefined variable: " + assign->GetName());
+                    throw std::runtime_error("Invalid assignment target");
                 }
 
-                Variable *variable = scope->GetVariable(assign->GetName());
-                runtime::Value value = EvalExpr(assign->GetExpression());
-                CheckTypeCompatibility(std::nullopt, value, assign->GetName());
+                Scope *scope = m_CurrentScope->ResolveVariable(variableTarget->GetName());
+                if (scope == nullptr)
+                {
+                    throw std::runtime_error("Assignment to undefined variable: " + variableTarget->GetName());
+                }
+
+                Variable *variable = scope->GetVariable(variableTarget->GetName());
+                runtime::Value value = EvalExpr(assign->GetValue());
+                CheckTypeCompatibility(std::nullopt, value, variableTarget->GetName());
                 variable->SetValue(new runtime::Value(value));
                 return;
             }

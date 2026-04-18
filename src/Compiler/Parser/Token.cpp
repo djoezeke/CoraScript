@@ -47,6 +47,7 @@ namespace cora::compiler
                 {TokenType::Else, "Else"},
                 {TokenType::While, "While"},
                 {TokenType::For, "For"},
+                {TokenType::Import, "Import"},
                 {TokenType::In, "In"},
                 {TokenType::Range, "Range"},
                 {TokenType::Break, "Break"},
@@ -76,6 +77,9 @@ namespace cora::compiler
                 {TokenType::LessEqual, "LessEqual"},
                 {TokenType::Greater, "Greater"},
                 {TokenType::GreaterEqual, "GreaterEqual"},
+                {TokenType::T_PUBLIC, "Public"},
+                {TokenType::T_PRIVATE, "Private"},
+                {TokenType::T_NAMESPACE, "Namespace"},
             };
 
             auto it = names.find(m_Type);

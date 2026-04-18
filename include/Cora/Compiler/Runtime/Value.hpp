@@ -6,6 +6,7 @@
 #include <ostream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -31,6 +32,48 @@ namespace cora::compiler
 
             std::string className;
             std::unordered_map<std::string, Value> fields;
+            std::unordered_set<std::string> privateMembers;
+
+            std::string Name() const;
+
+            bool IsPrivateMember(const std::string &member) const;
+            void SetMemberVisibility(const std::string &member, bool isPrivate);
+
+        private:
+            std::string m_Name;
+        };
+
+        class Method final : public Callable
+        {
+        public:
+            using Func = std::function<Value(const std::vector<Value> &)>;
+
+        public:
+            Method(std::shared_ptr<Object> object, std::string name, Func function);
+
+            Value Call(const std::vector<Value> &arguments) override;
+            std::string Name() const override;
+
+        private:
+            std::string m_Name;
+            Func m_Function;
+            std::shared_ptr<Object> m_Object;
+        };
+
+        class Function final : public Callable
+        {
+        public:
+            using Func = std::function<Value(const std::vector<Value> &)>;
+
+        public:
+            Function(std::string name, Func function);
+
+            Value Call(const std::vector<Value> &arguments) override;
+            std::string Name() const override;
+
+        private:
+            std::string m_Name;
+            Func m_Function;
         };
 
         class NativeFunction final : public Callable
@@ -86,6 +129,7 @@ namespace cora::compiler
             using CallablePtr = std::shared_ptr<Callable>;
             using Data = std::variant<std::monostate, bool, double, std::string, ObjectPtr, CallablePtr>;
 
+        public:
             Value();
             explicit Value(ValueKind valuekind);
             explicit Value(std::nullptr_t);
