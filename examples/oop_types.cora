@@ -1,0 +1,30 @@
+print("-- types and oop lifecycle demo --")
+
+let a = int(12.8)
+let b = float("7.25")
+let c = bool(0)
+let s = str(a)
+
+print("int:", a)
+print("float:", b)
+print("bool:", c)
+print("str:", s)
+
+let d = object()
+d.set("name", "Cora")
+d.set("version", int("1"))
+print("d.name:", d.get("name"))
+print("d.version:", d.get("version"))
+print("d.keys:", d.keys())
+
+let p = new Person()
+p.set("name", "Zeke")
+p.set("age", int(28.9))
+print("person:", p.toString())
+print("person.name:", p.get("name"))
+
+delete p.age
+print("after delete age keys:", p.keys())
+
+delete p
+print("deleted person variable")

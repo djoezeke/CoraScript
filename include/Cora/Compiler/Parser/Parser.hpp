@@ -22,7 +22,6 @@ namespace cora::compiler
         {
             using Statement = ast::Statement;
             using Expression = ast::Expression;
-            using BlockStmt = ast::BlockStmt;
 
         public:
             Parser();
@@ -35,15 +34,18 @@ namespace cora::compiler
         private:
             std::deque<Statement *> ParseBlockBody(TokenType blockEnd, bool useIndent);
 
-            BlockStmt *ParseBlock();
-
             Statement *ParseStatement();
             Statement *ParseIf();
             Statement *ParseWhile();
             Statement *ParseFor();
+            Statement *ParseClassDecl();
+            Statement *ParseFunctionDecl(bool requireName = true);
+            Statement *ParseReturn();
             Statement *ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator = true);
             Statement *ParseAssignOrExpr(bool consumeTerminator = true);
             Statement *ParsePrint();
+            Statement *ParseDelete();
+            Statement *ParseBlock();
 
             Expression *ParseExpression();
             Expression *ParseOr();
@@ -54,6 +56,8 @@ namespace cora::compiler
             Expression *ParseFactor();
             Expression *ParseUnary();
             Expression *ParsePrimary();
+            Expression *ParseCall();
+            Expression *ParseMember();
 
             bool Match(TokenType type);
             bool Check(TokenType type) const;
@@ -65,6 +69,7 @@ namespace cora::compiler
             void ConsumeStatementTerminator();
             void SkipNewlines();
 
+        private:
             Lexer m_Lexer;
             std::deque<Token> m_Tokens;
             std::size_t m_Current{0};

@@ -54,7 +54,6 @@ namespace cora::compiler
             bool Invalid() const;
 
             bool operator==(const SourceRange &other) const;
-
             bool operator!=(const SourceRange &other) const;
 
         private:
@@ -80,7 +79,6 @@ namespace cora::compiler
             SourceLocation End() const;
 
             bool operator==(const CharSourceRange &other) const;
-
             bool operator!=(const CharSourceRange &other) const;
 
         private:
@@ -108,36 +106,6 @@ namespace cora::compiler
 
         template <typename T>
         bool operator!=(const Location<T> &lhs, const Location<T> &rhs);
-
-        template <typename T>
-        Location<T>::Location(T item, SourceLocation loc)
-            : m_Item(item), m_Loc(loc)
-        {
-        }
-
-        template <typename T>
-        T Location<T>::Item() const
-        {
-            return m_Item;
-        }
-
-        template <typename T>
-        SourceLocation Location<T>::Located() const
-        {
-            return m_Loc;
-        }
-
-        template <typename T>
-        bool operator==(const Location<T> &lhs, const Location<T> &rhs)
-        {
-            return lhs.Item() == rhs.Item() && lhs.Located() == rhs.Located();
-        }
-
-        template <typename T>
-        bool operator!=(const Location<T> &lhs, const Location<T> &rhs)
-        {
-            return !(lhs == rhs);
-        }
 
     } // namespace basic
 

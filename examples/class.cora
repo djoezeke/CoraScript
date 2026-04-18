@@ -1,0 +1,16 @@
+print("-- Class Demo --")
+
+#class Student {
+#    Student(name, age) {
+#        this.set("name", name)
+#        this.set("age", age)
+#    };
+#
+#    greet() {
+#        return "Hello, my name is " + this.get("name") + " and I am " + this.get("age") + " years old."
+#    }
+#
+#};
+
+#let student = new Student("Alice", 20)
+#print("greet:", student.greet())

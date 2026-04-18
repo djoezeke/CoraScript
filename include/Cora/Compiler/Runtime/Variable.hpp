@@ -8,6 +8,8 @@ namespace cora::compiler
     namespace runtime
     {
 
+        class Value;
+
         enum class VariableScope
         {
             Local,
@@ -18,24 +20,17 @@ namespace cora::compiler
         {
         public:
             Variable(Value *value, VariableScope type, bool constant);
-            ~Variable();
 
-            static Variable *LocalVariable(Value *value, bool constant = false)
-            {
-                return new Variable(value, VariableScope::Local, constant);
-            }
+            static Variable *LocalVariable(Value *value, bool constant = false);
 
-            static Variable *GlobalVariable(Value *value, bool constant = false)
-            {
-                return new Variable(value, VariableScope::Global, constant);
-            }
+            static Variable *GlobalVariable(Value *value, bool constant = false);
 
             /**
              * @brief Return the value object
              *
              * @return Value *
              */
-            Value *GetValue() const { return m_Value; }
+            Value *GetValue() const;
 
             /**
              * @brief Set the value object
@@ -49,20 +44,22 @@ namespace cora::compiler
              *
              * @return ValueKind
              */
-            ValueKind GetKind() const { return m_Value->GetValueKind(); }
+            ValueKind GetKind() const;
 
             /**
              * @brief Return the value scope
              *
              * @return VariableScope
              */
-            VariableScope GetScope() const { return m_Scope; }
+            VariableScope GetScope() const;
 
-            bool IsConst() const { return m_Constant; }
+            [[nodiscard]] bool IsConst() const;
 
-            bool IsLocal() const { return m_Scope == VariableScope::Local; }
+            [[nodiscard]] bool isLocal() const;
 
-            bool IsGlobal() const { return m_Scope == VariableScope::Global; }
+            [[nodiscard]] bool isGlobal() const;
+
+            ~Variable();
 
         private:
             Value *m_Value;

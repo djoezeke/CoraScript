@@ -61,6 +61,8 @@ namespace cora::compiler
             TryExpr,
             CastExpr,
             CallExpr,
+            MemberExpr,
+            NewExpr,
             BlockExpr,
             AssignExpr,
             BinaryExpr,

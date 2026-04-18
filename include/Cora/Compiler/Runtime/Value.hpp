@@ -1,14 +1,66 @@
 #ifndef CORA_COMPILER_RUNTIME_VALUE_H
 #define CORA_COMPILER_RUNTIME_VALUE_H
 
+#include <functional>
+#include <memory>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <variant>
+#include <vector>
 
 namespace cora::compiler
 {
     namespace runtime
     {
+
+        class Value;
+
+        class Callable
+        {
+        public:
+            virtual ~Callable() = default;
+            virtual Value Call(const std::vector<Value> &arguments) = 0;
+            virtual std::string Name() const = 0;
+        };
+
+        class Object
+        {
+        public:
+            explicit Object(std::string className = "Object");
+
+            std::string className;
+            std::unordered_map<std::string, Value> fields;
+        };
+
+        class NativeFunction final : public Callable
+        {
+        public:
+            using Fn = std::function<Value(const std::vector<Value> &)>;
+
+            NativeFunction(std::string name, Fn fn);
+
+            Value Call(const std::vector<Value> &arguments) override;
+            std::string Name() const override;
+
+        private:
+            std::string m_Name;
+            Fn m_Fn;
+        };
+
+        class BoundMethod final : public Callable
+        {
+        public:
+            BoundMethod(std::shared_ptr<Object> receiver, std::shared_ptr<Callable> callable, std::string name);
+
+            Value Call(const std::vector<Value> &arguments) override;
+            std::string Name() const override;
+
+        private:
+            std::shared_ptr<Object> m_Receiver;
+            std::shared_ptr<Callable> m_Callable;
+            std::string m_Name;
+        };
 
         enum class ValueKind
         {
@@ -23,23 +75,26 @@ namespace cora::compiler
             Integer,
             Pointer,
             Reference,
+            Callable,
             Undefined,
         };
 
         class Value
         {
         public:
-            using Data = std::variant<std::monostate, bool, double, std::string>;
+            using ObjectPtr = std::shared_ptr<Object>;
+            using CallablePtr = std::shared_ptr<Callable>;
+            using Data = std::variant<std::monostate, bool, double, std::string, ObjectPtr, CallablePtr>;
 
             Value();
             explicit Value(ValueKind valuekind);
-            Value(ValueKind valuekind, std::string kindstring);
             explicit Value(std::nullptr_t);
             explicit Value(bool value);
             explicit Value(double value);
             explicit Value(const std::string &value);
             explicit Value(const char *value);
-            virtual ~Value() = default;
+            explicit Value(ObjectPtr object);
+            explicit Value(CallablePtr callable);
 
             virtual std::string Repr() const;
 
@@ -47,7 +102,6 @@ namespace cora::compiler
             std::string GetValueKindString() const;
 
             void SetValueKind(ValueKind valuekind) noexcept;
-            void SetValueKindString(std::string kindstring) noexcept;
 
             const Data &GetData() const;
             void SetData(Data data);
@@ -56,82 +110,20 @@ namespace cora::compiler
             bool IsBool() const;
             bool IsNumber() const;
             bool IsString() const;
+            bool IsObject() const;
+            bool IsCallable() const;
 
             bool AsBool() const;
             double AsNumber() const;
             std::string AsString() const;
+            ObjectPtr AsObject() const;
+            CallablePtr AsCallable() const;
+
+            virtual ~Value() = default;
 
         private:
             ValueKind m_Kind;
-            std::string m_KindString;
             Data m_Data;
-        };
-
-        struct Any : public Value
-        {
-            Any();
-            std::string Repr() const override;
-        };
-
-        struct Null : public Value
-        {
-            Null();
-            std::string Repr() const override;
-        };
-
-        struct Byte : public Value
-        {
-            Byte();
-            std::string Repr() const override;
-        };
-
-        struct Float : public Value
-        {
-            Float();
-            std::string Repr() const override;
-        };
-
-        struct Array : public Value
-        {
-            Array();
-            std::string Repr() const override;
-        };
-
-        struct Object : public Value
-        {
-            Object();
-            std::string Repr() const override;
-        };
-
-        struct String : public Value
-        {
-            String();
-            explicit String(const std::string &value);
-            std::string Repr() const override;
-        };
-
-        struct Integer : public Value
-        {
-            Integer();
-            std::string Repr() const override;
-        };
-
-        struct Pointer : public Value
-        {
-            Pointer();
-            std::string Repr() const override;
-        };
-
-        struct Reference : public Value
-        {
-            Reference();
-            std::string Repr() const override;
-        };
-
-        struct Undefined : public Value
-        {
-            Undefined();
-            std::string Repr() const override;
         };
 
         std::ostream &operator<<(std::ostream &ostream, const Value *value);

@@ -1,91 +1,124 @@
 #include "Cora/Compiler/Parser/Token.hpp"
 
+#include <unordered_map>
+
 namespace cora::compiler
 {
     namespace parser
     {
 
-        Token::Token() = default;
-
-        Token::Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column)
-        {
-            m_Type = tokentype, m_TokenText = tokentext;
-            SourceLocation start(line, column);
-            SourceLocation end(line, column + tokentext.size());
-            m_Range = SourceRange(start, end);
-        };
+        Token::Token()
+            : m_Type(TokenType::End), m_Range(SourceRange()), m_TokenText() {}
 
         Token::Token(TokenType tokentype, unsigned int line, unsigned int column)
+            : m_Type(tokentype),
+              m_Range(SourceRange(SourceLocation(line, column))),
+              m_TokenText() {}
+
+        Token::Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column)
+            : m_Type(tokentype),
+              m_Range(SourceRange(SourceLocation(line, column), SourceLocation(line, column + static_cast<unsigned int>(tokentext.size())))),
+              m_TokenText(std::move(tokentext)) {}
+
+        std::string Token::Repr() { return GetText(); }
+
+        TokenType Token::GetTokenType() const { return m_Type; }
+
+        std::string Token::GetTokenTypeString() const
         {
-            m_Type = tokentype;
-            SourceLocation start(line, column);
-            m_Range = SourceRange(start);
-        };
+            static const std::unordered_map<TokenType, std::string> names = {
+                {TokenType::End, "End"},
+                {TokenType::Newline, "Newline"},
+                {TokenType::Indent, "Indent"},
+                {TokenType::Dedent, "Dedent"},
+                {TokenType::Identifier, "Identifier"},
+                {TokenType::Number, "Number"},
+                {TokenType::String, "String"},
+                {TokenType::Null, "Null"},
+                {TokenType::True, "True"},
+                {TokenType::False, "False"},
+                {TokenType::Let, "Let"},
+                {TokenType::Int, "Int"},
+                {TokenType::Float, "Float"},
+                {TokenType::Bool, "Bool"},
+                {TokenType::StringType, "StringType"},
+                {TokenType::If, "If"},
+                {TokenType::Elif, "Elif"},
+                {TokenType::Else, "Else"},
+                {TokenType::While, "While"},
+                {TokenType::For, "For"},
+                {TokenType::In, "In"},
+                {TokenType::Range, "Range"},
+                {TokenType::Break, "Break"},
+                {TokenType::Continue, "Continue"},
+                {TokenType::Pass, "Pass"},
+                {TokenType::Print, "Print"},
+                {TokenType::And, "And"},
+                {TokenType::Or, "Or"},
+                {TokenType::Not, "Not"},
+                {TokenType::LParen, "LParen"},
+                {TokenType::RParen, "RParen"},
+                {TokenType::LBrace, "LBrace"},
+                {TokenType::RBrace, "RBrace"},
+                {TokenType::Colon, "Colon"},
+                {TokenType::Comma, "Comma"},
+                {TokenType::Semicolon, "Semicolon"},
+                {TokenType::Assign, "Assign"},
+                {TokenType::Plus, "Plus"},
+                {TokenType::Minus, "Minus"},
+                {TokenType::Star, "Star"},
+                {TokenType::Slash, "Slash"},
+                {TokenType::Percent, "Percent"},
+                {TokenType::Dot, "Dot"},
+                {TokenType::Equal, "Equal"},
+                {TokenType::NotEqual, "NotEqual"},
+                {TokenType::Less, "Less"},
+                {TokenType::LessEqual, "LessEqual"},
+                {TokenType::Greater, "Greater"},
+                {TokenType::GreaterEqual, "GreaterEqual"},
+            };
 
-        Token::Token(TokenType tokentype, std::string kinsdtring, std::string tokentext, unsigned int line, unsigned int column)
-        {
-            m_Type = tokentype;
-            m_TypeString = kinsdtring;
-            m_TokenText = tokentext;
-            SourceLocation start(line, column);
-            SourceLocation end(line, column + tokentext.size());
-            m_Range = SourceRange(start, end);
-        };
+            auto it = names.find(m_Type);
+            if (it != names.end())
+            {
+                return it->second;
+            }
 
-        std::string Token::Repr() { return GetText(); };
+            return "TokenType(" + std::to_string(static_cast<int>(m_Type)) + ")";
+        }
 
-        TokenType Token::GetTokenType() const { return m_Type; };
-
-        std::string Token::GetTokenTypeString() const { return m_TypeString; };
-
-        bool Token::Is(TokenType tokentype) const { return m_Type == tokentype; };
-        bool Token::IsNot(TokenType tokentype) const { return m_Type != tokentype; };
+        bool Token::Is(TokenType tokentype) const { return m_Type == tokentype; }
+        bool Token::IsNot(TokenType tokentype) const { return m_Type != tokentype; }
 
         bool Token::IsAny(TokenType tokentype) const
         {
             return Is(tokentype);
         }
 
-        template <typename... T>
-        bool Token::IsAny(TokenType kind1, TokenType kind2, T... tokentypes) const
-        {
-            if (Is(kind1))
-                return true;
-            return IsAny(kind2, tokentypes...);
-        }
+        std::string Token::GetText() const { return m_TokenText; }
 
-        template <typename... T>
-        bool Token::IsNotAny(TokenType tokentype, T... tokentypes) const
-        {
-            return !IsAny(tokentype, tokentypes...);
-        }
+        unsigned int Token::GetLenght() const { return static_cast<unsigned int>(m_TokenText.size()); }
 
-        std::string Token::GetText() const { return m_TokenText; };
+        SourceLocation Token::GetStartPosition() const noexcept { return m_Range.GetStart(); }
 
-        unsigned int Token::GetLenght() const { return m_TokenText.size(); };
+        SourceLocation Token::GetEndPosition() const noexcept { return m_Range.GetEnd(); }
 
-        SourceLocation Token::GetStartPosition() const noexcept { return m_Range.GetStart(); };
+        SourceRange Token::GetSourceRange() const { return m_Range; }
 
-        SourceLocation Token::GetEndPosition() const noexcept { return m_Range.GetEnd(); };
+        void Token::SetText(std::string text) { m_TokenText = std::move(text); }
 
-        SourceRange Token::GetSourceRange() const { return m_Range; };
+        void Token::SetTokenType(TokenType tokentype) noexcept { m_Type = tokentype; }
 
-        void Token::SetText(std::string text) { m_TokenText = text; };
+        void Token::SetStartPosition(SourceLocation start) noexcept { m_Range.SetStart(start); }
 
-        void Token::SetTokenType(TokenType tokentype) noexcept { m_Type = tokentype; };
+        void Token::SetEndPosition(SourceLocation end) noexcept { m_Range.SetEnd(end); }
 
-        void Token::SetTokenTypeString(std::string kindstring) noexcept { m_TypeString = kindstring; };
-
-        void Token::SetStartPosition(SourceLocation start) noexcept { m_Range.SetStart(start); };
-
-        void Token::SetEndPosition(SourceLocation end) noexcept { m_Range.SetEnd(end); };
-
-        void Token::SetSourceRange(SourceRange range) noexcept { m_Range = range; };
+        void Token::SetSourceRange(SourceRange range) noexcept { m_Range = std::move(range); }
 
         std::ostream &operator<<(std::ostream &ostream, Token token)
         {
             return ostream << token.GetText();
-        };
+        }
 
     } // namespace parser
 

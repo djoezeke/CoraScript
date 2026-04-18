@@ -10,19 +10,58 @@ namespace cora::compiler
     namespace parser
     {
 
-        Lexer::Lexer() {
-        };
+        Lexer::Lexer()
+            : m_Source(), m_Tokens(), m_Position(0), m_Prev(TokenType::End, "<eof>", 1, 1) {}
 
-        std::deque<Token> Lexer::Lex(const std::string &source) const
+        Lexer::Lexer(std::string source)
+            : m_Source(std::move(source)), m_Tokens(), m_Position(0), m_Prev(TokenType::End, "<eof>", 1, 1)
         {
-            std::deque<Token> tokens;
-            std::istringstream stream(source);
-            std::string line;
-            std::deque<int> indentStack{0};
-            int lineNo = 1;
-            int braceDepth = 0;
+            BuildTokens();
+        }
 
-            const std::unordered_map<std::string, TokenType> keywords = {
+        std::deque<Token> Lexer::Lex(const std::string &source)
+        {
+            m_Source = source;
+            BuildTokens();
+            return m_Tokens;
+        }
+
+        std::deque<Token> Lexer::Tokenize()
+        {
+            if (m_Tokens.empty())
+            {
+                BuildTokens();
+            }
+            return m_Tokens;
+        }
+
+        Token Lexer::NextToken()
+        {
+            if (m_Tokens.empty())
+            {
+                BuildTokens();
+            }
+
+            if (m_Position >= m_Tokens.size())
+            {
+                return m_Prev;
+            }
+
+            m_Prev = m_Tokens[m_Position++];
+            return m_Prev;
+        }
+
+        Token Lexer::PrevToken() const
+        {
+            return m_Prev;
+        }
+
+        void Lexer::BuildTokens()
+        {
+            m_Tokens.clear();
+            m_Position = 0;
+
+            static const std::unordered_map<std::string, TokenType> keywords = {
                 {"if", TokenType::If},
                 {"elif", TokenType::Elif},
                 {"else", TokenType::Else},
@@ -46,7 +85,21 @@ namespace cora::compiler
                 {"none", TokenType::Null},
                 {"true", TokenType::True},
                 {"false", TokenType::False},
+                {"class", TokenType::T_CLASS},
+                {"new", TokenType::T_NEW},
+                {"delete", TokenType::T_DELETE},
+                {"fun", TokenType::T_FUN},
+                {"return", TokenType::T_RETURN},
+                {"this", TokenType::T_THIS},
             };
+
+            std::istringstream stream(m_Source);
+            std::deque<int> indentStack;
+            indentStack.push_back(0);
+
+            std::string line;
+            unsigned int lineNo = 1;
+            int braceDepth = 0;
 
             while (std::getline(stream, line))
             {
@@ -57,7 +110,7 @@ namespace cora::compiler
                     continue;
                 }
 
-                int indent = CountIndent(line);
+                const int indent = CountIndent(line);
                 std::size_t pos = static_cast<std::size_t>(indent);
 
                 if (braceDepth == 0)
@@ -65,12 +118,12 @@ namespace cora::compiler
                     if (indent > indentStack.back())
                     {
                         indentStack.push_back(indent);
-                        tokens.push_back({TokenType::Indent, "<indent>", lineNo, 1});
+                        PushToken(TokenType::Indent, "<indent>", lineNo, 1);
                     }
                     while (indent < indentStack.back())
                     {
                         indentStack.pop_back();
-                        tokens.push_back({TokenType::Dedent, "<dedent>", lineNo, 1});
+                        PushToken(TokenType::Dedent, "<dedent>", lineNo, 1);
                     }
                     if (indent != indentStack.back())
                     {
@@ -78,10 +131,11 @@ namespace cora::compiler
                     }
                 }
 
-                int column = static_cast<int>(pos) + 1;
+                unsigned int column = static_cast<unsigned int>(pos) + 1;
                 while (pos < line.size())
                 {
-                    char ch = line[pos];
+                    const char ch = line[pos];
+
                     if (std::isspace(static_cast<unsigned char>(ch)))
                     {
                         ++pos;
@@ -101,27 +155,29 @@ namespace cora::compiler
 
                     if (std::isalpha(static_cast<unsigned char>(ch)) || ch == '_')
                     {
-                        std::size_t start = pos;
-                        int startCol = column;
+                        const std::size_t start = pos;
+                        const unsigned int startCol = column;
                         while (pos < line.size() && (std::isalnum(static_cast<unsigned char>(line[pos])) || line[pos] == '_'))
                         {
                             ++pos;
                             ++column;
                         }
-                        std::string text = line.substr(start, pos - start);
+
+                        const std::string text = line.substr(start, pos - start);
                         auto keyword = keywords.find(text);
-                        tokens.push_back({keyword != keywords.end() ? keyword->second : TokenType::Identifier, text, lineNo, startCol});
+                        PushToken(keyword != keywords.end() ? keyword->second : TokenType::Identifier, text, lineNo, startCol);
                         continue;
                     }
 
                     if (std::isdigit(static_cast<unsigned char>(ch)))
                     {
-                        std::size_t start = pos;
-                        int startCol = column;
+                        const std::size_t start = pos;
+                        const unsigned int startCol = column;
                         bool sawDot = false;
+
                         while (pos < line.size())
                         {
-                            char c = line[pos];
+                            const char c = line[pos];
                             if (std::isdigit(static_cast<unsigned char>(c)))
                             {
                                 ++pos;
@@ -138,22 +194,24 @@ namespace cora::compiler
                                 break;
                             }
                         }
-                        tokens.push_back({TokenType::Number, line.substr(start, pos - start), lineNo, startCol});
+
+                        PushToken(TokenType::Number, line.substr(start, pos - start), lineNo, startCol);
                         continue;
                     }
 
                     if (ch == '"' || ch == '\'')
                     {
                         const char quote = ch;
-                        int startCol = column;
+                        const unsigned int startCol = column;
                         ++pos;
                         ++column;
+
                         std::string value;
                         while (pos < line.size() && line[pos] != quote)
                         {
                             if (line[pos] == '\\' && pos + 1 < line.size())
                             {
-                                char escaped = line[pos + 1];
+                                const char escaped = line[pos + 1];
                                 switch (escaped)
                                 {
                                 case 'n':
@@ -185,26 +243,28 @@ namespace cora::compiler
                                 ++column;
                             }
                         }
+
                         if (pos >= line.size() || line[pos] != quote)
                         {
                             throw std::runtime_error("Unterminated string at line " + std::to_string(lineNo));
                         }
+
                         ++pos;
                         ++column;
-                        tokens.push_back({TokenType::String, value, lineNo, startCol});
+                        PushToken(TokenType::String, value, lineNo, startCol);
                         continue;
                     }
 
-                    auto addToken = [&](TokenType type, std::string text, int width)
+                    auto addToken = [&](TokenType type, const std::string &text, unsigned int width)
                     {
-                        tokens.push_back({type, std::move(text), lineNo, column});
-                        pos += static_cast<std::size_t>(width);
+                        PushToken(type, text, lineNo, column);
+                        pos += width;
                         column += width;
                     };
 
                     if (pos + 1 < line.size())
                     {
-                        std::string two = line.substr(pos, 2);
+                        const std::string two = line.substr(pos, 2);
                         if (two == "==")
                         {
                             addToken(TokenType::Equal, two, 2);
@@ -266,6 +326,9 @@ namespace cora::compiler
                     case ';':
                         addToken(TokenType::Semicolon, ";", 1);
                         break;
+                    case '.':
+                        addToken(TokenType::Dot, ".", 1);
+                        break;
                     case '=':
                         addToken(TokenType::Assign, "=", 1);
                         break;
@@ -298,21 +361,21 @@ namespace cora::compiler
                     }
                 }
 
-                tokens.push_back({TokenType::Newline, "\\n", lineNo, static_cast<int>(line.size()) + 1});
+                PushToken(TokenType::Newline, "\\n", lineNo, static_cast<unsigned int>(line.size()) + 1);
                 ++lineNo;
             }
 
             while (indentStack.size() > 1)
             {
                 indentStack.pop_back();
-                tokens.push_back({TokenType::Dedent, "<dedent>", lineNo, 1});
+                PushToken(TokenType::Dedent, "<dedent>", lineNo, 1);
             }
 
-            tokens.push_back({TokenType::End, "<eof>", lineNo, 1});
-            return tokens;
-        };
+            PushToken(TokenType::End, "<eof>", lineNo, 1);
+            m_Prev = m_Tokens.front();
+        }
 
-        std::string Lexer::Trim(const std::string &line) const
+        std::string Lexer::Trim(const std::string &line)
         {
             std::size_t start = 0;
             while (start < line.size() && std::isspace(static_cast<unsigned char>(line[start])))
@@ -329,7 +392,7 @@ namespace cora::compiler
             return line.substr(start, end - start);
         }
 
-        int Lexer::CountIndent(const std::string &line) const
+        int Lexer::CountIndent(const std::string &line)
         {
             int count = 0;
             for (char c : line)
@@ -350,15 +413,13 @@ namespace cora::compiler
             return count;
         }
 
-        Lexer::~Lexer() {
-        };
+        void Lexer::PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column)
+        {
+            m_Tokens.emplace_back(type, text, line, column);
+        }
+
+        Lexer::~Lexer() = default;
+
     } // namespace parser
 
 } // namespace cora::compiler
-
-namespace cora::script
-{
-    namespace
-    {
-    }
-}

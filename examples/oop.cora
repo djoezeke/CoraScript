@@ -1,0 +1,12 @@
+print("-- oop demo --")
+
+let person = new Person()
+person.set("name", "Zeke")
+person.set("age", 28)
+
+print("type:", person.type)
+print("name:", person.get("name"))
+print("age:", person.get("age"))
+print("fields:", person.keys())
+print("len(fields):", len(person))
+print("toString:", person.toString())

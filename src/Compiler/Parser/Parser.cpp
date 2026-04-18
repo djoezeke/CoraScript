@@ -52,7 +52,7 @@ namespace cora::compiler
             return statements;
         }
 
-        BlockStmt *Parser::ParseBlock()
+        Statement *Parser::ParseBlock()
         {
             auto *block = new BlockStmt();
 
@@ -88,6 +88,18 @@ namespace cora::compiler
             {
                 return ParseFor();
             }
+            if (Match(TokenType::T_CLASS))
+            {
+                return ParseClassDecl();
+            }
+            if (Match(TokenType::T_FUN))
+            {
+                return ParseFunctionDecl(true);
+            }
+            if (Match(TokenType::T_RETURN))
+            {
+                return ParseReturn();
+            }
             if (Match(TokenType::Break))
             {
                 ConsumeStatementTerminator();
@@ -106,6 +118,10 @@ namespace cora::compiler
             if (Match(TokenType::Print))
             {
                 return ParsePrint();
+            }
+            if (Match(TokenType::T_DELETE))
+            {
+                return ParseDelete();
             }
             if (Match(TokenType::Let))
             {
@@ -133,30 +149,20 @@ namespace cora::compiler
         Statement *Parser::ParseIf()
         {
             auto *ifStmt = new IfStmt();
-
             Expression *condition = ParseExpression();
-            BlockStmt *body = ParseBlock();
+            BlockStmt *body = static_cast<BlockStmt *>(ParseBlock());
             ifStmt->branches.emplace_back(condition, body);
 
             while (Match(TokenType::Elif))
             {
                 Expression *elifCondition = ParseExpression();
-                BlockStmt *elifBody = ParseBlock();
+                BlockStmt *elifBody = static_cast<BlockStmt *>(ParseBlock());
                 ifStmt->branches.emplace_back(elifCondition, elifBody);
             }
 
-            while (Match(TokenType::Else))
+            if (Match(TokenType::Else))
             {
-                if (Match(TokenType::If))
-                {
-                    Expression *elseIfCondition = ParseExpression();
-                    BlockStmt *elseIfBody = ParseBlock();
-                    ifStmt->branches.emplace_back(elseIfCondition, elseIfBody);
-                    continue;
-                }
-
-                ifStmt->elseBlock = ParseBlock();
-                break;
+                ifStmt->elseBlock = static_cast<BlockStmt *>(ParseBlock());
             }
 
             return ifStmt;
@@ -165,7 +171,7 @@ namespace cora::compiler
         Statement *Parser::ParseWhile()
         {
             Expression *condition = ParseExpression();
-            BlockStmt *body = ParseBlock();
+            BlockStmt *body = static_cast<BlockStmt *>(ParseBlock());
             return new WhileStmt(condition, body);
         }
 
@@ -217,7 +223,7 @@ namespace cora::compiler
                 }
                 Consume(TokenType::RParen, "Expected ')' after for clauses");
 
-                BlockStmt *body = ParseBlock();
+                BlockStmt *body = static_cast<BlockStmt *>(ParseBlock());
                 return new ForCStyleStmt(initializer, condition, update, body);
             }
 
@@ -249,9 +255,72 @@ namespace cora::compiler
             }
 
             Consume(TokenType::RParen, "Expected ')' after range arguments");
-
-            BlockStmt *body = ParseBlock();
+            BlockStmt *body = static_cast<BlockStmt *>(ParseBlock());
             return new ForRangeStmt(nameToken.GetText(), start, end, step, body);
+        }
+
+        Statement *Parser::ParseClassDecl()
+        {
+            const Token &nameToken = Consume(TokenType::Identifier, "Expected class name");
+            auto *classBody = static_cast<BlockStmt *>(ParseBlock());
+
+            std::deque<FunctionDeclStmt *> methods;
+            for (Statement *statement : classBody->statements)
+            {
+                auto *method = dynamic_cast<FunctionDeclStmt *>(statement);
+                if (method == nullptr)
+                {
+                    delete classBody;
+                    for (FunctionDeclStmt *existing : methods)
+                    {
+                        delete existing;
+                    }
+                    throw std::runtime_error("Only method declarations are allowed inside class body");
+                }
+                methods.push_back(method);
+            }
+
+            classBody->statements.clear();
+            delete classBody;
+            return new ClassDeclStmt(nameToken.GetText(), std::move(methods));
+        }
+
+        Statement *Parser::ParseFunctionDecl(bool requireName)
+        {
+            std::string functionName;
+            if (requireName)
+            {
+                functionName = Consume(TokenType::Identifier, "Expected function name").GetText();
+            }
+            else
+            {
+                functionName = "<anonymous>";
+            }
+
+            Consume(TokenType::LParen, "Expected '(' after function name");
+            std::deque<std::string> parameters;
+            if (!Check(TokenType::RParen))
+            {
+                do
+                {
+                    parameters.push_back(Consume(TokenType::Identifier, "Expected parameter name").GetText());
+                } while (Match(TokenType::Comma));
+            }
+            Consume(TokenType::RParen, "Expected ')' after parameter list");
+
+            auto *body = static_cast<BlockStmt *>(ParseBlock());
+            return new FunctionDeclStmt(functionName, std::move(parameters), body);
+        }
+
+        Statement *Parser::ParseReturn()
+        {
+            Expression *value = nullptr;
+            if (!Check(TokenType::Semicolon) && !Check(TokenType::Newline) && !Check(TokenType::Dedent) && !Check(TokenType::RBrace) && !Check(TokenType::End))
+            {
+                value = ParseExpression();
+            }
+            ConsumeStatementTerminator();
+            return new ReturnStmt(value);
         }
 
         Statement *Parser::ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator)
@@ -304,6 +373,18 @@ namespace cora::compiler
             Consume(TokenType::RParen, "Expected ')' after print expression");
             ConsumeStatementTerminator();
             return printStmt;
+        }
+
+        Statement *Parser::ParseDelete()
+        {
+            Expression *target = ParseCall();
+            if (dynamic_cast<VariableExpr *>(target) == nullptr && dynamic_cast<MemberExpr *>(target) == nullptr)
+            {
+                delete target;
+                throw std::runtime_error("delete target must be a variable or member access");
+            }
+            ConsumeStatementTerminator();
+            return new DeleteStmt(target);
         }
 
         Expression *Parser::ParseExpression()
@@ -391,6 +472,43 @@ namespace cora::compiler
                 Expression *rhs = ParseUnary();
                 return new UnaryExpr(op, rhs);
             }
+            return ParseCall();
+        }
+
+        Expression *Parser::ParseCall()
+        {
+            Expression *expr = ParsePrimary();
+            while (true)
+            {
+                if (Match(TokenType::LParen))
+                {
+                    std::deque<Expression *> arguments;
+                    if (!Check(TokenType::RParen))
+                    {
+                        do
+                        {
+                            arguments.push_back(ParseExpression());
+                        } while (Match(TokenType::Comma));
+                    }
+                    Consume(TokenType::RParen, "Expected ')' after arguments");
+                    expr = new CallExpr(expr, std::move(arguments));
+                    continue;
+                }
+
+                if (Match(TokenType::Dot))
+                {
+                    const Token &member = Consume(TokenType::Identifier, "Expected member name after '.'");
+                    expr = new MemberExpr(expr, member.GetText());
+                    continue;
+                }
+
+                break;
+            }
+            return expr;
+        }
+
+        Expression *Parser::ParseMember()
+        {
             return ParsePrimary();
         }
 
@@ -416,7 +534,22 @@ namespace cora::compiler
             {
                 return new LiteralExpr(false);
             }
-            if (Match(TokenType::Identifier))
+            if (Match(TokenType::T_NEW))
+            {
+                const Token &className = Consume(TokenType::Identifier, "Expected class name after 'new'");
+                Consume(TokenType::LParen, "Expected '(' after class name");
+                std::deque<Expression *> args;
+                if (!Check(TokenType::RParen))
+                {
+                    do
+                    {
+                        args.push_back(ParseExpression());
+                    } while (Match(TokenType::Comma));
+                }
+                Consume(TokenType::RParen, "Expected ')' after constructor arguments");
+                return new NewExpr(className.GetText(), std::move(args));
+            }
+            if (Match(TokenType::Identifier) || Match(TokenType::Int) || Match(TokenType::Float) || Match(TokenType::Bool) || Match(TokenType::StringType) || Match(TokenType::T_THIS))
             {
                 return new VariableExpr(Previous().GetText());
             }
@@ -486,13 +619,12 @@ namespace cora::compiler
 
         void Parser::ConsumeStatementTerminator()
         {
-            if (Match(TokenType::Semicolon))
+            if (Match(TokenType::Semicolon) || Match(TokenType::Newline))
             {
                 return;
             }
-            if (Check(TokenType::Newline) || Check(TokenType::Dedent) || Check(TokenType::RBrace) || Check(TokenType::End))
+            if (Check(TokenType::Dedent) || Check(TokenType::RBrace) || Check(TokenType::End))
             {
-                Match(TokenType::Newline);
                 return;
             }
 

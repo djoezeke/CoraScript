@@ -150,8 +150,12 @@ namespace cora::compiler
         class DeleteStmt : public Statement
         {
         public:
-            DeleteStmt();
+            explicit DeleteStmt(Expression *target);
+            Expression *GetTarget() const;
             ~DeleteStmt() override;
+
+        private:
+            Expression *m_Target;
         };
 
         class SwitchStmt : public Statement
@@ -164,8 +168,40 @@ namespace cora::compiler
         class ReturnStmt : public Statement
         {
         public:
-            ReturnStmt();
+            explicit ReturnStmt(Expression *value);
+            Expression *GetValue() const;
             ~ReturnStmt() override;
+
+        private:
+            Expression *m_Value;
+        };
+
+        class FunctionDeclStmt : public Statement
+        {
+        public:
+            FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body);
+            const std::string &GetName() const;
+            const std::deque<std::string> &GetParameters() const;
+            class BlockStmt *GetBody() const;
+            ~FunctionDeclStmt() override;
+
+        private:
+            std::string m_Name;
+            std::deque<std::string> m_Parameters;
+            class BlockStmt *m_Body;
+        };
+
+        class ClassDeclStmt : public Statement
+        {
+        public:
+            ClassDeclStmt(std::string name, std::deque<FunctionDeclStmt *> methods);
+            const std::string &GetName() const;
+            const std::deque<FunctionDeclStmt *> &GetMethods() const;
+            ~ClassDeclStmt() override;
+
+        private:
+            std::string m_Name;
+            std::deque<FunctionDeclStmt *> m_Methods;
         };
 
         class ForEachStmt : public Statement

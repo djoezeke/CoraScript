@@ -7,14 +7,41 @@ namespace cora::compiler
 {
     namespace runtime
     {
+
+        Object::Object(std::string className)
+            : className(std::move(className)), fields() {}
+
+        NativeFunction::NativeFunction(std::string name, Fn fn)
+            : m_Name(std::move(name)), m_Fn(std::move(fn)) {}
+
+        Value NativeFunction::Call(const std::vector<Value> &arguments)
+        {
+            return m_Fn(arguments);
+        }
+
+        std::string NativeFunction::Name() const
+        {
+            return m_Name;
+        }
+
+        BoundMethod::BoundMethod(std::shared_ptr<Object> receiver, std::shared_ptr<Callable> callable, std::string name)
+            : m_Receiver(std::move(receiver)), m_Callable(std::move(callable)), m_Name(std::move(name)) {}
+
+        Value BoundMethod::Call(const std::vector<Value> &arguments)
+        {
+            return m_Callable->Call(arguments);
+        }
+
+        std::string BoundMethod::Name() const
+        {
+            return m_Name;
+        }
+
         Value::Value()
             : m_Kind(ValueKind::Undefined), m_Data(std::monostate{}) {}
 
         Value::Value(ValueKind valuekind)
             : m_Kind(valuekind), m_Data(std::monostate{}) {}
-
-        Value::Value(ValueKind valuekind, std::string kindstring)
-            : m_Kind(valuekind), m_KindString(std::move(kindstring)), m_Data(std::monostate{}) {}
 
         Value::Value(std::nullptr_t)
             : m_Kind(ValueKind::Null), m_Data(std::monostate{}) {}
@@ -31,6 +58,12 @@ namespace cora::compiler
         Value::Value(const char *value)
             : m_Kind(ValueKind::String), m_Data(std::string(value)) {}
 
+        Value::Value(ObjectPtr object)
+            : m_Kind(ValueKind::Object), m_Data(std::move(object)) {}
+
+        Value::Value(CallablePtr callable)
+            : m_Kind(ValueKind::Callable), m_Data(std::move(callable)) {}
+
         std::string Value::Repr() const
         {
             return AsString();
@@ -43,17 +76,41 @@ namespace cora::compiler
 
         std::string Value::GetValueKindString() const
         {
-            return m_KindString;
+            switch (m_Kind)
+            {
+            case ValueKind::Null:
+                return "null";
+            case ValueKind::Bool:
+                return "bool";
+            case ValueKind::Byte:
+                return "byte";
+            case ValueKind::Float:
+                return "float";
+            case ValueKind::Array:
+                return "array";
+            case ValueKind::Object:
+                return "object";
+            case ValueKind::String:
+                return "string";
+            case ValueKind::Integer:
+                return "integer";
+            case ValueKind::Pointer:
+                return "pointer";
+            case ValueKind::Reference:
+                return "reference";
+            case ValueKind::Callable:
+                return "callable";
+            case ValueKind::Undefined:
+                return "undefined";
+            case ValueKind::Any:
+            default:
+                return "any";
+            }
         }
 
         void Value::SetValueKind(ValueKind valuekind) noexcept
         {
             m_Kind = valuekind;
-        }
-
-        void Value::SetValueKindString(std::string kindstring) noexcept
-        {
-            m_KindString = std::move(kindstring);
         }
 
         const Value::Data &Value::GetData() const
@@ -86,6 +143,16 @@ namespace cora::compiler
             return std::holds_alternative<std::string>(m_Data);
         }
 
+        bool Value::IsObject() const
+        {
+            return std::holds_alternative<ObjectPtr>(m_Data);
+        }
+
+        bool Value::IsCallable() const
+        {
+            return std::holds_alternative<CallablePtr>(m_Data);
+        }
+
         bool Value::AsBool() const
         {
             if (IsNull())
@@ -100,7 +167,15 @@ namespace cora::compiler
             {
                 return std::get<double>(m_Data) != 0.0;
             }
-            return !std::get<std::string>(m_Data).empty();
+            if (IsString())
+            {
+                return !std::get<std::string>(m_Data).empty();
+            }
+            if (IsObject() || IsCallable())
+            {
+                return true;
+            }
+            return false;
         }
 
         double Value::AsNumber() const
@@ -128,106 +203,39 @@ namespace cora::compiler
                 out << std::get<double>(m_Data);
                 return out.str();
             }
-            return std::get<std::string>(m_Data);
+            if (IsString())
+            {
+                return std::get<std::string>(m_Data);
+            }
+            if (IsObject())
+            {
+                auto object = std::get<ObjectPtr>(m_Data);
+                return "<object " + (object ? object->className : std::string("null")) + ">";
+            }
+            if (IsCallable())
+            {
+                auto callable = std::get<CallablePtr>(m_Data);
+                return "<callable " + (callable ? callable->Name() : std::string("null")) + ">";
+            }
+            return "<value>";
         }
 
-        Any::Any()
-            : Value(ValueKind::Any, "Any") {}
-
-        std::string Any::Repr() const
+        Value::ObjectPtr Value::AsObject() const
         {
-            return "Any";
+            if (!IsObject())
+            {
+                return nullptr;
+            }
+            return std::get<ObjectPtr>(m_Data);
         }
 
-        Null::Null()
-            : Value(nullptr) {}
-
-        std::string Null::Repr() const
+        Value::CallablePtr Value::AsCallable() const
         {
-            return "null";
-        }
-
-        Byte::Byte()
-            : Value(ValueKind::Byte, "Byte") {}
-
-        std::string Byte::Repr() const
-        {
-            return "Byte";
-        }
-
-        Float::Float()
-            : Value(ValueKind::Float, "Float") {}
-
-        std::string Float::Repr() const
-        {
-            return "Float";
-        }
-
-        Array::Array()
-            : Value(ValueKind::Array, "Array") {}
-
-        std::string Array::Repr() const
-        {
-            return "Array";
-        }
-
-        Object::Object()
-            : Value(ValueKind::Object, "Object") {}
-
-        std::string Object::Repr() const
-        {
-            return "Object";
-        }
-
-        String::String()
-            : Value(std::string())
-        {
-            SetValueKind(ValueKind::String);
-            SetValueKindString("String");
-        }
-
-        String::String(const std::string &value)
-            : Value(value)
-        {
-            SetValueKind(ValueKind::String);
-            SetValueKindString("String");
-        }
-
-        std::string String::Repr() const
-        {
-            return AsString();
-        }
-
-        Integer::Integer()
-            : Value(ValueKind::Integer, "Integer") {}
-
-        std::string Integer::Repr() const
-        {
-            return "Integer";
-        }
-
-        Pointer::Pointer()
-            : Value(ValueKind::Pointer, "Pointer") {}
-
-        std::string Pointer::Repr() const
-        {
-            return "Pointer";
-        }
-
-        Reference::Reference()
-            : Value(ValueKind::Reference, "Reference") {}
-
-        std::string Reference::Repr() const
-        {
-            return "Reference";
-        }
-
-        Undefined::Undefined()
-            : Value(ValueKind::Undefined, "Undefined") {}
-
-        std::string Undefined::Repr() const
-        {
-            return "Undefined";
+            if (!IsCallable())
+            {
+                return nullptr;
+            }
+            return std::get<CallablePtr>(m_Data);
         }
 
         std::ostream &operator<<(std::ostream &ostream, const Value *value)

@@ -154,20 +154,83 @@ namespace cora::compiler
 
         ThrowStmt::~ThrowStmt() = default;
 
-        DeleteStmt::DeleteStmt()
-            : Statement(StatementType::DeleteStmt) {}
+        DeleteStmt::DeleteStmt(Expression *target)
+            : Statement(StatementType::DeleteStmt), m_Target(target) {}
 
-        DeleteStmt::~DeleteStmt() = default;
+        Expression *DeleteStmt::GetTarget() const
+        {
+            return m_Target;
+        }
+
+        DeleteStmt::~DeleteStmt()
+        {
+            delete m_Target;
+        }
 
         SwitchStmt::SwitchStmt()
             : Statement(StatementType::SwitchStmt) {}
 
         SwitchStmt::~SwitchStmt() = default;
 
-        ReturnStmt::ReturnStmt()
-            : Statement(StatementType::ReturnStmt) {}
+        ReturnStmt::ReturnStmt(Expression *value)
+            : Statement(StatementType::ReturnStmt), m_Value(value) {}
 
-        ReturnStmt::~ReturnStmt() = default;
+        Expression *ReturnStmt::GetValue() const
+        {
+            return m_Value;
+        }
+
+        ReturnStmt::~ReturnStmt()
+        {
+            delete m_Value;
+        }
+
+        FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body)
+            : Statement(StatementType::NewStmt),
+              m_Name(std::move(name)),
+              m_Parameters(std::move(parameters)),
+              m_Body(body) {}
+
+        const std::string &FunctionDeclStmt::GetName() const
+        {
+            return m_Name;
+        }
+
+        const std::deque<std::string> &FunctionDeclStmt::GetParameters() const
+        {
+            return m_Parameters;
+        }
+
+        BlockStmt *FunctionDeclStmt::GetBody() const
+        {
+            return m_Body;
+        }
+
+        FunctionDeclStmt::~FunctionDeclStmt()
+        {
+            delete m_Body;
+        }
+
+        ClassDeclStmt::ClassDeclStmt(std::string name, std::deque<FunctionDeclStmt *> methods)
+            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Methods(std::move(methods)) {}
+
+        const std::string &ClassDeclStmt::GetName() const
+        {
+            return m_Name;
+        }
+
+        const std::deque<FunctionDeclStmt *> &ClassDeclStmt::GetMethods() const
+        {
+            return m_Methods;
+        }
+
+        ClassDeclStmt::~ClassDeclStmt()
+        {
+            for (FunctionDeclStmt *method : m_Methods)
+            {
+                delete method;
+            }
+        }
 
         ForEachStmt::ForEachStmt()
             : Statement(StatementType::ForEachStmt) {}

@@ -161,8 +161,43 @@ namespace cora::compiler
         class CallExpr : public Expression
         {
         public:
-            CallExpr();
+            CallExpr(Expression *callee, std::deque<Expression *> arguments);
+            Expression *GetCallee() const;
+            const std::deque<Expression *> &GetArguments() const;
+            std::string Repr() override;
             ~CallExpr() override;
+
+        private:
+            Expression *m_Callee;
+            std::deque<Expression *> m_Arguments;
+        };
+
+        class MemberExpr : public Expression
+        {
+        public:
+            MemberExpr(Expression *object, std::string member);
+            Expression *GetObject() const;
+            const std::string &GetMember() const;
+            std::string Repr() override;
+            ~MemberExpr() override;
+
+        private:
+            Expression *m_Object;
+            std::string m_Member;
+        };
+
+        class NewExpr : public Expression
+        {
+        public:
+            NewExpr(std::string className, std::deque<Expression *> arguments);
+            const std::string &GetClassName() const;
+            const std::deque<Expression *> &GetArguments() const;
+            std::string Repr() override;
+            ~NewExpr() override;
+
+        private:
+            std::string m_ClassName;
+            std::deque<Expression *> m_Arguments;
         };
 
         class BlockExpr : public Expression

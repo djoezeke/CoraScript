@@ -2,6 +2,8 @@
 #define CORA_COMPILER_PARSER_TOKEN_H
 
 #include "Cora/Compiler/Basic/SourceLocation.h"
+
+#include <ostream>
 #include <string>
 
 namespace cora::compiler
@@ -56,6 +58,7 @@ namespace cora::compiler
 			Star,
 			Slash,
 			Percent,
+			Dot,
 			Equal,
 			NotEqual,
 			Less,
@@ -196,6 +199,7 @@ namespace cora::compiler
 			T_STATIC,
 			T_EXTERN,
 			T_CONST,
+			T_THIS,
 
 			T_EOF,
 
@@ -206,11 +210,9 @@ namespace cora::compiler
 		public:
 			Token();
 
-			Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column);
-
 			Token(TokenType tokentype, unsigned int line, unsigned int column);
 
-			Token(TokenType tokentype, std::string kinsdtring, std::string tokentext, unsigned int line, unsigned int column);
+			Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column);
 
 			/**
 			 * @brief Compute a representation of the token.
@@ -279,13 +281,6 @@ namespace cora::compiler
 			void SetTokenType(TokenType tokentype) noexcept;
 
 			/**
-			 * @brief Set the token kind string
-			 *
-			 * @param kindstring
-			 */
-			void SetTokenTypeString(std::string kindstring) noexcept;
-
-			/**
 			 * @brief Set the Node start position
 			 *
 			 * @param start
@@ -310,7 +305,6 @@ namespace cora::compiler
 			TokenType m_Type;
 			SourceRange m_Range;
 			std::string m_TokenText;
-			std::string m_TypeString;
 		};
 
 		std::ostream &operator<<(std::ostream &ostream, Token token);

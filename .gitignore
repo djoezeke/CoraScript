@@ -22,6 +22,17 @@
 *.la
 *.lo
 
+# Distribution / packaging
+build/
+MANIFEST
+build
+site
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
 # Shared objects (inc. Windows DLLs)
 *.dll
 *.so
@@ -51,12 +62,29 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Testing
+/Testing
+
+# Environments
+.env
+.envrc
+.venv
+env/
+venv/
+
+# mkdocs documentation
+/site
+mkdocs_material.egg-info
+
 # debug information files
 *.dwo
 
+# Visual Studio Code
+.vscode/
+/.vscode/
+/out/
+/.vs/
 
 # Cora Artifacts
-
 sample/
-.vscode/
-build/
+/*.cora

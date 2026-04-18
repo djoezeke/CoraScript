@@ -18,6 +18,10 @@ set(COMPILER_SOURCES
     "${COMPILER_DIR}/AST/Statements.cpp"
     "${COMPILER_DIR}/AST/Expressions.cpp"
 
+    "${COMPILER_DIR}/Error/Error.cpp"
+    
+    "${COMPILER_DIR}/Builtin/Builtin.cpp"
+
     "${COMPILER_DIR}/Parser/Token.cpp"
     "${COMPILER_DIR}/Parser/Lexer.cpp"
     "${COMPILER_DIR}/Parser/Parser.cpp"

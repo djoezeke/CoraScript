@@ -173,10 +173,81 @@ namespace cora::compiler
 
         CastExpr::~CastExpr() = default;
 
-        CallExpr::CallExpr()
-            : Expression(ExpressionType::CallExpr) {}
+        CallExpr::CallExpr(Expression *callee, std::deque<Expression *> arguments)
+            : Expression(ExpressionType::CallExpr), m_Callee(callee), m_Arguments(std::move(arguments)) {}
 
-        CallExpr::~CallExpr() = default;
+        Expression *CallExpr::GetCallee() const
+        {
+            return m_Callee;
+        }
+
+        const std::deque<Expression *> &CallExpr::GetArguments() const
+        {
+            return m_Arguments;
+        }
+
+        std::string CallExpr::Repr()
+        {
+            return "CallExpr(args=" + std::to_string(m_Arguments.size()) + ")";
+        }
+
+        CallExpr::~CallExpr()
+        {
+            delete m_Callee;
+            for (Expression *argument : m_Arguments)
+            {
+                delete argument;
+            }
+        }
+
+        MemberExpr::MemberExpr(Expression *object, std::string member)
+            : Expression(ExpressionType::MemberExpr), m_Object(object), m_Member(std::move(member)) {}
+
+        Expression *MemberExpr::GetObject() const
+        {
+            return m_Object;
+        }
+
+        const std::string &MemberExpr::GetMember() const
+        {
+            return m_Member;
+        }
+
+        std::string MemberExpr::Repr()
+        {
+            return "MemberExpr(" + m_Member + ")";
+        }
+
+        MemberExpr::~MemberExpr()
+        {
+            delete m_Object;
+        }
+
+        NewExpr::NewExpr(std::string className, std::deque<Expression *> arguments)
+            : Expression(ExpressionType::NewExpr), m_ClassName(std::move(className)), m_Arguments(std::move(arguments)) {}
+
+        const std::string &NewExpr::GetClassName() const
+        {
+            return m_ClassName;
+        }
+
+        const std::deque<Expression *> &NewExpr::GetArguments() const
+        {
+            return m_Arguments;
+        }
+
+        std::string NewExpr::Repr()
+        {
+            return "NewExpr(" + m_ClassName + ")";
+        }
+
+        NewExpr::~NewExpr()
+        {
+            for (Expression *argument : m_Arguments)
+            {
+                delete argument;
+            }
+        }
 
         BlockExpr::BlockExpr()
             : Expression(ExpressionType::BlockExpr) {}
