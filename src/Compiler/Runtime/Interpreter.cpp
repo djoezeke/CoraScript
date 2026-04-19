@@ -30,9 +30,9 @@ namespace cora::compiler
                 Value value;
             };
 
-            static std::shared_ptr<NativeFunction> MakeNative(const std::string &name, NativeFunction::Fn fn)
+            static std::shared_ptr<Function> MakeNative(const std::string &name, Function::Func fn)
             {
-                return std::make_shared<NativeFunction>(name, std::move(fn));
+                return std::make_shared<Function>(name, std::move(fn));
             }
         }
 
@@ -555,6 +555,49 @@ namespace cora::compiler
             {
                 Value value = returnStmt->GetValue() != nullptr ? EvalExpr(returnStmt->GetValue()) : Value(nullptr);
                 throw ReturnSignal{value};
+            }
+
+            if (auto *importStmt = dynamic_cast<ast::ImportStmt *>(stmt))
+            {
+                const std::string &modulePath = importStmt->GetModuleName();
+                if (modulePath.empty())
+                {
+                    return;
+                }
+
+                std::size_t segmentStart = 0;
+                std::size_t dotPosition = modulePath.find('.');
+                std::string rootName = modulePath.substr(segmentStart, dotPosition == std::string::npos ? std::string::npos : dotPosition - segmentStart);
+
+                Scope *rootScope = m_CurrentScope->ResolveVariable(rootName);
+                if (rootScope == nullptr)
+                {
+                    throw std::runtime_error("Unknown module: " + modulePath);
+                }
+
+                Variable *rootVariable = rootScope->GetVariable(rootName);
+                if (rootVariable == nullptr || rootVariable->GetValue() == nullptr || !rootVariable->GetValue()->IsObject())
+                {
+                    throw std::runtime_error("Imported value is not a module object: " + rootName);
+                }
+
+                std::shared_ptr<Object> currentObject = rootVariable->GetValue()->AsObject();
+                while (dotPosition != std::string::npos)
+                {
+                    segmentStart = dotPosition + 1;
+                    dotPosition = modulePath.find('.', segmentStart);
+                    const std::string segment = modulePath.substr(segmentStart, dotPosition == std::string::npos ? std::string::npos : dotPosition - segmentStart);
+
+                    auto fieldIt = currentObject->fields.find(segment);
+                    if (fieldIt == currentObject->fields.end() || !fieldIt->second.IsObject())
+                    {
+                        throw std::runtime_error("Unknown module path: " + modulePath);
+                    }
+
+                    currentObject = fieldIt->second.AsObject();
+                }
+
+                return;
             }
 
             if (auto *functionDecl = dynamic_cast<ast::FunctionDeclStmt *>(stmt))

@@ -61,19 +61,6 @@ namespace cora::compiler
 
         ///////////////////////////////////////////
 
-        NativeFunction::NativeFunction(std::string name, Fn fn)
-            : m_Name(std::move(name)), m_Fn(std::move(fn)) {}
-
-        Value NativeFunction::Call(const std::vector<Value> &arguments)
-        {
-            return m_Fn(arguments);
-        }
-
-        std::string NativeFunction::Name() const
-        {
-            return m_Name;
-        }
-
         BoundMethod::BoundMethod(std::shared_ptr<Object> receiver, std::shared_ptr<Callable> callable, std::string name)
             : m_Receiver(std::move(receiver)), m_Callable(std::move(callable)), m_Name(std::move(name)) {}
 
@@ -113,6 +100,24 @@ namespace cora::compiler
 
         Value::Value(CallablePtr callable)
             : m_Kind(ValueKind::Callable), m_Data(std::move(callable)) {}
+
+        Value::Value(std::shared_ptr<Method> method)
+            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
+
+        Value::Value(std::shared_ptr<Function> function)
+            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(function))) {};
+
+        Value::Value(std::shared_ptr<BoundMethod> method)
+            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
+
+        Value::Value(Method method)
+            : Value(std::make_shared<Method>(method)) {};
+
+        Value::Value(Function function)
+            : Value(std::make_shared<Function>(function)) {};
+
+        Value::Value(BoundMethod method)
+            : Value(std::make_shared<BoundMethod>(method)) {};
 
         std::string Value::Repr() const
         {

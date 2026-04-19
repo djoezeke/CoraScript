@@ -1,0 +1,6 @@
+if(BUILD_TESTING AND TARGET Corascript)
+	add_test(
+		NAME io_module_script
+		COMMAND Corascript ${PROJECT_SOURCE_DIR}/tests/io_module.cora
+	)
+endif()

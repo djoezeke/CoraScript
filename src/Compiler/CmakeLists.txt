@@ -7,8 +7,6 @@
 # Basic Configs   
 #--------------------------------------------------------------------
 
-set(COMPILER_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
 set(COMPILER_SOURCES 
 
     "${COMPILER_DIR}/Basic/SourceManager.cpp"
@@ -21,6 +19,8 @@ set(COMPILER_SOURCES
     "${COMPILER_DIR}/Error/Error.cpp"
     
     "${COMPILER_DIR}/Builtin/Builtin.cpp"
+    "${COMPILER_DIR}/Builtin/Class.cpp"
+    "${COMPILER_DIR}/Builtin/Module.cpp"
 
     "${COMPILER_DIR}/Parser/Token.cpp"
     "${COMPILER_DIR}/Parser/Lexer.cpp"
@@ -42,6 +42,7 @@ add_library(Cora::Compiler ALIAS Compiler)
 
 target_include_directories(Compiler
 	PUBLIC
+        ${PROJECT_SOURCE_DIR}/modules
 		${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include
 )

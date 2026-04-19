@@ -3,8 +3,6 @@
 # Distributed under the terms of the MIT license.
 # ===================================================================
 
-set(CORASCRIPT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
 set(CORASCRIPT_SOURCES 
 	"${CORASCRIPT_DIR}/main.cpp"
 )
@@ -21,5 +19,12 @@ target_link_libraries(Corascript
 	PRIVATE
 		Cora::Compiler
 )
+
+if(CORA_CORASCRIPT_WITH_MODULES AND TARGET Cora::Modules)
+	target_link_libraries(Corascript
+		PRIVATE
+			Cora::Modules
+	)
+endif()
 
 # ===================================================================

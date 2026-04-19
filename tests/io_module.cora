@@ -1,0 +1,14 @@
+import io
+
+string path = "io_module_test.tmp"
+
+io.write_file(path, "hello")
+io.append_file(path, " world")
+
+io.println("exists:", io.exists(path))
+io.println("size:", io.file_size(path))
+io.println("cwd:", io.cwd())
+io.println("content:", io.read_file(path))
+
+io.remove_file(path)
+io.println("exists_after_remove:", io.exists(path))

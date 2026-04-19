@@ -76,21 +76,6 @@ namespace cora::compiler
             Func m_Function;
         };
 
-        class NativeFunction final : public Callable
-        {
-        public:
-            using Fn = std::function<Value(const std::vector<Value> &)>;
-
-            NativeFunction(std::string name, Fn fn);
-
-            Value Call(const std::vector<Value> &arguments) override;
-            std::string Name() const override;
-
-        private:
-            std::string m_Name;
-            Fn m_Fn;
-        };
-
         class BoundMethod final : public Callable
         {
         public:
@@ -139,6 +124,14 @@ namespace cora::compiler
             explicit Value(const char *value);
             explicit Value(ObjectPtr object);
             explicit Value(CallablePtr callable);
+
+            explicit Value(Method method);
+            explicit Value(Function function);
+            explicit Value(BoundMethod method);
+
+            explicit Value(std::shared_ptr<Method> method);
+            explicit Value(std::shared_ptr<Function> function);
+            explicit Value(std::shared_ptr<BoundMethod> method);
 
             virtual std::string Repr() const;
 

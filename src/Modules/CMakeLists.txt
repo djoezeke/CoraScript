@@ -3,28 +3,30 @@
 # Distributed under the terms of the MIT license.
 # ===================================================================
 
+set(MODULES_SOURCES 
+
+    "${MODULES_DIR}/io.cpp"
+)
+
 #--------------------------------------------------------------------
-# Add project subdirectories.
+# Build Modules Library.
 #--------------------------------------------------------------------
 
-# Build
-if(CORA_BUILD_COMPILER)
-    add_subdirectory(Compiler)
-endif()
+add_library(Modules STATIC ${MODULES_SOURCES})
 
-# Build
-if(CORA_BUILD_MODULES)
-    add_subdirectory(Modules)
-endif()
+add_library(Cora::Modules ALIAS Modules)
 
-# Build
-if(CORA_BUILD_CORASCRIPT)
-    add_subdirectory(CoraScript)
-endif()
+target_include_directories(Modules
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include
+)
 
-# Build    
-if(CORA_BUILD_CORASCRIPTEN)
-    add_subdirectory(CoraScripten)
+if(TARGET Cora::Compiler)
+	target_link_libraries(Modules
+		PUBLIC
+			Cora::Compiler
+	)
 endif()
 
 # ===================================================================
