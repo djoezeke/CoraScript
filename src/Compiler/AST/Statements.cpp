@@ -22,6 +22,36 @@ namespace cora::compiler
 
         Statement::~Statement() = default;
 
+        Assignment::Assignment(Expression *target, Expression *value)
+            : Statement(StatementType::Assignment), m_Target(target), m_Value(value) {};
+
+        Expression *Assignment::GetTarget() const { return m_Target; };
+
+        Expression *Assignment::GetValue() const { return m_Value; };
+
+        Assignment::~Assignment()
+        {
+            delete m_Value;
+            delete m_Target;
+        };
+
+        VarDeclaration::VarDeclaration(std::string name, std::string type, Expression *expr)
+            : Statement(StatementType::VarDeclaration), m_Name(name), m_Type(type), m_Expression(expr) {};
+
+        const std::string &VarDeclaration::GetName() const { return m_Name; };
+
+        const std::string &VarDeclaration::GetType() const { return m_Type; };
+
+        Expression *VarDeclaration::GetExpression() const
+        {
+            return m_Expression;
+        };
+
+        VarDeclaration::~VarDeclaration()
+        {
+            delete m_Expression;
+        };
+
         ExprStmt::ExprStmt(Expression *expr)
             : Statement(StatementType::PassStmt), m_Expr(expr) {}
 
@@ -44,7 +74,7 @@ namespace cora::compiler
             {
                 delete expr;
             }
-        }
+        };
 
         AssignStmt::AssignStmt(Expression *target, Expression *expr)
             : Statement(StatementType::PassStmt), m_Target(target), m_Value(expr) {}
@@ -191,12 +221,14 @@ namespace cora::compiler
             delete m_Value;
         }
 
-        FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body, AccessModifier access)
+                FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body, AccessModifier access,
+                                                                                     std::optional<std::string> returnType)
             : Statement(StatementType::NewStmt),
               m_Name(std::move(name)),
               m_Parameters(std::move(parameters)),
               m_Body(body),
-              m_Access(access) {}
+                            m_Access(access),
+                            m_ReturnType(std::move(returnType)) {}
 
         const std::string &FunctionDeclStmt::GetName() const
         {
@@ -216,6 +248,11 @@ namespace cora::compiler
         AccessModifier FunctionDeclStmt::GetAccessModifier() const
         {
             return m_Access;
+        }
+
+        const std::optional<std::string> &FunctionDeclStmt::GetReturnType() const
+        {
+            return m_ReturnType;
         }
 
         FunctionDeclStmt::~FunctionDeclStmt()

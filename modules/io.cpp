@@ -254,10 +254,7 @@ namespace cora
             {"version", std::static_pointer_cast<runtime::Callable>(version)},
         };
 
-        builtin::Module::Variables io_variables = {
-            {"__module__", modulename},
-            {"__version__", runtime::Value("1.0.0")},
-        };
+        builtin::Module::Variables io_variables = {        };
 
         CORA_NEW_MODULE(io_module, io_classes, io_functions, io_variables);
 
@@ -265,7 +262,7 @@ namespace cora
 
 } // namespace cora::modules
 
-std::shared_ptr<cora::compiler::runtime::Object> CoraGetIoModuleObject()
+std::shared_ptr<cora::compiler::runtime::Object> CoraGetIOModuleObject()
 {
     return cora::modules::io::io_module.Object();
 }

@@ -69,7 +69,7 @@ namespace cora::compiler
             runtime::Value ApplyUnary(TokenType op, const runtime::Value &rhs) const;
             void InvokeConstructor(const std::shared_ptr<Object> &object, const std::vector<Value> &arguments);
             void InvokeDestructor(const Value &value);
-            void CheckTypeCompatibility(const std::optional<std::string> &declaredType, const runtime::Value &value, const std::string &name) const;
+            void CheckTypeCompatibility(const std::string &type, const std::string &name, const runtime::Value &value) const;
             std::shared_ptr<Callable> FindBestMethodOverload(const std::shared_ptr<Object> &object, const std::string &methodName, std::size_t argCount) const;
             bool CanAccessMember(const std::shared_ptr<Object> &object) const;
             Value ResolveMemberValue(const std::shared_ptr<Object> &object, const std::string &memberName);

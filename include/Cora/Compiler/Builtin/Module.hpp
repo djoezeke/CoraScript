@@ -38,10 +38,11 @@ namespace cora::compiler
             using Variables = std::unordered_map<std::string, Variable>;
 
         public:
-            explicit Module(std::string name = {});
-            Module(std::string name, Classes classes, Functions functions, const Variables variables);
+            Module(std::string name, Classes classes, Functions functions, const Variables variables, std::string doc= {});
 
             const std::string &Name() const;
+            const std::string &Doc() const;
+
             std::shared_ptr<runtime::Scope> Scope() const;
             std::shared_ptr<runtime::Object> Object() const;
 
@@ -57,10 +58,11 @@ namespace cora::compiler
             ~Module();
 
         private:
+            std::string m_Doc;
+            std::string m_Name;
             Classes m_Classes;
             Functions m_Functions;
             Variables m_Variables;
-            const std::string m_Name;
         };
 
     } // namespace builtin

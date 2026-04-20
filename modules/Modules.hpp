@@ -3,6 +3,8 @@
 
 #include <Cora/Compiler/Builtin/Module.hpp>
 
-std::shared_ptr<cora::compiler::runtime::Object> CoraGetIoModuleObject();
+std::shared_ptr<cora::compiler::runtime::Object> CoraGetIOModuleObject();
+std::shared_ptr<cora::compiler::runtime::Object> CoraGetOSModuleObject();
+std::shared_ptr<cora::compiler::runtime::Object> CoraGetMathModuleObject();
 
 #endif // CORA_COMPILER_MODULES_MODULES_H

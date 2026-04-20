@@ -22,15 +22,12 @@ namespace cora::compiler
 			Dedent,
 			Identifier,
 			Number,
-			String,
 			Null,
 			True,
 			False,
 			Let,
-			Int,
-			Float,
-			Bool,
-			StringType,
+			Const,
+			String,
 			If,
 			Elif,
 			Else,
@@ -140,20 +137,6 @@ namespace cora::compiler
 			T_ELLIPSIS,
 			T_COLONEQUAL,
 			T_EXCLAMATION,
-
-			// keywords
-			T_INT,
-			T_FLOAT,
-			T_DOUBLE,
-			T_CHAR,
-			T_BOOL,
-			T_VOID,
-
-			// MODIFIERS
-			T_SIGNED,
-			T_UNSIGNED,
-			T_SHORT,
-			T_LONG,
 
 			// CONTROL FLOW
 			T_IF,

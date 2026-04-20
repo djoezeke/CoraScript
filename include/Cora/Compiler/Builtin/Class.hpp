@@ -37,9 +37,11 @@ namespace cora::compiler
 
         public:
             explicit Class(std::string name = {});
-            Class(std::string name, const Methods methods, const Fields fields);
+            Class(std::string name, const Methods methods, const Fields fields, std::string doc = {});
 
             const std::string &Name() const;
+            const std::string &Doc() const;
+
             std::shared_ptr<runtime::Scope> Scope() const;
             std::shared_ptr<runtime::Object> Object() const;
 
@@ -53,6 +55,7 @@ namespace cora::compiler
             ~Class();
 
         private:
+            std::string m_Doc;
             std::string m_Name;
             Fields m_Fields;
             Methods m_Methods;

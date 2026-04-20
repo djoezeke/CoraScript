@@ -76,6 +76,8 @@ namespace cora::compiler
         {
             auto *block = new BlockStmt();
 
+            SkipNewlines();
+
             if (Match(TokenType::LBrace))
             {
                 block->statements = ParseBlockBody(TokenType::RBrace, false);
@@ -109,23 +111,7 @@ namespace cora::compiler
                 }
                 if (Match(TokenType::Let))
                 {
-                    return ParseVarDecl(std::nullopt, true, accessModifier.value());
-                }
-                if (Match(TokenType::Int))
-                {
-                    return ParseVarDecl(std::string("int"), true, accessModifier.value());
-                }
-                if (Match(TokenType::Float))
-                {
-                    return ParseVarDecl(std::string("float"), true, accessModifier.value());
-                }
-                if (Match(TokenType::Bool))
-                {
-                    return ParseVarDecl(std::string("bool"), true, accessModifier.value());
-                }
-                if (Match(TokenType::StringType))
-                {
-                    return ParseVarDecl(std::string("string"), true, accessModifier.value());
+                    return ParseVarDeclaration(true);
                 }
                 RaiseParseError("Access modifier must precede a function or variable declaration", Peek());
             }
@@ -181,35 +167,19 @@ namespace cora::compiler
                 ConsumeStatementTerminator();
                 return new PassStmt();
             }
-            if (Match(TokenType::Print))
-            {
-                return ParsePrint();
-            }
             if (Match(TokenType::T_DELETE))
             {
                 return ParseDelete();
             }
             if (Match(TokenType::Let))
             {
-                return ParseVarDecl(std::nullopt);
+                return ParseVarDeclaration();
             }
-            if (Match(TokenType::Int))
+            if (Match(TokenType::Const))
             {
-                return ParseVarDecl(std::string("int"));
+                return ParseVarDeclaration();
             }
-            if (Match(TokenType::Float))
-            {
-                return ParseVarDecl(std::string("float"));
-            }
-            if (Match(TokenType::Bool))
-            {
-                return ParseVarDecl(std::string("bool"));
-            }
-            if (Match(TokenType::StringType))
-            {
-                return ParseVarDecl(std::string("string"));
-            }
-            return ParseAssignOrExpr();
+            return ParseAssignment();
         }
 
         Statement *Parser::ParseNamespaceDecl()
@@ -284,27 +254,15 @@ namespace cora::compiler
                 {
                     if (Match(TokenType::Let))
                     {
-                        initializer = ParseVarDecl(std::nullopt, false);
+                        initializer = ParseVarDeclaration(false);
                     }
-                    else if (Match(TokenType::Int))
+                    else if (Match(TokenType::Const))
                     {
-                        initializer = ParseVarDecl(std::string("int"), false);
-                    }
-                    else if (Match(TokenType::Float))
-                    {
-                        initializer = ParseVarDecl(std::string("float"), false);
-                    }
-                    else if (Match(TokenType::Bool))
-                    {
-                        initializer = ParseVarDecl(std::string("bool"), false);
-                    }
-                    else if (Match(TokenType::StringType))
-                    {
-                        initializer = ParseVarDecl(std::string("string"), false);
+                        initializer = ParseVarDeclaration(false);
                     }
                     else
                     {
-                        initializer = ParseAssignOrExpr(false);
+                        initializer = ParseAssignment(false);
                     }
                 }
                 Consume(TokenType::Semicolon, "Expected ';' after for initializer");
@@ -319,7 +277,7 @@ namespace cora::compiler
                 Statement *update = nullptr;
                 if (!Check(TokenType::RParen))
                 {
-                    update = ParseAssignOrExpr(false);
+                    update = ParseAssignment(false);
                 }
                 Consume(TokenType::RParen, "Expected ')' after for clauses");
 
@@ -433,6 +391,13 @@ namespace cora::compiler
             }
             Consume(TokenType::RParen, "Expected ')' after parameter list");
 
+            std::optional<std::string> returnType;
+            if (Match(TokenType::Minus))
+            {
+                Consume(TokenType::Greater, "Expected '>' after '-' in return type annotation");
+                returnType = Consume(TokenType::Identifier, "Expected return type after '->'").GetText();
+            }
+
             m_FunctionStack.push_back(functionName);
             BlockStmt *body = nullptr;
             try
@@ -445,7 +410,7 @@ namespace cora::compiler
                 throw;
             }
             m_FunctionStack.pop_back();
-            return new FunctionDeclStmt(functionName, std::move(parameters), body, access);
+            return new FunctionDeclStmt(functionName, std::move(parameters), body, access, returnType);
         }
 
         Statement *Parser::ParseReturn()
@@ -471,18 +436,42 @@ namespace cora::compiler
             return new VarDeclStmt(nameToken.GetText(), explicitType, initializer, access);
         }
 
-        Statement *Parser::ParseAssignOrExpr(bool consumeTerminator)
+        Statement *Parser::ParseAssignment(bool consumeTerminator)
         {
             if (IsMemberAssignmentAhead())
             {
                 Expression *target = ParseAssignmentTarget();
+
+                if (Match(TokenType::Colon))
+                {
+                    (void)Consume(TokenType::Identifier, "Expected type name after ':'");
+                }
+
                 Consume(TokenType::Assign, "Expected '=' in assignment");
                 Expression *expr = ParseExpression();
                 if (consumeTerminator)
                 {
                     ConsumeStatementTerminator();
                 }
-                return new AssignStmt(target, expr);
+                return new Assignment(target, expr);
+            }
+
+            if (IsNomalAssignmentAhead())
+            {
+                Expression *target = ParseAssignmentTarget();
+
+                if (Match(TokenType::Colon))
+                {
+                    (void)Consume(TokenType::Identifier, "Expected type name after ':'");
+                }
+
+                Consume(TokenType::Assign, "Expected '=' in assignment");
+                Expression *expr = ParseExpression();
+                if (consumeTerminator)
+                {
+                    ConsumeStatementTerminator();
+                }
+                return new Assignment(target, expr);
             }
 
             Expression *expr = ParseExpression();
@@ -493,22 +482,18 @@ namespace cora::compiler
             return new ExprStmt(expr);
         }
 
-        Statement *Parser::ParsePrint()
+        Statement *Parser::ParseVarDeclaration(bool consumeTerminator)
         {
-            Consume(TokenType::LParen, "Expected '(' after print");
-            auto *printStmt = new PrintStmt();
-
-            if (!Check(TokenType::RParen))
+            const Token &name = Consume(TokenType::Identifier, "Expected variable name");
+            Consume(TokenType::Colon, "Expected ':' in variable declaration");
+            const Token &type = Consume(TokenType::Identifier, "Expected type name in variable declaration");
+            Consume(TokenType::Assign, "Expected '=' in variable declaration");
+            Expression *initializer = ParseExpression();
+            if (consumeTerminator)
             {
-                do
-                {
-                    printStmt->expressions.push_back(ParseExpression());
-                } while (Match(TokenType::Comma));
+                ConsumeStatementTerminator();
             }
-
-            Consume(TokenType::RParen, "Expected ')' after print expression");
-            ConsumeStatementTerminator();
-            return printStmt;
+            return new VarDeclaration(name.GetText(), type.GetText(), initializer);
         }
 
         Statement *Parser::ParseDelete()
@@ -689,7 +674,7 @@ namespace cora::compiler
                 Consume(TokenType::RParen, "Expected ')' after constructor arguments");
                 return new NewExpr(std::move(className), std::move(args));
             }
-            if (Match(TokenType::Identifier) || Match(TokenType::Int) || Match(TokenType::Float) || Match(TokenType::Bool) || Match(TokenType::StringType) || Match(TokenType::T_THIS))
+            if (Match(TokenType::Identifier) || Match(TokenType::T_THIS))
             {
                 return new VariableExpr(Previous().GetText());
             }
@@ -813,6 +798,19 @@ namespace cora::compiler
                 return false;
             }
 
+            if (index + 2 < m_Tokens.size() &&
+                m_Tokens[index].GetTokenType() == TokenType::Minus &&
+                m_Tokens[index + 1].GetTokenType() == TokenType::Greater &&
+                m_Tokens[index + 2].GetTokenType() == TokenType::Identifier)
+            {
+                index += 3;
+            }
+
+            if (index >= m_Tokens.size())
+            {
+                return false;
+            }
+
             const TokenType afterParams = m_Tokens[index].GetTokenType();
             return afterParams == TokenType::Colon || afterParams == TokenType::LBrace;
         }
@@ -836,7 +834,39 @@ namespace cora::compiler
                 index += 2;
             }
 
+            if (index + 2 < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Colon && m_Tokens[index + 1].GetTokenType() == TokenType::Identifier)
+            {
+                index += 2;
+            }
+
             return index < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Assign;
+        }
+
+        bool Parser::IsNomalAssignmentAhead() const
+        {
+            if (!Check(TokenType::Identifier) && !Check(TokenType::T_THIS))
+            {
+                return false;
+            }
+
+            std::size_t index = m_Current;
+            if (index >= m_Tokens.size())
+            {
+                return false;
+            }
+
+            ++index;
+            if (index + 2 < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Colon && m_Tokens[index + 1].GetTokenType() == TokenType::Identifier)
+            {
+                index += 2;
+            }
+
+            if (index + 1 < m_Tokens.size() && m_Tokens[index].GetTokenType() == TokenType::Assign)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         Expression *Parser::ParseAssignmentTarget()

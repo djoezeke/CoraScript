@@ -39,6 +39,8 @@ namespace cora::compiler
             std::deque<Statement *> ParseBlockBody(TokenType blockEnd, bool useIndent);
 
             Statement *ParseStatement();
+            Statement *ParseAssignment(bool consumeTerminator = true);
+            Statement *ParseVarDeclaration(bool consumeTerminator = true);
             Statement *ParseIf();
             Statement *ParseWhile();
             Statement *ParseFor();
@@ -48,7 +50,6 @@ namespace cora::compiler
             Statement *ParseFunctionDecl(bool requireName = true, ast::AccessModifier access = ast::AccessModifier::Public);
             Statement *ParseReturn();
             Statement *ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator = true, ast::AccessModifier access = ast::AccessModifier::Public);
-            Statement *ParseAssignOrExpr(bool consumeTerminator = true);
             Statement *ParsePrint();
             Statement *ParseDelete();
             Statement *ParseBlock();
@@ -75,6 +76,7 @@ namespace cora::compiler
             void ConsumeStatementTerminator();
             void SkipNewlines();
             bool IsFunctionDeclAhead() const;
+            bool IsNomalAssignmentAhead() const;
             bool IsMemberAssignmentAhead() const;
             Expression *ParseAssignmentTarget();
             std::optional<ast::AccessModifier> ParseOptionalAccessModifier();

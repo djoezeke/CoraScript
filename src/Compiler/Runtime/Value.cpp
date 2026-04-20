@@ -8,6 +8,11 @@ namespace cora::compiler
     namespace runtime
     {
 
+        int Callable::Arity() const
+        {
+            return -1;
+        }
+
         Object::Object(std::string className)
             : className(std::move(className)), fields(), privateMembers(), m_Name(this->className) {}
 
@@ -33,8 +38,8 @@ namespace cora::compiler
 
         ///////////////////////////////////////////
 
-        Method::Method(std::shared_ptr<Object> object, std::string name, Func function)
-            : m_Name(std::move(name)), m_Object(std::move(object)), m_Function(std::move(function)) {};
+        Method::Method(std::shared_ptr<Object> object, std::string name, Func function, int arity)
+            : m_Name(std::move(name)), m_Object(std::move(object)), m_Function(std::move(function)), m_Arity(arity) {};
 
         Value Method::Call(const std::vector<Value> &arguments)
         {
@@ -46,8 +51,13 @@ namespace cora::compiler
             return m_Object->Name() + m_Name;
         };
 
-        Function::Function(std::string name, Func function)
-            : m_Name(std::move(name)), m_Function(std::move(function)) {};
+        int Method::Arity() const
+        {
+            return m_Arity;
+        }
+
+        Function::Function(std::string name, Func function, int arity)
+            : m_Name(std::move(name)), m_Function(std::move(function)), m_Arity(arity) {};
 
         Value Function::Call(const std::vector<Value> &arguments)
         {
@@ -58,6 +68,11 @@ namespace cora::compiler
         {
             return m_Name;
         };
+
+        int Function::Arity() const
+        {
+            return m_Arity;
+        }
 
         ///////////////////////////////////////////
 
@@ -72,6 +87,11 @@ namespace cora::compiler
         std::string BoundMethod::Name() const
         {
             return m_Name;
+        }
+
+        int BoundMethod::Arity() const
+        {
+            return m_Callable ? m_Callable->Arity() : -1;
         }
 
         Value::Value()

@@ -1,8 +1,8 @@
 #ifndef CORA_COMPILER_AST_NODES_H
 #define CORA_COMPILER_AST_NODES_H
 
-#include <iostream>
 #include <deque>
+#include <iostream>
 #include <string>
 #include <utility>
 
@@ -34,6 +34,7 @@ namespace cora::compiler
             ForStmt,
             NewStmt,
             PassStmt,
+            Assignment,
             WhileStmt,
             BreakStmt,
             BraceStmt,
@@ -44,6 +45,7 @@ namespace cora::compiler
             ReturnStmt,
             ForEachStmt,
             ContinueStmt,
+            VarDeclaration,
         };
 
         enum class ExpressionType

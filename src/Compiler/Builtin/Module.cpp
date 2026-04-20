@@ -9,16 +9,19 @@ namespace cora::compiler
 {
     namespace builtin
     {
-        Module::Module(std::string name)
-            : m_Classes(), m_Functions(), m_Variables(), m_Name(std::move(name)) {}
 
-        Module::Module(std::string name, Classes classes, Functions functions, const Variables variables)
-            : m_Classes(std::move(classes)), m_Functions(std::move(functions)), m_Variables(variables), m_Name(std::move(name)) {};
+        Module::Module(std::string name, Classes classes, Functions functions, const Variables variables, std::string doc)
+            :m_Name(std::move(name)), m_Classes(std::move(classes)), m_Functions(std::move(functions)), m_Variables(variables), m_Doc(std::move(doc)) {};
 
         const std::string &Module::Name() const
         {
             return m_Name;
-        }
+        };
+
+        const std::string &Module::Doc() const
+        {
+            return m_Doc;
+        };
 
         std::shared_ptr<runtime::Scope> Module::Scope() const
         {
@@ -34,6 +37,56 @@ namespace cora::compiler
         std::shared_ptr<runtime::Object> Module::Object() const
         {
             auto object = MakeObject(m_Name);
+
+            AddVariable(object, "__doc__", runtime::Value(Doc()));
+
+            
+            auto str_method = MakeMethod(object, "__str__", [object](const std::vector<runtime::Value> &) -> runtime::Value
+                                         { return runtime::Value("<object " + object->Name() + ">"); });
+
+            auto get_method = MakeMethod(object, "__get__", [object](const std::vector<runtime::Value> &arguments) -> runtime::Value
+                                         {                         if (arguments.empty())
+                        {
+                            return runtime::Value(nullptr);
+                        }
+                        const std::string key = arguments.front().AsString();
+                        auto it = object->fields.find(key);
+                        if (it == object->fields.end())
+                        {
+                            return runtime::Value(nullptr);
+                        }
+                        return it->second; });
+
+            auto set_method = MakeMethod(object, "__set__", [object](const std::vector<runtime::Value> &arguments) -> runtime::Value
+                    {                         
+                        if (arguments.size() < 2)
+                        {
+                            return runtime::Value(nullptr);
+                        }
+                        const std::string key = arguments[0].AsString();
+                        object->fields[key] = arguments[1];
+                        return arguments[1]; 
+                    });
+
+            auto dir_method = MakeMethod(object, "__dir__", [object](const std::vector<runtime::Value> &) -> runtime::Value
+                                          {                         
+                                            std::string result;
+                        bool first = true;
+                        for (const auto &entry : object->fields)
+                        {
+                            if (!first)
+                            {
+                                result += ",";
+                            }
+                            result += entry.first;
+                            first = false;
+                        }
+                        return runtime::Value(result); });
+
+            AddFunction(object, "__str__", str_method);
+            AddFunction(object, "__set__", set_method);
+            AddFunction(object, "__get__", get_method);
+            AddFunction(object, "__dir__", dir_method);
 
             for (auto &cls : m_Classes)
             {

@@ -32,6 +32,34 @@ namespace cora::compiler
             StatementType m_StmtType;
         };
 
+        class Assignment : public Statement
+        {
+        public:
+            Assignment(Expression *target, Expression *value);
+            Expression *GetTarget() const;
+            Expression *GetValue() const;
+            ~Assignment() override;
+
+        private:
+            Expression *m_Target;
+            Expression *m_Value;
+        };
+
+        class VarDeclaration : public Statement
+        {
+        public:
+            VarDeclaration(std::string name, std::string type, Expression *expr);
+            const std::string &GetName() const;
+            const std::string &GetType() const;
+            Expression *GetExpression() const;
+            ~VarDeclaration() override;
+
+        private:
+            std::string m_Name;
+            std::string m_Type;
+            Expression *m_Expression;
+        };
+
         class ExprStmt : public Statement
         {
         public:
@@ -187,11 +215,13 @@ namespace cora::compiler
         class FunctionDeclStmt : public Statement
         {
         public:
-            FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body, AccessModifier access = AccessModifier::Public);
+            FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body, AccessModifier access = AccessModifier::Public,
+                             std::optional<std::string> returnType = std::nullopt);
             const std::string &GetName() const;
             const std::deque<std::string> &GetParameters() const;
             class BlockStmt *GetBody() const;
             AccessModifier GetAccessModifier() const;
+            const std::optional<std::string> &GetReturnType() const;
             ~FunctionDeclStmt() override;
 
         private:
@@ -199,6 +229,7 @@ namespace cora::compiler
             std::deque<std::string> m_Parameters;
             class BlockStmt *m_Body;
             AccessModifier m_Access;
+            std::optional<std::string> m_ReturnType;
         };
 
         class ClassDeclStmt : public Statement

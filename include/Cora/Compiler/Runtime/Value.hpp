@@ -23,6 +23,7 @@ namespace cora::compiler
             virtual ~Callable() = default;
             virtual Value Call(const std::vector<Value> &arguments) = 0;
             virtual std::string Name() const = 0;
+            virtual int Arity() const;
         };
 
         class Object
@@ -49,15 +50,17 @@ namespace cora::compiler
             using Func = std::function<Value(const std::vector<Value> &)>;
 
         public:
-            Method(std::shared_ptr<Object> object, std::string name, Func function);
+            Method(std::shared_ptr<Object> object, std::string name, Func function, int arity = -1);
 
             Value Call(const std::vector<Value> &arguments) override;
             std::string Name() const override;
+            int Arity() const override;
 
         private:
             std::string m_Name;
             Func m_Function;
             std::shared_ptr<Object> m_Object;
+            int m_Arity;
         };
 
         class Function final : public Callable
@@ -66,14 +69,16 @@ namespace cora::compiler
             using Func = std::function<Value(const std::vector<Value> &)>;
 
         public:
-            Function(std::string name, Func function);
+            Function(std::string name, Func function, int arity = -1);
 
             Value Call(const std::vector<Value> &arguments) override;
             std::string Name() const override;
+            int Arity() const override;
 
         private:
             std::string m_Name;
             Func m_Function;
+            int m_Arity;
         };
 
         class BoundMethod final : public Callable
@@ -83,6 +88,7 @@ namespace cora::compiler
 
             Value Call(const std::vector<Value> &arguments) override;
             std::string Name() const override;
+            int Arity() const override;
 
         private:
             std::shared_ptr<Object> m_Receiver;
