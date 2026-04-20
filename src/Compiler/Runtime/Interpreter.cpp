@@ -13,6 +13,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <typeinfo>
 #include <unordered_map>
 
 namespace cora::compiler
@@ -244,9 +245,11 @@ namespace cora::compiler
             parser.SetModuleName(modulePath);
             std::deque<Statement *> program = parser.ParseProgram(buffer.str());
 
-            ModuleScope moduleScope(modulePath, &m_GlobalScope);
+            auto moduleScope = std::make_shared<ModuleScope>(modulePath, &m_GlobalScope);
+            m_PersistentScopes.push_back(moduleScope);
+
             Scope *previous = m_CurrentScope;
-            m_CurrentScope = &moduleScope;
+            m_CurrentScope = moduleScope.get();
 
             try
             {
@@ -265,7 +268,7 @@ namespace cora::compiler
             m_CurrentScope = previous;
 
             auto moduleObject = std::make_shared<Object>(modulePath);
-            for (const auto &entry : moduleScope.GetVariables())
+            for (const auto &entry : moduleScope->GetVariables())
             {
                 if (entry.second == nullptr || entry.second->GetValue() == nullptr)
                 {
@@ -273,11 +276,6 @@ namespace cora::compiler
                 }
 
                 moduleObject->fields[entry.first] = *(entry.second->GetValue());
-            }
-
-            for (Statement *stmt : program)
-            {
-                delete stmt;
             }
 
             return moduleObject;
@@ -977,7 +975,7 @@ namespace cora::compiler
                                                {
                                                    m_FunctionStack.pop_back();
                                                    m_CurrentScope = previousScope;
-                                                   if (returnType.has_value())
+                                                   if (returnType.has_value() && functionName != "__init__")
                                                    {
                                                        CheckTypeCompatibility(*returnType, functionName, signal.value);
                                                    }
@@ -993,7 +991,7 @@ namespace cora::compiler
                                                m_FunctionStack.pop_back();
                                                m_CurrentScope = previousScope;
                                                Value none(nullptr);
-                                               if (returnType.has_value())
+                                               if (returnType.has_value() && functionName != "__init__")
                                                {
                                                    CheckTypeCompatibility(*returnType, functionName, none);
                                                }
@@ -1119,7 +1117,7 @@ namespace cora::compiler
                                                    {
                                                        m_FunctionStack.pop_back();
                                                        m_CurrentScope = previousScope;
-                                                       if (returnType.has_value())
+                                                       if (returnType.has_value() && methodName != "__init__")
                                                        {
                                                            CheckTypeCompatibility(*returnType, methodName, signal.value);
                                                        }
@@ -1135,7 +1133,7 @@ namespace cora::compiler
                                                    m_FunctionStack.pop_back();
                                                    m_CurrentScope = previousScope;
                                                    Value none(nullptr);
-                                                   if (returnType.has_value())
+                                                   if (returnType.has_value() && methodName != "__init__")
                                                    {
                                                        CheckTypeCompatibility(*returnType, methodName, none);
                                                    }
@@ -1205,7 +1203,7 @@ namespace cora::compiler
                 RaiseRuntimeError("Unsupported delete target");
             }
 
-            RaiseRuntimeError("Unknown statement node");
+            RaiseRuntimeError(std::string("Unknown statement node: ") + typeid(*stmt).name());
         }
 
         void Interpreter::ExecBlock(BlockStmt *block)
