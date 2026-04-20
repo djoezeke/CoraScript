@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace cora::compiler
 {
@@ -48,16 +49,18 @@ namespace cora::compiler
         class VarDeclaration : public Statement
         {
         public:
-            VarDeclaration(std::string name, std::string type, Expression *expr);
+            VarDeclaration(std::string name, std::string type, Expression *expr, bool constant = false);
             const std::string &GetName() const;
             const std::string &GetType() const;
             Expression *GetExpression() const;
+            bool IsConst() const;
             ~VarDeclaration() override;
 
         private:
             std::string m_Name;
             std::string m_Type;
             Expression *m_Expression;
+            bool m_Constant;
         };
 
         class ExprStmt : public Statement
@@ -95,11 +98,13 @@ namespace cora::compiler
         class VarDeclStmt : public Statement
         {
         public:
-            VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr, AccessModifier access = AccessModifier::Public);
+            VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr,
+                        AccessModifier access = AccessModifier::Public, bool constant = false);
             const std::string &GetName() const;
             const std::optional<std::string> &GetDeclaredType() const;
             Expression *GetExpression() const;
             AccessModifier GetAccessModifier() const;
+            bool IsConst() const;
             ~VarDeclStmt() override;
 
         private:
@@ -107,6 +112,7 @@ namespace cora::compiler
             std::optional<std::string> m_DeclaredType;
             Expression *m_Expr;
             AccessModifier m_Access;
+            bool m_Constant;
         };
 
         class IfStmt : public Statement
@@ -179,8 +185,33 @@ namespace cora::compiler
         class ThrowStmt : public Statement
         {
         public:
-            ThrowStmt();
+            explicit ThrowStmt(Expression *value);
+            Expression *GetValue() const;
             ~ThrowStmt() override;
+
+        private:
+            Expression *m_Value;
+        };
+
+        class TryCatchStmt : public Statement
+        {
+        public:
+            struct CatchClause
+            {
+                std::string typeName;
+                std::optional<std::string> variableName;
+                class BlockStmt *block;
+            };
+
+            TryCatchStmt(class BlockStmt *tryBlock, std::vector<CatchClause> catches);
+
+            class BlockStmt *GetTryBlock() const;
+            const std::vector<CatchClause> &GetCatches() const;
+            ~TryCatchStmt() override;
+
+        private:
+            class BlockStmt *m_TryBlock;
+            std::vector<CatchClause> m_Catches;
         };
 
         class DeleteStmt : public Statement
@@ -216,12 +247,13 @@ namespace cora::compiler
         {
         public:
             FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body, AccessModifier access = AccessModifier::Public,
-                             std::optional<std::string> returnType = std::nullopt);
+                             std::optional<std::string> returnType = std::nullopt, std::string doc = {});
             const std::string &GetName() const;
             const std::deque<std::string> &GetParameters() const;
             class BlockStmt *GetBody() const;
             AccessModifier GetAccessModifier() const;
             const std::optional<std::string> &GetReturnType() const;
+            const std::string &GetDoc() const;
             ~FunctionDeclStmt() override;
 
         private:
@@ -230,21 +262,24 @@ namespace cora::compiler
             class BlockStmt *m_Body;
             AccessModifier m_Access;
             std::optional<std::string> m_ReturnType;
+            std::string m_Doc;
         };
 
         class ClassDeclStmt : public Statement
         {
         public:
-            ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods);
+            ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods, std::string doc = {});
             const std::string &GetName() const;
             const std::deque<VarDeclStmt *> &GetFields() const;
             const std::deque<FunctionDeclStmt *> &GetMethods() const;
+            const std::string &GetDoc() const;
             ~ClassDeclStmt() override;
 
         private:
             std::string m_Name;
             std::deque<VarDeclStmt *> m_Fields;
             std::deque<FunctionDeclStmt *> m_Methods;
+            std::string m_Doc;
         };
 
         class NamespaceDeclStmt : public Statement

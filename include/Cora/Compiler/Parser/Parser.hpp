@@ -40,13 +40,16 @@ namespace cora::compiler
 
             Statement *ParseStatement();
             Statement *ParseAssignment(bool consumeTerminator = true);
-            Statement *ParseVarDeclaration(bool consumeTerminator = true);
+            Statement *ParseVarDeclaration(bool consumeTerminator = true, bool constant = false,
+                                           std::optional<ast::AccessModifier> access = std::nullopt);
             Statement *ParseIf();
             Statement *ParseWhile();
             Statement *ParseFor();
             Statement *ParseClassDecl();
             Statement *ParseNamespaceDecl();
             Statement *ParseImport();
+            Statement *ParseTryCatch();
+            Statement *ParseThrow();
             Statement *ParseFunctionDecl(bool requireName = true, ast::AccessModifier access = ast::AccessModifier::Public);
             Statement *ParseReturn();
             Statement *ParseVarDecl(std::optional<std::string> explicitType, bool consumeTerminator = true, ast::AccessModifier access = ast::AccessModifier::Public);
@@ -80,6 +83,7 @@ namespace cora::compiler
             bool IsMemberAssignmentAhead() const;
             Expression *ParseAssignmentTarget();
             std::optional<ast::AccessModifier> ParseOptionalAccessModifier();
+            static std::string ConsumeLeadingDocString(ast::BlockStmt *block);
             error::DiagnosticContext MakeContext(const Token &token) const;
             [[noreturn]] void RaiseParseError(const std::string &message, const Token &token) const;
             std::string CurrentNamespacePath() const;

@@ -71,8 +71,10 @@ namespace cora::compiler
             void InvokeDestructor(const Value &value);
             void CheckTypeCompatibility(const std::string &type, const std::string &name, const runtime::Value &value) const;
             std::shared_ptr<Callable> FindBestMethodOverload(const std::shared_ptr<Object> &object, const std::string &methodName, std::size_t argCount) const;
-            bool CanAccessMember(const std::shared_ptr<Object> &object) const;
+            bool CanAccessMember(const std::shared_ptr<Object> &object, const std::string &memberName) const;
             Value ResolveMemberValue(const std::shared_ptr<Object> &object, const std::string &memberName);
+            std::shared_ptr<Object> MakeExceptionObject(const std::string &typeName, const std::string &message);
+            bool ExceptionMatches(const std::shared_ptr<Object> &exception, const std::string &typeName);
 
         private:
             runtime::Scope m_GlobalScope;

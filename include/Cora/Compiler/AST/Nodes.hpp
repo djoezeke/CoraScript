@@ -40,6 +40,7 @@ namespace cora::compiler
             BraceStmt,
             YieldStmt,
             ThrowStmt,
+            TryCatchStmt,
             DeleteStmt,
             SwitchStmt,
             ReturnStmt,

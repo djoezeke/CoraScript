@@ -8,6 +8,7 @@ set(MODULES_SOURCES
     "${MODULES_DIR}/io.cpp"
     "${MODULES_DIR}/os.cpp"
     "${MODULES_DIR}/math.cpp"
+	"${MODULES_DIR}/exception.cpp"
 )
 
 #--------------------------------------------------------------------

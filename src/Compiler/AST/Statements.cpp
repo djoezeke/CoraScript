@@ -35,8 +35,8 @@ namespace cora::compiler
             delete m_Target;
         };
 
-        VarDeclaration::VarDeclaration(std::string name, std::string type, Expression *expr)
-            : Statement(StatementType::VarDeclaration), m_Name(name), m_Type(type), m_Expression(expr) {};
+        VarDeclaration::VarDeclaration(std::string name, std::string type, Expression *expr, bool constant)
+            : Statement(StatementType::VarDeclaration), m_Name(std::move(name)), m_Type(std::move(type)), m_Expression(expr), m_Constant(constant) {};
 
         const std::string &VarDeclaration::GetName() const { return m_Name; };
 
@@ -46,6 +46,11 @@ namespace cora::compiler
         {
             return m_Expression;
         };
+
+        bool VarDeclaration::IsConst() const
+        {
+            return m_Constant;
+        }
 
         VarDeclaration::~VarDeclaration()
         {
@@ -95,8 +100,14 @@ namespace cora::compiler
             delete m_Value;
         }
 
-        VarDeclStmt::VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr, AccessModifier access)
-            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_DeclaredType(std::move(declaredType)), m_Expr(expr), m_Access(access) {}
+                VarDeclStmt::VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr,
+                                                                 AccessModifier access, bool constant)
+                        : Statement(StatementType::NewStmt),
+                            m_Name(std::move(name)),
+                            m_DeclaredType(std::move(declaredType)),
+                            m_Expr(expr),
+                            m_Access(access),
+                            m_Constant(constant) {}
 
         const std::string &VarDeclStmt::GetName() const
         {
@@ -116,6 +127,11 @@ namespace cora::compiler
         AccessModifier VarDeclStmt::GetAccessModifier() const
         {
             return m_Access;
+        }
+
+        bool VarDeclStmt::IsConst() const
+        {
+            return m_Constant;
         }
 
         VarDeclStmt::~VarDeclStmt()
@@ -185,10 +201,41 @@ namespace cora::compiler
 
         YieldStmt::~YieldStmt() = default;
 
-        ThrowStmt::ThrowStmt()
-            : Statement(StatementType::ThrowStmt) {}
+        ThrowStmt::ThrowStmt(Expression *value)
+            : Statement(StatementType::ThrowStmt), m_Value(value) {}
 
-        ThrowStmt::~ThrowStmt() = default;
+        Expression *ThrowStmt::GetValue() const
+        {
+            return m_Value;
+        }
+
+        ThrowStmt::~ThrowStmt()
+        {
+            delete m_Value;
+        }
+
+        TryCatchStmt::TryCatchStmt(BlockStmt *tryBlock, std::vector<CatchClause> catches)
+            : Statement(StatementType::TryCatchStmt), m_TryBlock(tryBlock), m_Catches(std::move(catches)) {}
+
+        BlockStmt *TryCatchStmt::GetTryBlock() const
+        {
+            return m_TryBlock;
+        }
+
+        const std::vector<TryCatchStmt::CatchClause> &TryCatchStmt::GetCatches() const
+        {
+            return m_Catches;
+        }
+
+        TryCatchStmt::~TryCatchStmt()
+        {
+            delete m_TryBlock;
+            for (auto &clause : m_Catches)
+            {
+                delete clause.block;
+                clause.block = nullptr;
+            }
+        }
 
         DeleteStmt::DeleteStmt(Expression *target)
             : Statement(StatementType::DeleteStmt), m_Target(target) {}
@@ -221,14 +268,15 @@ namespace cora::compiler
             delete m_Value;
         }
 
-                FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body, AccessModifier access,
-                                                                                     std::optional<std::string> returnType)
+        FunctionDeclStmt::FunctionDeclStmt(std::string name, std::deque<std::string> parameters, BlockStmt *body, AccessModifier access,
+                                           std::optional<std::string> returnType, std::string doc)
             : Statement(StatementType::NewStmt),
               m_Name(std::move(name)),
               m_Parameters(std::move(parameters)),
               m_Body(body),
-                            m_Access(access),
-                            m_ReturnType(std::move(returnType)) {}
+              m_Access(access),
+              m_ReturnType(std::move(returnType)),
+              m_Doc(std::move(doc)) {}
 
         const std::string &FunctionDeclStmt::GetName() const
         {
@@ -255,13 +303,18 @@ namespace cora::compiler
             return m_ReturnType;
         }
 
+        const std::string &FunctionDeclStmt::GetDoc() const
+        {
+            return m_Doc;
+        }
+
         FunctionDeclStmt::~FunctionDeclStmt()
         {
             delete m_Body;
         }
 
-        ClassDeclStmt::ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods)
-            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Fields(std::move(fields)), m_Methods(std::move(methods)) {}
+        ClassDeclStmt::ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods, std::string doc)
+            : Statement(StatementType::NewStmt), m_Name(std::move(name)), m_Fields(std::move(fields)), m_Methods(std::move(methods)), m_Doc(std::move(doc)) {}
 
         const std::string &ClassDeclStmt::GetName() const
         {
@@ -276,6 +329,11 @@ namespace cora::compiler
         const std::deque<FunctionDeclStmt *> &ClassDeclStmt::GetMethods() const
         {
             return m_Methods;
+        }
+
+        const std::string &ClassDeclStmt::GetDoc() const
+        {
+            return m_Doc;
         }
 
         ClassDeclStmt::~ClassDeclStmt()

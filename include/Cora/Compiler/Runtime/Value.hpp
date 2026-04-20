@@ -24,6 +24,11 @@ namespace cora::compiler
             virtual Value Call(const std::vector<Value> &arguments) = 0;
             virtual std::string Name() const = 0;
             virtual int Arity() const;
+            virtual std::string Doc() const;
+            virtual void SetDoc(std::string doc);
+
+        protected:
+            std::string m_Doc;
         };
 
         class Object
@@ -34,11 +39,17 @@ namespace cora::compiler
             std::string className;
             std::unordered_map<std::string, Value> fields;
             std::unordered_set<std::string> privateMembers;
+            std::unordered_set<std::string> constMembers;
+            std::unordered_set<std::string> initializedConstMembers;
 
             std::string Name() const;
 
             bool IsPrivateMember(const std::string &member) const;
             void SetMemberVisibility(const std::string &member, bool isPrivate);
+            bool IsConstMember(const std::string &member) const;
+            bool IsConstMemberInitialized(const std::string &member) const;
+            void SetMemberConstness(const std::string &member, bool isConst, bool initialized);
+            void MarkConstMemberInitialized(const std::string &member);
 
         private:
             std::string m_Name;

@@ -13,8 +13,18 @@ namespace cora::compiler
             return -1;
         }
 
+        std::string Callable::Doc() const
+        {
+            return m_Doc;
+        }
+
+        void Callable::SetDoc(std::string doc)
+        {
+            m_Doc = std::move(doc);
+        }
+
         Object::Object(std::string className)
-            : className(std::move(className)), fields(), privateMembers(), m_Name(this->className) {}
+            : className(std::move(className)), fields(), privateMembers(), constMembers(), initializedConstMembers(), m_Name(this->className) {}
 
         std::string Object::Name() const
         {
@@ -34,6 +44,43 @@ namespace cora::compiler
                 return;
             }
             privateMembers.erase(member);
+        }
+
+        bool Object::IsConstMember(const std::string &member) const
+        {
+            return constMembers.find(member) != constMembers.end();
+        }
+
+        bool Object::IsConstMemberInitialized(const std::string &member) const
+        {
+            return initializedConstMembers.find(member) != initializedConstMembers.end();
+        }
+
+        void Object::SetMemberConstness(const std::string &member, bool isConst, bool initialized)
+        {
+            if (!isConst)
+            {
+                constMembers.erase(member);
+                initializedConstMembers.erase(member);
+                return;
+            }
+
+            constMembers.insert(member);
+            if (initialized)
+            {
+                initializedConstMembers.insert(member);
+                return;
+            }
+
+            initializedConstMembers.erase(member);
+        }
+
+        void Object::MarkConstMemberInitialized(const std::string &member)
+        {
+            if (IsConstMember(member))
+            {
+                initializedConstMembers.insert(member);
+            }
         }
 
         ///////////////////////////////////////////

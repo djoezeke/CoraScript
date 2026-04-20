@@ -35,6 +35,35 @@ namespace cora::compiler
                 Value value;
             };
 
+            struct LanguageExceptionSignal
+            {
+                Value value;
+            };
+
+            static bool TryGetDocStringStatement(ast::Statement *statement, std::string &outDoc)
+            {
+                auto *exprStmt = dynamic_cast<ast::ExprStmt *>(statement);
+                if (exprStmt == nullptr)
+                {
+                    return false;
+                }
+
+                auto *literal = dynamic_cast<ast::LiteralExpr *>(exprStmt->GetExpression());
+                if (literal == nullptr)
+                {
+                    return false;
+                }
+
+                const ast::LiteralValue &literalValue = literal->GetValue();
+                if (!std::holds_alternative<std::string>(literalValue))
+                {
+                    return false;
+                }
+
+                outDoc = std::get<std::string>(literalValue);
+                return true;
+            }
+
             class OverloadSetCallable final : public Callable
             {
             public:
@@ -166,8 +195,20 @@ namespace cora::compiler
 
         void Interpreter::Execute(const std::deque<Statement *> &program)
         {
+            bool isFirstStatement = true;
             for (Statement *stmt : program)
             {
+                if (isFirstStatement)
+                {
+                    isFirstStatement = false;
+                    std::string moduleDoc;
+                    if (TryGetDocStringStatement(stmt, moduleDoc))
+                    {
+                        m_CurrentScope->SetVariableValue("__doc__", new Value(moduleDoc), true);
+                        continue;
+                    }
+                }
+
                 ExecStmt(stmt);
             }
         }
@@ -367,9 +408,24 @@ namespace cora::compiler
             return method->second.AsCallable();
         }
 
-        bool Interpreter::CanAccessMember(const std::shared_ptr<Object> &) const
+        bool Interpreter::CanAccessMember(const std::shared_ptr<Object> &object, const std::string &memberName) const
         {
-            return true;
+            if (!object)
+            {
+                return false;
+            }
+
+            if (!object->IsPrivateMember(memberName))
+            {
+                return true;
+            }
+
+            if (!m_ClassStack.empty() && m_ClassStack.back() == object->className)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         Value Interpreter::ResolveMemberValue(const std::shared_ptr<Object> &object, const std::string &memberName)
@@ -410,6 +466,131 @@ namespace cora::compiler
             }
 
             return member->second;
+        }
+
+        std::shared_ptr<Object> Interpreter::MakeExceptionObject(const std::string &typeName, const std::string &message)
+        {
+            auto findPrototype = [&](const std::string &name) -> std::shared_ptr<Object>
+            {
+                Scope *scope = m_GlobalScope.ResolveVariable(name);
+                if (scope != nullptr)
+                {
+                    Variable *variable = scope->GetVariable(name);
+                    if (variable != nullptr && variable->GetValue() != nullptr && variable->GetValue()->IsObject())
+                    {
+                        return variable->GetValue()->AsObject();
+                    }
+                }
+
+                Scope *moduleScope = m_GlobalScope.ResolveVariable("exception");
+                if (moduleScope == nullptr)
+                {
+                    return nullptr;
+                }
+
+                Variable *moduleVar = moduleScope->GetVariable("exception");
+                if (moduleVar == nullptr || moduleVar->GetValue() == nullptr || !moduleVar->GetValue()->IsObject())
+                {
+                    return nullptr;
+                }
+
+                auto moduleObj = moduleVar->GetValue()->AsObject();
+                if (!moduleObj)
+                {
+                    return nullptr;
+                }
+
+                auto member = moduleObj->fields.find(name);
+                if (member == moduleObj->fields.end() || !member->second.IsObject())
+                {
+                    return nullptr;
+                }
+
+                return member->second.AsObject();
+            };
+
+            auto prototype = findPrototype(typeName);
+            if (!prototype)
+            {
+                prototype = findPrototype("Exception");
+            }
+
+            if (prototype)
+            {
+                auto instance = std::make_shared<Object>(prototype->className);
+                instance->fields = prototype->fields;
+                instance->fields["message"] = Value(message);
+                instance->fields["__cause__"] = Value(typeName);
+                return instance;
+            }
+
+            Scope *scope = m_GlobalScope.ResolveVariable(typeName);
+            if (scope != nullptr)
+            {
+                Variable *variable = scope->GetVariable(typeName);
+                if (variable != nullptr && variable->GetValue() != nullptr && variable->GetValue()->IsObject())
+                {
+                    auto prototype = variable->GetValue()->AsObject();
+                    auto instance = std::make_shared<Object>(prototype ? prototype->className : typeName);
+                    if (prototype)
+                    {
+                        instance->fields = prototype->fields;
+                    }
+                    instance->fields["message"] = Value(message);
+                    instance->fields["__cause__"] = Value(typeName);
+                    return instance;
+                }
+            }
+
+            auto fallback = std::make_shared<Object>(typeName);
+            fallback->fields["message"] = Value(message);
+            fallback->fields["__cause__"] = Value(typeName);
+            fallback->fields["__doc__"] = Value("Runtime exception object");
+            return fallback;
+        }
+
+        bool Interpreter::ExceptionMatches(const std::shared_ptr<Object> &exception, const std::string &typeName)
+        {
+            if (typeName.empty())
+            {
+                return true;
+            }
+
+            std::string lowered = typeName;
+            for (char &ch : lowered)
+            {
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            }
+            if (lowered == "any")
+            {
+                return true;
+            }
+
+            if (!exception)
+            {
+                return false;
+            }
+
+            if (exception->className == typeName)
+            {
+                return true;
+            }
+
+            auto bases = exception->fields.find("__bases__");
+            if (bases != exception->fields.end() && bases->second.IsString())
+            {
+                std::istringstream stream(bases->second.AsString());
+                std::string base;
+                while (std::getline(stream, base, ','))
+                {
+                    if (base == typeName)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         runtime::Value Interpreter::EvalExpr(Expression *expr)
@@ -457,9 +638,9 @@ namespace cora::compiler
                 {
                     RaiseRuntimeError("Member access on non-object value");
                 }
-                if (!CanAccessMember(object))
+                if (!CanAccessMember(object, member->GetMember()))
                 {
-                    RaiseRuntimeError("Member is not accessible: " + member->GetMember());
+                    RaiseRuntimeError("Cannot access private member: " + member->GetMember());
                 }
                 return ResolveMemberValue(object, member->GetMember());
             }
@@ -492,6 +673,9 @@ namespace cora::compiler
                     if (prototype)
                     {
                         instance->fields = prototype->fields;
+                        instance->privateMembers = prototype->privateMembers;
+                        instance->constMembers = prototype->constMembers;
+                        instance->initializedConstMembers = prototype->initializedConstMembers;
                     }
                     InvokeConstructor(instance, arguments);
                     return Value(instance);
@@ -524,6 +708,9 @@ namespace cora::compiler
                 if (prototype)
                 {
                     instance->fields = prototype->fields;
+                    instance->privateMembers = prototype->privateMembers;
+                    instance->constMembers = prototype->constMembers;
+                    instance->initializedConstMembers = prototype->initializedConstMembers;
                 }
                 InvokeConstructor(instance, arguments);
                 return Value(instance);
@@ -660,7 +847,14 @@ namespace cora::compiler
                         return;
                     }
 
-                    variable->SetValue(new Value(value));
+                    try
+                    {
+                        variable->SetValue(new Value(value));
+                    }
+                    catch (const std::runtime_error &error)
+                    {
+                        RaiseRuntimeError(error.what());
+                    }
                     return;
                 }
 
@@ -673,7 +867,18 @@ namespace cora::compiler
                         RaiseRuntimeError("Member assignment on non-object value");
                     }
 
+                    if (!CanAccessMember(object, memberTarget->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot assign private member: " + memberTarget->GetMember());
+                    }
+
+                    if (object->IsConstMember(memberTarget->GetMember()) && object->IsConstMemberInitialized(memberTarget->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot assign to constant member: " + memberTarget->GetMember());
+                    }
+
                     object->fields[memberTarget->GetMember()] = value;
+                    object->MarkConstMemberInitialized(memberTarget->GetMember());
                     return;
                 }
 
@@ -700,7 +905,14 @@ namespace cora::compiler
                         return;
                     }
 
-                    variable->SetValue(new Value(value));
+                    try
+                    {
+                        variable->SetValue(new Value(value));
+                    }
+                    catch (const std::runtime_error &error)
+                    {
+                        RaiseRuntimeError(error.what());
+                    }
                     return;
                 }
 
@@ -713,7 +925,18 @@ namespace cora::compiler
                         RaiseRuntimeError("Member assignment on non-object value");
                     }
 
+                    if (!CanAccessMember(object, memberTarget->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot assign private member: " + memberTarget->GetMember());
+                    }
+
+                    if (object->IsConstMember(memberTarget->GetMember()) && object->IsConstMemberInitialized(memberTarget->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot assign to constant member: " + memberTarget->GetMember());
+                    }
+
                     object->fields[memberTarget->GetMember()] = value;
+                    object->MarkConstMemberInitialized(memberTarget->GetMember());
                     return;
                 }
 
@@ -724,7 +947,7 @@ namespace cora::compiler
             {
                 Value value = EvalExpr(decl->GetExpression());
                 CheckTypeCompatibility(decl->GetType(), decl->GetName(), value);
-                m_CurrentScope->SetVariableValue(decl->GetName(), new Value(value), false);
+                m_CurrentScope->SetVariableValue(decl->GetName(), new Value(value), decl->IsConst());
                 return;
             }
 
@@ -890,6 +1113,78 @@ namespace cora::compiler
                 return;
             }
 
+            if (auto *throwStmt = dynamic_cast<ast::ThrowStmt *>(stmt))
+            {
+                Value thrown = EvalExpr(throwStmt->GetValue());
+                if (!thrown.IsObject())
+                {
+                    thrown = Value(MakeExceptionObject("Exception", ToString(thrown)));
+                }
+                throw LanguageExceptionSignal{thrown};
+            }
+
+            if (auto *tryCatchStmt = dynamic_cast<ast::TryCatchStmt *>(stmt))
+            {
+                auto handleCaughtValue = [this, tryCatchStmt](const Value &caughtValue) -> bool
+                {
+                    std::shared_ptr<Object> exceptionObject = caughtValue.IsObject() ? caughtValue.AsObject() : nullptr;
+                    for (const auto &clause : tryCatchStmt->GetCatches())
+                    {
+                        if (!ExceptionMatches(exceptionObject, clause.typeName))
+                        {
+                            continue;
+                        }
+
+                        Scope catchScope(m_CurrentScope, ScopeKind::Block);
+                        Scope *previous = m_CurrentScope;
+                        m_CurrentScope = &catchScope;
+
+                        if (clause.variableName.has_value())
+                        {
+                            catchScope.NewVariableValue(*(clause.variableName), new Value(caughtValue), false);
+                        }
+
+                        try
+                        {
+                            ExecBlock(clause.block);
+                        }
+                        catch (...)
+                        {
+                            m_CurrentScope = previous;
+                            throw;
+                        }
+
+                        m_CurrentScope = previous;
+                        return true;
+                    }
+
+                    return false;
+                };
+
+                try
+                {
+                    ExecBlock(tryCatchStmt->GetTryBlock());
+                    return;
+                }
+                catch (const LanguageExceptionSignal &signal)
+                {
+                    if (handleCaughtValue(signal.value))
+                    {
+                        return;
+                    }
+                    throw;
+                }
+                catch (const error::RuntimeError &runtimeError)
+                {
+                    Value wrapped(MakeExceptionObject("RuntimeError", runtimeError.what()));
+                    if (handleCaughtValue(wrapped))
+                    {
+                        return;
+                    }
+                    throw;
+                }
+            }
+
             if (auto *returnStmt = dynamic_cast<ast::ReturnStmt *>(stmt))
             {
                 Value value = returnStmt->GetValue() != nullptr ? EvalExpr(returnStmt->GetValue()) : Value(nullptr);
@@ -996,6 +1291,7 @@ namespace cora::compiler
                                                    CheckTypeCompatibility(*returnType, functionName, none);
                                                }
                                                return none; }, static_cast<int>(parameters.size()));
+                callable->SetDoc(functionDecl->GetDoc());
 
                 Scope *resolved = m_CurrentScope->ResolveVariable(functionName);
                 if (resolved != nullptr)
@@ -1076,15 +1372,18 @@ namespace cora::compiler
 
                                                                                                     return Value(out.str()); }, 1)));
 
+                klass->fields["__doc__"] = Value(classDecl->GetDoc());
+
                 for (ast::FunctionDeclStmt *method : classDecl->GetMethods())
                 {
                     const std::string methodName = method->GetName();
+                    const std::string className = classDecl->GetName();
                     const std::deque<std::string> parameters = method->GetParameters();
                     ast::BlockStmt *body = method->GetBody();
                     const std::optional<std::string> returnType = method->GetReturnType();
                     Scope *closure = m_CurrentScope;
 
-                    auto callable = MakeNative(methodName, [this, methodName, parameters, body, closure, returnType](const std::vector<Value> &arguments) -> Value
+                    auto callable = MakeNative(methodName, [this, className, methodName, parameters, body, closure, returnType](const std::vector<Value> &arguments) -> Value
                                                {
                                                    FunctionScope functionScope(methodName, closure);
 
@@ -1105,6 +1404,7 @@ namespace cora::compiler
                                                    Scope *previousScope = m_CurrentScope;
                                                    m_CurrentScope = &functionScope;
                                                    m_FunctionStack.push_back(methodName);
+                                                   m_ClassStack.push_back(className);
 
                                                    try
                                                    {
@@ -1115,6 +1415,7 @@ namespace cora::compiler
                                                    }
                                                    catch (const ReturnSignal &signal)
                                                    {
+                                                       m_ClassStack.pop_back();
                                                        m_FunctionStack.pop_back();
                                                        m_CurrentScope = previousScope;
                                                        if (returnType.has_value() && methodName != "__init__")
@@ -1125,11 +1426,13 @@ namespace cora::compiler
                                                    }
                                                    catch (...)
                                                    {
+                                                       m_ClassStack.pop_back();
                                                        m_FunctionStack.pop_back();
                                                        m_CurrentScope = previousScope;
                                                        throw;
                                                    }
 
+                                                   m_ClassStack.pop_back();
                                                    m_FunctionStack.pop_back();
                                                    m_CurrentScope = previousScope;
                                                    Value none(nullptr);
@@ -1138,6 +1441,7 @@ namespace cora::compiler
                                                        CheckTypeCompatibility(*returnType, methodName, none);
                                                    }
                                                    return none; }, static_cast<int>(parameters.size() + 1));
+                    callable->SetDoc(method->GetDoc());
 
                     auto existing = klass->fields.find(methodName);
                     if (existing != klass->fields.end() && existing->second.IsCallable())
@@ -1149,6 +1453,25 @@ namespace cora::compiler
                     {
                         klass->fields[methodName] = Value(std::static_pointer_cast<Callable>(callable));
                     }
+
+                    klass->SetMemberVisibility(methodName, method->GetAccessModifier() == ast::AccessModifier::Private);
+                }
+
+                for (ast::VarDeclStmt *field : classDecl->GetFields())
+                {
+                    Value fieldValue(nullptr);
+                    if (field->GetExpression() != nullptr)
+                    {
+                        fieldValue = EvalExpr(field->GetExpression());
+                        if (field->GetDeclaredType().has_value())
+                        {
+                            CheckTypeCompatibility(*(field->GetDeclaredType()), field->GetName(), fieldValue);
+                        }
+                    }
+
+                    klass->fields[field->GetName()] = fieldValue;
+                    klass->SetMemberVisibility(field->GetName(), field->GetAccessModifier() == ast::AccessModifier::Private);
+                    klass->SetMemberConstness(field->GetName(), field->IsConst(), field->GetExpression() != nullptr);
                 }
 
                 m_ClassStack.pop_back();
@@ -1189,6 +1512,16 @@ namespace cora::compiler
                     if (!object)
                     {
                         RaiseRuntimeError("Delete member on non-object value");
+                    }
+
+                    if (!CanAccessMember(object, memberExpr->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot delete private member: " + memberExpr->GetMember());
+                    }
+
+                    if (object->IsConstMember(memberExpr->GetMember()))
+                    {
+                        RaiseRuntimeError("Cannot delete constant member: " + memberExpr->GetMember());
                     }
 
                     auto fieldIt = object->fields.find(memberExpr->GetMember());

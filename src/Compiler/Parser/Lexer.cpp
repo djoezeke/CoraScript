@@ -98,9 +98,13 @@ namespace cora::compiler
                 {"fun", TokenType::T_FUN},
                 {"return", TokenType::T_RETURN},
                 {"this", TokenType::T_THIS},
+                {"pub", TokenType::T_PUBLIC},
                 {"public", TokenType::T_PUBLIC},
                 {"private", TokenType::T_PRIVATE},
                 {"namespace", TokenType::T_NAMESPACE},
+                {"try", TokenType::T_TRY},
+                {"catch", TokenType::T_CATCH},
+                {"throw", TokenType::T_THROW},
             };
 
             std::istringstream stream(m_Source);
@@ -213,6 +217,52 @@ namespace cora::compiler
                     {
                         const char quote = ch;
                         const unsigned int startCol = column;
+
+                        if (pos + 2 < line.size() && line[pos + 1] == quote && line[pos + 2] == quote)
+                        {
+                            pos += 3;
+                            column += 3;
+
+                            std::string value;
+                            bool closed = false;
+                            while (true)
+                            {
+                                if (pos + 2 < line.size() && line[pos] == quote && line[pos + 1] == quote && line[pos + 2] == quote)
+                                {
+                                    pos += 3;
+                                    column += 3;
+                                    closed = true;
+                                    break;
+                                }
+
+                                if (pos < line.size())
+                                {
+                                    value.push_back(line[pos]);
+                                    ++pos;
+                                    ++column;
+                                    continue;
+                                }
+
+                                if (!std::getline(stream, line))
+                                {
+                                    break;
+                                }
+
+                                value.push_back('\n');
+                                ++lineNo;
+                                pos = 0;
+                                column = 1;
+                            }
+
+                            if (!closed)
+                            {
+                                RaiseLexError("Unterminated triple-quoted string", lineNo, startCol);
+                            }
+
+                            PushToken(TokenType::String, value, lineNo, startCol);
+                            continue;
+                        }
+
                         ++pos;
                         ++column;
 

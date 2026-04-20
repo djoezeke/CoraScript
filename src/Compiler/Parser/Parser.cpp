@@ -111,7 +111,11 @@ namespace cora::compiler
                 }
                 if (Match(TokenType::Let))
                 {
-                    return ParseVarDeclaration(true);
+                    return ParseVarDeclaration(true, false, accessModifier.value());
+                }
+                if (Match(TokenType::Const))
+                {
+                    return ParseVarDeclaration(true, true, accessModifier.value());
                 }
                 RaiseParseError("Access modifier must precede a function or variable declaration", Peek());
             }
@@ -119,6 +123,14 @@ namespace cora::compiler
             if (Match(TokenType::T_NAMESPACE))
             {
                 return ParseNamespaceDecl();
+            }
+            if (Match(TokenType::T_TRY))
+            {
+                return ParseTryCatch();
+            }
+            if (Match(TokenType::T_THROW))
+            {
+                return ParseThrow();
             }
             if (Match(TokenType::Import))
             {
@@ -142,11 +154,11 @@ namespace cora::compiler
             }
             if (Match(TokenType::T_FUN))
             {
-                return ParseFunctionDecl(true);
+                return ParseFunctionDecl(true, m_ClassStack.empty() ? ast::AccessModifier::Public : ast::AccessModifier::Private);
             }
             if (Check(TokenType::Identifier) && CheckNext(TokenType::LParen) && IsFunctionDeclAhead())
             {
-                return ParseFunctionDecl(true);
+                return ParseFunctionDecl(true, m_ClassStack.empty() ? ast::AccessModifier::Public : ast::AccessModifier::Private);
             }
             if (Match(TokenType::T_RETURN))
             {
@@ -173,11 +185,11 @@ namespace cora::compiler
             }
             if (Match(TokenType::Let))
             {
-                return ParseVarDeclaration();
+                return ParseVarDeclaration(true, false);
             }
             if (Match(TokenType::Const))
             {
-                return ParseVarDeclaration();
+                return ParseVarDeclaration(true, true);
             }
             return ParseAssignment();
         }
@@ -214,6 +226,52 @@ namespace cora::compiler
             }
             ConsumeStatementTerminator();
             return new ImportStmt(moduleName);
+        }
+
+        Statement *Parser::ParseTryCatch()
+        {
+            BlockStmt *tryBlock = static_cast<BlockStmt *>(ParseBlock());
+
+            std::vector<TryCatchStmt::CatchClause> catches;
+            while (Match(TokenType::T_CATCH))
+            {
+                Consume(TokenType::LParen, "Expected '(' after catch");
+                std::string typeName;
+                std::optional<std::string> variableName;
+
+                if (!Check(TokenType::RParen))
+                {
+                    typeName = Consume(TokenType::Identifier, "Expected exception type in catch clause").GetText();
+                    if (!Check(TokenType::RParen))
+                    {
+                        variableName = Consume(TokenType::Identifier, "Expected catch variable name").GetText();
+                    }
+                }
+
+                Consume(TokenType::RParen, "Expected ')' after catch clause");
+                auto *catchBlock = static_cast<BlockStmt *>(ParseBlock());
+                catches.push_back(TryCatchStmt::CatchClause{typeName, variableName, catchBlock});
+            }
+
+            if (catches.empty())
+            {
+                delete tryBlock;
+                RaiseParseError("Expected at least one catch clause after try block", Peek());
+            }
+
+            return new TryCatchStmt(tryBlock, std::move(catches));
+        }
+
+        Statement *Parser::ParseThrow()
+        {
+            if (Check(TokenType::Semicolon) || Check(TokenType::Newline) || Check(TokenType::Dedent) || Check(TokenType::RBrace) || Check(TokenType::End))
+            {
+                RaiseParseError("Expected expression after throw", Peek());
+            }
+
+            Expression *value = ParseExpression();
+            ConsumeStatementTerminator();
+            return new ThrowStmt(value);
         }
 
         Statement *Parser::ParseIf()
@@ -254,11 +312,11 @@ namespace cora::compiler
                 {
                     if (Match(TokenType::Let))
                     {
-                        initializer = ParseVarDeclaration(false);
+                        initializer = ParseVarDeclaration(false, false);
                     }
                     else if (Match(TokenType::Const))
                     {
-                        initializer = ParseVarDeclaration(false);
+                        initializer = ParseVarDeclaration(false, true);
                     }
                     else
                     {
@@ -333,6 +391,8 @@ namespace cora::compiler
             }
             m_ClassStack.pop_back();
 
+            const std::string classDoc = ConsumeLeadingDocString(classBody);
+
             std::deque<VarDeclStmt *> fields;
             std::deque<FunctionDeclStmt *> methods;
             for (Statement *statement : classBody->statements)
@@ -365,7 +425,7 @@ namespace cora::compiler
 
             classBody->statements.clear();
             delete classBody;
-            return new ClassDeclStmt(nameToken.GetText(), std::move(fields), std::move(methods));
+            return new ClassDeclStmt(nameToken.GetText(), std::move(fields), std::move(methods), classDoc);
         }
 
         Statement *Parser::ParseFunctionDecl(bool requireName, ast::AccessModifier access)
@@ -410,7 +470,9 @@ namespace cora::compiler
                 throw;
             }
             m_FunctionStack.pop_back();
-            return new FunctionDeclStmt(functionName, std::move(parameters), body, access, returnType);
+
+            const std::string functionDoc = ConsumeLeadingDocString(body);
+            return new FunctionDeclStmt(functionName, std::move(parameters), body, access, returnType, functionDoc);
         }
 
         Statement *Parser::ParseReturn()
@@ -482,18 +544,36 @@ namespace cora::compiler
             return new ExprStmt(expr);
         }
 
-        Statement *Parser::ParseVarDeclaration(bool consumeTerminator)
+        Statement *Parser::ParseVarDeclaration(bool consumeTerminator, bool constant, std::optional<ast::AccessModifier> access)
         {
             const Token &name = Consume(TokenType::Identifier, "Expected variable name");
             Consume(TokenType::Colon, "Expected ':' in variable declaration");
             const Token &type = Consume(TokenType::Identifier, "Expected type name in variable declaration");
+
+            if (!m_ClassStack.empty())
+            {
+                Expression *initializer = nullptr;
+                if (Match(TokenType::Assign))
+                {
+                    initializer = ParseExpression();
+                }
+
+                if (consumeTerminator)
+                {
+                    ConsumeStatementTerminator();
+                }
+
+                const ast::AccessModifier memberAccess = access.value_or(ast::AccessModifier::Private);
+                return new VarDeclStmt(name.GetText(), type.GetText(), initializer, memberAccess, constant);
+            }
+
             Consume(TokenType::Assign, "Expected '=' in variable declaration");
             Expression *initializer = ParseExpression();
             if (consumeTerminator)
             {
                 ConsumeStatementTerminator();
             }
-            return new VarDeclaration(name.GetText(), type.GetText(), initializer);
+            return new VarDeclaration(name.GetText(), type.GetText(), initializer, constant);
         }
 
         Statement *Parser::ParseDelete()
@@ -894,6 +974,37 @@ namespace cora::compiler
                 return ast::AccessModifier::Private;
             }
             return std::nullopt;
+        }
+
+        std::string Parser::ConsumeLeadingDocString(ast::BlockStmt *block)
+        {
+            if (block == nullptr || block->statements.empty())
+            {
+                return {};
+            }
+
+            auto *exprStmt = dynamic_cast<ast::ExprStmt *>(block->statements.front());
+            if (exprStmt == nullptr)
+            {
+                return {};
+            }
+
+            auto *literal = dynamic_cast<ast::LiteralExpr *>(exprStmt->GetExpression());
+            if (literal == nullptr)
+            {
+                return {};
+            }
+
+            const ast::LiteralValue &value = literal->GetValue();
+            if (!std::holds_alternative<std::string>(value))
+            {
+                return {};
+            }
+
+            const std::string doc = std::get<std::string>(value);
+            delete block->statements.front();
+            block->statements.pop_front();
+            return doc;
         }
 
         error::DiagnosticContext Parser::MakeContext(const Token &token) const

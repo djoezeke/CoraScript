@@ -77,6 +77,9 @@ namespace cora::compiler
                 {TokenType::T_PUBLIC, "Public"},
                 {TokenType::T_PRIVATE, "Private"},
                 {TokenType::T_NAMESPACE, "Namespace"},
+                {TokenType::T_TRY, "Try"},
+                {TokenType::T_CATCH, "Catch"},
+                {TokenType::T_THROW, "Throw"},
             };
 
             auto it = names.find(m_Type);

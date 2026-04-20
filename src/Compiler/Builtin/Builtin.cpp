@@ -111,8 +111,7 @@ namespace cora::compiler
                                      first = false;
                                  }
                                  std::cout << '\n';
-                                 return runtime::Value(nullptr);
-                             });
+                                 return runtime::Value(nullptr); });
 
             RegisterFunction(scope, "str", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -120,8 +119,7 @@ namespace cora::compiler
                                  {
                                      return runtime::Value("");
                                  }
-                                 return runtime::Value(FormatValue(arguments.front()));
-                             });
+                                 return runtime::Value(FormatValue(arguments.front())); });
 
             RegisterFunction(scope, "repr", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -129,8 +127,7 @@ namespace cora::compiler
                                  {
                                      return runtime::Value("null");
                                  }
-                                 return runtime::Value(ReprValue(arguments.front()));
-                             });
+                                 return runtime::Value(ReprValue(arguments.front())); });
 
             RegisterFunction(scope, "dir", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -163,8 +160,42 @@ namespace cora::compiler
                                      out << names[i];
                                  }
 
-                                 return runtime::Value(out.str());
-                             });
+                                 return runtime::Value(out.str()); });
+
+            RegisterFunction(scope, "doc", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
+                             {
+                                 if (arguments.empty())
+                                 {
+                                     return runtime::Value("");
+                                 }
+
+                                 const runtime::Value &value = arguments.front();
+                                 if (value.IsCallable())
+                                 {
+                                     auto callable = value.AsCallable();
+                                     if (!callable)
+                                     {
+                                         return runtime::Value("");
+                                     }
+                                     return runtime::Value(callable->Doc());
+                                 }
+
+                                 if (value.IsObject())
+                                 {
+                                     auto object = value.AsObject();
+                                     if (!object)
+                                     {
+                                         return runtime::Value("");
+                                     }
+
+                                     auto it = object->fields.find("__doc__");
+                                     if (it != object->fields.end())
+                                     {
+                                         return runtime::Value(it->second.AsString());
+                                     }
+                                 }
+
+                                 return runtime::Value(""); });
 
             RegisterFunction(scope, "bool", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -172,8 +203,7 @@ namespace cora::compiler
                                  {
                                      return runtime::Value(false);
                                  }
-                                 return runtime::Value(arguments.front().AsBool());
-                             });
+                                 return runtime::Value(arguments.front().AsBool()); });
 
             RegisterFunction(scope, "float", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -189,8 +219,7 @@ namespace cora::compiler
                                  {
                                      return runtime::Value(arguments.front().AsBool() ? 1.0 : 0.0);
                                  }
-                                 return runtime::Value(std::stod(arguments.front().AsString()));
-                             });
+                                 return runtime::Value(std::stod(arguments.front().AsString())); });
 
             RegisterFunction(scope, "int", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -206,8 +235,7 @@ namespace cora::compiler
                                  {
                                      return runtime::Value(arguments.front().AsBool() ? 1.0 : 0.0);
                                  }
-                                 return runtime::Value(static_cast<double>(std::stoll(arguments.front().AsString())));
-                             });
+                                 return runtime::Value(static_cast<double>(std::stoll(arguments.front().AsString()))); });
 
             RegisterFunction(scope, "string", [](const std::vector<runtime::Value> &arguments) -> runtime::Value
                              {
@@ -215,12 +243,12 @@ namespace cora::compiler
                                  {
                                      return runtime::Value("");
                                  }
-                                 return runtime::Value(FormatValue(arguments.front()));
-                             });
+                                 return runtime::Value(FormatValue(arguments.front())); });
 
             RegisterModule(scope, "io", CoraGetIOModuleObject(), true);
             RegisterModule(scope, "math", CoraGetMathModuleObject(), true);
             RegisterModule(scope, "os", CoraGetOSModuleObject(), true);
+            RegisterModule(scope, "exception", CoraGetExceptionModuleObject(), true);
         }
 
     } // namespace builtin
