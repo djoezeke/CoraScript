@@ -1,0 +1,38 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(CORA_IRGEN_SOURCES 
+
+    "${CORA_IRGEN_DIR}/IRBuilder.cpp"
+    "${CORA_IRGEN_DIR}/IRPrinter.cpp"
+    "${CORA_IRGEN_DIR}/IRVerifier.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build IR Generation Library.
+#--------------------------------------------------------------------
+
+add_library(IRGen STATIC ${CORA_IRGEN_SOURCES})
+
+add_library(Cora::IRGen ALIAS IRGen)
+
+target_include_directories(IRGen
+	PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+		${CORA_IRGEN_DIR}
+)
+
+target_link_libraries(IRGen
+	PRIVATE
+		Cora::AST
+		Cora::Parser
+		Cora::Runtime
+)
+
+# ===================================================================

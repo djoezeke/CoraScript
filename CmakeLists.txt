@@ -20,20 +20,60 @@ project(CoraScript
 # Configure variables for the project.   
 #--------------------------------------------------------------------
 
-option(CORA_BUILD_COMPILER "Build Compiler library" ON)
-option(CORA_BUILD_MODULES "Build external modules library" ON)
-option(CORA_BUILD_CORASCRIPT "Build Corascript executable" ON)
-option(CORA_BUILD_CORASCRIPTEN "Build CoraScripten executable" OFF)
+option(CORA_BUILD_CORA "Build cora executable" ON)
+option(CORA_BUILD_CORAC "Build corac executable" OFF)
+option(CORA_BUILD_CORAVM "Build coravm executable" ON)
 option(CORA_CORASCRIPT_WITH_MODULES "Link Corascript with external modules library when available" ON)
 option(CORA_BUILD_TESTS "Enable CTest-based project tests" ON)
 
-set(MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules")
-set(COMPILER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Compiler")
-set(CORASCRIPT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/CoraScript")
+set(CORA_AST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/AST")
+set(CORA_BASIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Basic")
+set(CORA_BUILTIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Builtin")
+set(CORA_CORA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Cora")
+set(CORA_IRGEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/IRGen")
+set(CORA_JITCOM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/JITCom")
+set(CORA_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Parser")
+set(CORA_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime")
+set(CORA_SEMANTIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Semantic")
+set(CORA_VMACHINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/VMachine")
+set(CORA_MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+
+set(CORA_MODULES_SOURCES 
+
+    "${CORA_MODULES_DIR}/io.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build Modules Library.
+#--------------------------------------------------------------------
+
+add_library(Modules STATIC ${CORA_MODULES_SOURCES})
+
+add_library(Cora::Modules ALIAS Modules)
+
+target_include_directories(Modules
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(Modules
+	PRIVATE
+		Cora::AST
+		Cora::Basic
+		Cora::IRGen
+		Cora::JITCom
+		Cora::Parser
+		Cora::Runtime
+		Cora::Builtin
+		Cora::Semantic
+		Cora::VMachine
+)
 
 #--------------------------------------------------------------------
 # Add project source directories.

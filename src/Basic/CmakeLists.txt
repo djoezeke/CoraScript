@@ -1,0 +1,30 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(CORA_BASIC_SOURCES 
+
+    "${CORA_BASIC_DIR}/Error.cpp"
+    "${CORA_BASIC_DIR}/Location.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build Basic Library.
+#--------------------------------------------------------------------
+
+add_library(Basic STATIC ${CORA_BASIC_SOURCES})
+
+add_library(Cora::Basic ALIAS Basic)
+
+target_include_directories(Basic
+	PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+		${CORA_BASIC_DIR}
+)
+
+# ===================================================================

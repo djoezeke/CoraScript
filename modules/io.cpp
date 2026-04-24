@@ -1,8 +1,8 @@
-#include <Cora/Compiler/Builtin/Builtin.hpp>
-#include <Cora/Compiler/Builtin/Class.hpp>
-#include <Cora/Compiler/Builtin/Module.hpp>
-#include <Cora/Compiler/Runtime/Scope.hpp>
-#include <Cora/Compiler/Runtime/Value.hpp>
+#include "Builtin.hpp"
+#include "Class.hpp"
+#include "Module.hpp"
+#include "Scope.hpp"
+#include "Value.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -254,7 +254,7 @@ namespace cora
             {"version", std::static_pointer_cast<runtime::Callable>(version)},
         };
 
-        builtin::Module::Variables io_variables = {        };
+        builtin::Module::Variables io_variables = {};
 
         CORA_NEW_MODULE(io_module, io_classes, io_functions, io_variables);
 

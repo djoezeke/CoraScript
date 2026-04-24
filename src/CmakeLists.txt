@@ -7,24 +7,16 @@
 # Add project subdirectories.
 #--------------------------------------------------------------------
 
-# Build
-if(CORA_BUILD_COMPILER)
-    add_subdirectory(Compiler)
-endif()
+add_subdirectory(AST)
+add_subdirectory(Basic)
+add_subdirectory(Builtin)
+add_subdirectory(Cora)
+add_subdirectory(IRGen)
+add_subdirectory(JITCom)
+add_subdirectory(Parser)
+add_subdirectory(Runtime)
+add_subdirectory(Semantic)
+add_subdirectory(VMachine)
 
-# Build
-if(CORA_BUILD_MODULES)
-    add_subdirectory(Modules)
-endif()
-
-# Build
-if(CORA_BUILD_CORASCRIPT)
-    add_subdirectory(CoraScript)
-endif()
-
-# Build    
-if(CORA_BUILD_CORASCRIPTEN)
-    add_subdirectory(CoraScripten)
-endif()
 
 # ===================================================================

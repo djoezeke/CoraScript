@@ -1,0 +1,31 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(CORA_BUILTIN_SOURCES 
+
+    "${CORA_BUILTIN_DIR}/Builtin.cpp"
+    "${CORA_BUILTIN_DIR}/Class.cpp"
+    "${CORA_BUILTIN_DIR}/Module.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build Builtin Library.
+#--------------------------------------------------------------------
+
+add_library(Builtin STATIC ${CORA_BUILTIN_SOURCES})
+
+add_library(Cora::Builtin ALIAS Builtin)
+
+target_include_directories(Builtin
+	PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+		${CORA_BUILTIN_DIR}
+)
+
+# ===================================================================

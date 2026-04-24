@@ -1,0 +1,67 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+set(CORA_SOURCES 
+	"${CORA_CORA_DIR}/cora.cpp"
+)
+
+set(CORAC_SOURCES
+	"${CORA_CORA_DIR}/corac.cpp"
+)
+
+set(CORAVM_SOURCES
+	"${CORA_CORA_DIR}/coravm.cpp"
+)
+
+add_executable(cora ${CORA_SOURCES})
+add_executable(Corascript ALIAS cora)
+add_executable(coravm ${CORAVM_SOURCES})
+add_executable(corac ${CORAC_SOURCES})
+
+
+target_link_libraries(cora
+	PRIVATE
+		Cora::AST
+		Cora::Basic
+		Cora::IRGen
+		Cora::JITCom
+		Cora::Parser
+		Cora::Runtime
+		Cora::Builtin
+		Cora::Semantic
+		Cora::VMachine
+
+		Cora::Modules
+)
+
+target_link_libraries(coravm
+	PRIVATE
+		Cora::AST
+		Cora::Basic
+		Cora::IRGen
+		Cora::JITCom
+		Cora::Parser
+		Cora::Runtime
+		Cora::Builtin
+		Cora::Semantic
+		Cora::VMachine
+
+		Cora::Modules
+)
+
+target_link_libraries(corac
+	PRIVATE
+		Cora::AST
+		Cora::Basic
+		Cora::IRGen
+		Cora::JITCom
+		Cora::Parser
+		Cora::Runtime
+		Cora::Builtin
+		Cora::Semantic
+		Cora::VMachine
+)
+
+# ===================================================================
