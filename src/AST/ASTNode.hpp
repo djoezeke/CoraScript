@@ -8,6 +8,10 @@
 
 #include "Cora/Basic/Location.hpp"
 
+namespace cora::ast
+{
+}
+
 namespace cora::compiler
 {
     using namespace basic;

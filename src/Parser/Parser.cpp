@@ -1,6 +1,9 @@
 #include "Parser.hpp"
 
 #include <stdexcept>
+namespace cora::parser
+{
+}
 
 namespace cora::compiler
 {

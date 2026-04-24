@@ -1,5 +1,5 @@
-#ifndef CORA_COMPILER_AST_EXPRESSIONS_H
-#define CORA_COMPILER_AST_EXPRESSIONS_H
+#ifndef CORA_AST_ASTEXPR_H
+#define CORA_AST_ASTEXPR_H
 
 #include "../Parser/Token.hpp"
 #include "ASTNode.hpp"
@@ -7,6 +7,10 @@
 #include <deque>
 #include <string>
 #include <variant>
+
+namespace cora::ast
+{
+}
 
 namespace cora::compiler
 {
@@ -277,4 +281,4 @@ namespace cora::compiler
 
 } // namespace cora::compiler
 
-#endif // CORA_COMPILER_AST_EXPRESSIONS_H
+#endif // CORA_AST_ASTEXPR_H

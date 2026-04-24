@@ -3,6 +3,10 @@
 
 #include <sstream>
 
+namespace cora::ast
+{
+}
+
 namespace cora::compiler
 {
     namespace ast

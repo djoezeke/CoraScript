@@ -1,5 +1,19 @@
 #include "VMachine.hpp"
 
+
+namespace cora::vmachine
+{
+
+    VMachine::VMachine()
+    {
+    }
+
+    VMachine::~VMachine()
+    {
+    }
+
+}
+
 #include "../JITCom/JitPipeline.hpp"
 
 #include "../Builtin/Builtin.hpp"

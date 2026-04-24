@@ -9,11 +9,11 @@ namespace cora::embed::internal
 {
     using namespace cora::compiler;
 
-    BytecodeProgram BytecodeCompiler::Compile(const std::deque<ast::Statement *> &program)
+    BytecodeProgram BytecodeCompiler::Compile(const std::deque<cora::compiler::ast::Statement *> &program)
     {
         BytecodeProgram out;
 
-        for (ast::Statement *statement : program)
+        for (cora::compiler::ast::Statement *statement : program)
         {
             CompileStatement(statement, out);
         }
@@ -23,14 +23,14 @@ namespace cora::embed::internal
         return out;
     }
 
-    void BytecodeCompiler::CompileStatement(ast::Statement *statement, BytecodeProgram &out)
+    void BytecodeCompiler::CompileStatement(cora::compiler::ast::Statement *statement, BytecodeProgram &out)
     {
         if (!statement)
         {
             return;
         }
 
-        if (auto *var = dynamic_cast<ast::VarDeclStmt *>(statement))
+        if (auto *var = dynamic_cast<cora::compiler::ast::VarDeclStmt *>(statement))
         {
             CompileExpression(var->GetExpression(), out);
             out.Emit(OpCode::StoreGlobal, out.AddName(var->GetName()));
@@ -38,7 +38,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *var = dynamic_cast<ast::VarDeclaration *>(statement))
+        if (auto *var = dynamic_cast<cora::compiler::ast::VarDeclaration *>(statement))
         {
             CompileExpression(var->GetExpression(), out);
             out.Emit(OpCode::StoreGlobal, out.AddName(var->GetName()));
@@ -46,31 +46,31 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *assign = dynamic_cast<ast::AssignStmt *>(statement))
+        if (auto *assign = dynamic_cast<cora::compiler::ast::AssignStmt *>(statement))
         {
             CompileAssignment(assign->GetTarget(), assign->GetValue(), out);
             out.Emit(OpCode::Pop);
             return;
         }
 
-        if (auto *assign = dynamic_cast<ast::Assignment *>(statement))
+        if (auto *assign = dynamic_cast<cora::compiler::ast::Assignment *>(statement))
         {
             CompileAssignment(assign->GetTarget(), assign->GetValue(), out);
             out.Emit(OpCode::Pop);
             return;
         }
 
-        if (auto *expr = dynamic_cast<ast::ExprStmt *>(statement))
+        if (auto *expr = dynamic_cast<cora::compiler::ast::ExprStmt *>(statement))
         {
             CompileExpression(expr->GetExpression(), out);
             out.Emit(OpCode::Pop);
             return;
         }
 
-        if (auto *print = dynamic_cast<ast::PrintStmt *>(statement))
+        if (auto *print = dynamic_cast<cora::compiler::ast::PrintStmt *>(statement))
         {
             out.Emit(OpCode::LoadGlobal, out.AddName("print"));
-            for (ast::Expression *expr : print->expressions)
+            for (cora::compiler::ast::Expression *expr : print->expressions)
             {
                 CompileExpression(expr, out);
             }
@@ -79,13 +79,13 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *block = dynamic_cast<ast::BlockStmt *>(statement))
+        if (auto *block = dynamic_cast<cora::compiler::ast::BlockStmt *>(statement))
         {
             CompileBlock(block, out);
             return;
         }
 
-        if (auto *ifStmt = dynamic_cast<ast::IfStmt *>(statement))
+        if (auto *ifStmt = dynamic_cast<cora::compiler::ast::IfStmt *>(statement))
         {
             std::vector<std::int32_t> branchEndJumps;
             for (const auto &branch : ifStmt->branches)
@@ -112,7 +112,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *whileStmt = dynamic_cast<ast::WhileStmt *>(statement))
+        if (auto *whileStmt = dynamic_cast<cora::compiler::ast::WhileStmt *>(statement))
         {
             const std::int32_t loopStart = static_cast<std::int32_t>(out.code.size());
             CompileExpression(whileStmt->condition, out);
@@ -125,7 +125,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *returnStmt = dynamic_cast<ast::ReturnStmt *>(statement))
+        if (auto *returnStmt = dynamic_cast<cora::compiler::ast::ReturnStmt *>(statement))
         {
             if (returnStmt->GetValue())
             {
@@ -139,7 +139,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (dynamic_cast<ast::PassStmt *>(statement))
+        if (dynamic_cast<cora::compiler::ast::PassStmt *>(statement))
         {
             return;
         }
@@ -147,20 +147,20 @@ namespace cora::embed::internal
         Unsupported("statement");
     }
 
-    void BytecodeCompiler::CompileBlock(ast::BlockStmt *block, BytecodeProgram &out)
+    void BytecodeCompiler::CompileBlock(cora::compiler::ast::BlockStmt *block, BytecodeProgram &out)
     {
         if (!block)
         {
             return;
         }
 
-        for (ast::Statement *statement : block->statements)
+        for (cora::compiler::ast::Statement *statement : block->statements)
         {
             CompileStatement(statement, out);
         }
     }
 
-    void BytecodeCompiler::CompileExpression(ast::Expression *expression, BytecodeProgram &out)
+    void BytecodeCompiler::CompileExpression(cora::compiler::ast::Expression *expression, BytecodeProgram &out)
     {
         if (!expression)
         {
@@ -168,7 +168,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *literal = dynamic_cast<ast::LiteralExpr *>(expression))
+        if (auto *literal = dynamic_cast<cora::compiler::ast::LiteralExpr *>(expression))
         {
             const auto &value = literal->GetValue();
             if (std::holds_alternative<std::monostate>(value))
@@ -194,13 +194,13 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *variable = dynamic_cast<ast::VariableExpr *>(expression))
+        if (auto *variable = dynamic_cast<cora::compiler::ast::VariableExpr *>(expression))
         {
             out.Emit(OpCode::LoadGlobal, out.AddName(variable->GetName()));
             return;
         }
 
-        if (auto *unary = dynamic_cast<ast::UnaryExpr *>(expression))
+        if (auto *unary = dynamic_cast<cora::compiler::ast::UnaryExpr *>(expression))
         {
             CompileExpression(unary->GetRhs(), out);
             switch (unary->GetOperator())
@@ -219,7 +219,7 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *binary = dynamic_cast<ast::BinaryExpr *>(expression))
+        if (auto *binary = dynamic_cast<cora::compiler::ast::BinaryExpr *>(expression))
         {
             CompileExpression(binary->GetLeft(), out);
             CompileExpression(binary->GetRight(), out);
@@ -264,10 +264,10 @@ namespace cora::embed::internal
             return;
         }
 
-        if (auto *call = dynamic_cast<ast::CallExpr *>(expression))
+        if (auto *call = dynamic_cast<cora::compiler::ast::CallExpr *>(expression))
         {
             CompileExpression(call->GetCallee(), out);
-            for (ast::Expression *argument : call->GetArguments())
+            for (cora::compiler::ast::Expression *argument : call->GetArguments())
             {
                 CompileExpression(argument, out);
             }
@@ -278,9 +278,9 @@ namespace cora::embed::internal
         Unsupported("expression");
     }
 
-    void BytecodeCompiler::CompileAssignment(ast::Expression *target, ast::Expression *value, BytecodeProgram &out)
+    void BytecodeCompiler::CompileAssignment(cora::compiler::ast::Expression *target, cora::compiler::ast::Expression *value, BytecodeProgram &out)
     {
-        auto *variable = dynamic_cast<ast::VariableExpr *>(target);
+        auto *variable = dynamic_cast<cora::compiler::ast::VariableExpr *>(target);
         if (!variable)
         {
             Unsupported("assignment target");

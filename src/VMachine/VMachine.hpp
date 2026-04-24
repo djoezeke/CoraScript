@@ -9,6 +9,18 @@
 #include <unordered_map>
 #include <vector>
 
+namespace cora::vmachine
+{
+    class VMachine
+    {
+    private:
+    public:
+        VMachine();
+        ~VMachine();
+    };
+
+}
+
 namespace cora::embed::internal
 {
     class JitPipeline;

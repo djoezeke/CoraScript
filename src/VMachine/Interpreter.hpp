@@ -17,6 +17,18 @@
 #include <unordered_map>
 #include <vector>
 
+namespace cora::vmachine
+{
+    class Interpreter
+    {
+    private:
+    public:
+        Interpreter();
+        ~Interpreter();
+    };
+
+}
+
 namespace cora::compiler
 {
     namespace parser

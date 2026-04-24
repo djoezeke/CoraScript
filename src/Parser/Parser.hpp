@@ -14,6 +14,65 @@
 #include <string>
 #include <vector>
 
+namespace cora::parser
+{
+    class Parser
+    {
+        class Lexer;
+        class Token;
+        class Statement;
+        class Expression;
+
+        using Tokens = std::deque<Token>;
+        using Statements = std::deque<Statement *>;
+
+    public:
+        Parser(const Lexer &lexer);
+        Parser(const Tokens &tokens);
+        Parser(const std::string &source);
+
+        Statements Parse();
+
+        void SetFileName(std::string fileName);
+        void SetModuleName(std::string moduleName);
+
+    private:
+        Statement *ParseStatement();
+        Statement *ParseEnum();
+        Statement *ParseClass();
+        Statement *ParseStruct();
+        Statement *ParseFunction();
+        Statement *ParseIf();
+        Statement *ParseWhile();
+        Statement *ParseFor();
+        Statement *ParseImport();
+        Statement *ParseTryCatch();
+        Statement *ParseThrow();
+        Statement *ParseReturn();
+        Statement *ParseDelete();
+        Statement *ParseBlock();
+
+        Expression *ParseExpression();
+        Expression *ParseOr();
+        Expression *ParseAnd();
+        Expression *ParseEquality();
+        Expression *ParseComparison();
+        Expression *ParseTerm();
+        Expression *ParseFactor();
+        Expression *ParseUnary();
+        Expression *ParsePrimary();
+        Expression *ParseCall();
+        Expression *ParseMember();
+
+    private:
+        std::size_t m_Current{0};
+        std::string m_FileName{"<memory>"};
+        std::string m_ModuleName;
+        std::vector<std::string> m_NamespaceStack;
+        std::vector<std::string> m_ClassStack;
+        std::vector<std::string> m_FunctionStack;
+    };
+}
 namespace cora::compiler
 {
     namespace parser

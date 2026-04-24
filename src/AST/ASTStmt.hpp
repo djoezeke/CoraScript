@@ -9,6 +9,10 @@
 #include <utility>
 #include <vector>
 
+namespace cora::ast
+{
+}
+
 namespace cora::compiler
 {
     namespace ast

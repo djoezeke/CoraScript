@@ -1,4 +1,18 @@
 #include "Interpreter.hpp"
+
+namespace cora::vmachine
+{
+
+    Interpreter::Interpreter()
+    {
+    }
+
+    Interpreter::~Interpreter()
+    {
+    }
+
+}
+
 #include "../Parser/Parser.hpp"
 
 #include <algorithm>
