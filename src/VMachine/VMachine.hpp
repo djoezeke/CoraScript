@@ -1,54 +1,48 @@
 #ifndef CORA_CORE_INTERNAL_BYTECODEVM_HPP
 #define CORA_CORE_INTERNAL_BYTECODEVM_HPP
 
-#include "../IRGen/Bytecode.hpp"
-
+#include "../Runtime/GarbageCollector.hpp"
+#include "../Runtime/Scope.hpp"
 #include "../Runtime/Value.hpp"
+#include "Bytecode.hpp"
 
+#include <iosfwd>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace cora::vmachine
 {
-    class VMachine
+    class VMachine final
     {
-    private:
     public:
         VMachine();
+        explicit VMachine(std::ostream *out);
+
+        int Run(const BytecodeProgram &program);
+        int RunFile(const std::string &bytecodeFile);
+
+        const cora::compiler::runtime::Value &GetReturnValue() const;
+        std::string LastError() const;
+
+        void SetOutput(std::ostream *out);
+
         ~VMachine();
-    };
-
-}
-
-namespace cora::embed::internal
-{
-    class JitPipeline;
-
-    class BytecodeVm
-    {
-    public:
-        explicit BytecodeVm(JitPipeline *jit = nullptr);
-
-        void SetGlobal(const std::string &name, cora::compiler::runtime::Value value);
-        bool HasGlobal(const std::string &name) const;
-
-        cora::compiler::runtime::Value Execute(const BytecodeProgram &program);
 
     private:
-        static bool IsTruthy(const cora::compiler::runtime::Value &value);
-        static bool ValuesEqual(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
-        static cora::compiler::runtime::Value Add(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
-        static cora::compiler::runtime::Value Sub(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
-        static cora::compiler::runtime::Value Mul(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
-        static cora::compiler::runtime::Value Div(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
-        static cora::compiler::runtime::Value Mod(const cora::compiler::runtime::Value &lhs, const cora::compiler::runtime::Value &rhs);
+        static std::string LocalName(std::int32_t slot);
+        bool PushLocal(std::int32_t slot);
+        bool StoreLocal(std::int32_t slot, const cora::compiler::runtime::Value &value);
+        bool BinaryNumeric(OpCode op);
+        void SetRuntimeError(const std::string &message);
 
     private:
-        JitPipeline *m_Jit{nullptr};
-        std::unordered_map<std::string, cora::compiler::runtime::Value> m_Globals;
-        std::vector<cora::compiler::runtime::Value> m_Stack;
+        std::vector<cora::compiler::runtime::Value> m_stack;
+        cora::compiler::runtime::Scope m_scope;
+        cora::compiler::runtime::Value m_returnValue;
+        std::ostream *m_output;
+        std::string m_lastError;
     };
+
 }
 
 #endif

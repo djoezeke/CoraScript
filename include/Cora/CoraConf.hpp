@@ -1,0 +1,4 @@
+#ifndef CORA_CORACONF_H
+#define CORA_CORACONF_H
+
+#endif // CORA_CORACONF_H

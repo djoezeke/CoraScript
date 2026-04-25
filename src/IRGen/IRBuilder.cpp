@@ -2,296 +2,324 @@
 
 #include "../Parser/Token.hpp"
 
+#include <sstream>
 #include <stdexcept>
-#include <string>
+#include <utility>
 
-namespace cora::embed::internal
+namespace cora::ir
 {
-    using namespace cora::compiler;
-
-    BytecodeProgram BytecodeCompiler::Compile(const std::deque<cora::compiler::ast::Statement *> &program)
+    namespace
     {
-        BytecodeProgram out;
+        using cora::compiler::ast::Assignment;
+        using cora::compiler::ast::BinaryExpr;
+        using cora::compiler::ast::BlockStmt;
+        using cora::compiler::ast::Bool;
+        using cora::compiler::ast::Expression;
+        using cora::compiler::ast::ExprStmt;
+        using cora::compiler::ast::Float;
+        using cora::compiler::ast::Identifier;
+        using cora::compiler::ast::IfStmt;
+        using cora::compiler::ast::Integer;
+        using cora::compiler::ast::LiteralExpr;
+        using cora::compiler::ast::PassStmt;
+        using cora::compiler::ast::PrintStmt;
+        using cora::compiler::ast::ReturnStmt;
+        using cora::compiler::ast::Statement;
+        using cora::compiler::ast::String;
+        using cora::compiler::ast::VarDeclStmt;
+        using cora::compiler::ast::WhileStmt;
 
-        for (cora::compiler::ast::Statement *statement : program)
+        static Instruction::OpKind toOp(cora::compiler::parser::TokenType tokenType)
         {
-            CompileStatement(statement, out);
-        }
-
-        out.Emit(OpCode::PushNull);
-        out.Emit(OpCode::Halt);
-        return out;
-    }
-
-    void BytecodeCompiler::CompileStatement(cora::compiler::ast::Statement *statement, BytecodeProgram &out)
-    {
-        if (!statement)
-        {
-            return;
-        }
-
-        if (auto *var = dynamic_cast<cora::compiler::ast::VarDeclStmt *>(statement))
-        {
-            CompileExpression(var->GetExpression(), out);
-            out.Emit(OpCode::StoreGlobal, out.AddName(var->GetName()));
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *var = dynamic_cast<cora::compiler::ast::VarDeclaration *>(statement))
-        {
-            CompileExpression(var->GetExpression(), out);
-            out.Emit(OpCode::StoreGlobal, out.AddName(var->GetName()));
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *assign = dynamic_cast<cora::compiler::ast::AssignStmt *>(statement))
-        {
-            CompileAssignment(assign->GetTarget(), assign->GetValue(), out);
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *assign = dynamic_cast<cora::compiler::ast::Assignment *>(statement))
-        {
-            CompileAssignment(assign->GetTarget(), assign->GetValue(), out);
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *expr = dynamic_cast<cora::compiler::ast::ExprStmt *>(statement))
-        {
-            CompileExpression(expr->GetExpression(), out);
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *print = dynamic_cast<cora::compiler::ast::PrintStmt *>(statement))
-        {
-            out.Emit(OpCode::LoadGlobal, out.AddName("print"));
-            for (cora::compiler::ast::Expression *expr : print->expressions)
+            switch (tokenType)
             {
-                CompileExpression(expr, out);
+            case cora::compiler::parser::TokenType::Plus:
+            case cora::compiler::parser::TokenType::T_PLUS:
+                return Instruction::ADD;
+            case cora::compiler::parser::TokenType::Star:
+            case cora::compiler::parser::TokenType::T_STAR:
+                return Instruction::MUL;
+            case cora::compiler::parser::TokenType::Minus:
+            case cora::compiler::parser::TokenType::T_MINUS:
+                return Instruction::SUB;
+            case cora::compiler::parser::TokenType::Slash:
+            case cora::compiler::parser::TokenType::T_SLASH:
+                return Instruction::DIV;
+            default:
+                throw std::runtime_error("IRBuilder: unsupported binary operator");
             }
-            out.Emit(OpCode::Call, static_cast<std::int32_t>(print->expressions.size()));
-            out.Emit(OpCode::Pop);
-            return;
         }
 
-        if (auto *block = dynamic_cast<cora::compiler::ast::BlockStmt *>(statement))
-        {
-            CompileBlock(block, out);
-            return;
-        }
-
-        if (auto *ifStmt = dynamic_cast<cora::compiler::ast::IfStmt *>(statement))
-        {
-            std::vector<std::int32_t> branchEndJumps;
-            for (const auto &branch : ifStmt->branches)
-            {
-                CompileExpression(branch.first, out);
-                const std::int32_t jumpIfFalse = out.Emit(OpCode::JumpIfFalse, -1);
-                out.Emit(OpCode::Pop);
-                CompileBlock(branch.second, out);
-                branchEndJumps.push_back(out.Emit(OpCode::Jump, -1));
-                out.code[static_cast<std::size_t>(jumpIfFalse)].a = static_cast<std::int32_t>(out.code.size());
-                out.Emit(OpCode::Pop);
-            }
-
-            if (ifStmt->elseBlock)
-            {
-                CompileBlock(ifStmt->elseBlock, out);
-            }
-
-            const std::int32_t branchEnd = static_cast<std::int32_t>(out.code.size());
-            for (std::int32_t jump : branchEndJumps)
-            {
-                out.code[static_cast<std::size_t>(jump)].a = branchEnd;
-            }
-            return;
-        }
-
-        if (auto *whileStmt = dynamic_cast<cora::compiler::ast::WhileStmt *>(statement))
-        {
-            const std::int32_t loopStart = static_cast<std::int32_t>(out.code.size());
-            CompileExpression(whileStmt->condition, out);
-            const std::int32_t jumpIfFalse = out.Emit(OpCode::JumpIfFalse, -1);
-            out.Emit(OpCode::Pop);
-            CompileBlock(whileStmt->block, out);
-            out.Emit(OpCode::Jump, loopStart);
-            out.code[static_cast<std::size_t>(jumpIfFalse)].a = static_cast<std::int32_t>(out.code.size());
-            out.Emit(OpCode::Pop);
-            return;
-        }
-
-        if (auto *returnStmt = dynamic_cast<cora::compiler::ast::ReturnStmt *>(statement))
-        {
-            if (returnStmt->GetValue())
-            {
-                CompileExpression(returnStmt->GetValue(), out);
-            }
-            else
-            {
-                out.Emit(OpCode::PushNull);
-            }
-            out.Emit(OpCode::Return);
-            return;
-        }
-
-        if (dynamic_cast<cora::compiler::ast::PassStmt *>(statement))
-        {
-            return;
-        }
-
-        Unsupported("statement");
-    }
-
-    void BytecodeCompiler::CompileBlock(cora::compiler::ast::BlockStmt *block, BytecodeProgram &out)
-    {
-        if (!block)
-        {
-            return;
-        }
-
-        for (cora::compiler::ast::Statement *statement : block->statements)
-        {
-            CompileStatement(statement, out);
-        }
-    }
-
-    void BytecodeCompiler::CompileExpression(cora::compiler::ast::Expression *expression, BytecodeProgram &out)
-    {
-        if (!expression)
-        {
-            out.Emit(OpCode::PushNull);
-            return;
-        }
-
-        if (auto *literal = dynamic_cast<cora::compiler::ast::LiteralExpr *>(expression))
+        static int literalToInt(const LiteralExpr *literal)
         {
             const auto &value = literal->GetValue();
-            if (std::holds_alternative<std::monostate>(value))
+            if (std::holds_alternative<double>(value))
             {
-                out.Emit(OpCode::PushNull);
+                return static_cast<int>(std::get<double>(value));
             }
-            else if (std::holds_alternative<bool>(value))
+            if (std::holds_alternative<bool>(value))
             {
-                out.Emit(OpCode::PushConst, out.AddConstant(runtime::Value(std::get<bool>(value))));
+                return std::get<bool>(value) ? 1 : 0;
             }
-            else if (std::holds_alternative<double>(value))
+            if (std::holds_alternative<std::string>(value))
             {
-                out.Emit(OpCode::PushConst, out.AddConstant(runtime::Value(std::get<double>(value))));
+                return static_cast<int>(std::get<std::string>(value).size());
             }
-            else if (std::holds_alternative<std::string>(value))
-            {
-                out.Emit(OpCode::PushConst, out.AddConstant(runtime::Value(std::get<std::string>(value))));
-            }
-            else
-            {
-                out.Emit(OpCode::PushNull);
-            }
-            return;
+            return 0;
         }
-
-        if (auto *variable = dynamic_cast<cora::compiler::ast::VariableExpr *>(expression))
-        {
-            out.Emit(OpCode::LoadGlobal, out.AddName(variable->GetName()));
-            return;
-        }
-
-        if (auto *unary = dynamic_cast<cora::compiler::ast::UnaryExpr *>(expression))
-        {
-            CompileExpression(unary->GetRhs(), out);
-            switch (unary->GetOperator())
-            {
-            case parser::TokenType::Minus:
-                out.Emit(OpCode::Negate);
-                break;
-            case parser::TokenType::Not:
-                out.Emit(OpCode::LogicalNot);
-                break;
-            case parser::TokenType::Plus:
-                break;
-            default:
-                Unsupported("unary operator");
-            }
-            return;
-        }
-
-        if (auto *binary = dynamic_cast<cora::compiler::ast::BinaryExpr *>(expression))
-        {
-            CompileExpression(binary->GetLeft(), out);
-            CompileExpression(binary->GetRight(), out);
-            switch (binary->GetOperator())
-            {
-            case parser::TokenType::Plus:
-                out.Emit(OpCode::Add);
-                break;
-            case parser::TokenType::Minus:
-                out.Emit(OpCode::Sub);
-                break;
-            case parser::TokenType::Star:
-                out.Emit(OpCode::Mul);
-                break;
-            case parser::TokenType::Slash:
-                out.Emit(OpCode::Div);
-                break;
-            case parser::TokenType::Percent:
-                out.Emit(OpCode::Mod);
-                break;
-            case parser::TokenType::Equal:
-                out.Emit(OpCode::Equal);
-                break;
-            case parser::TokenType::NotEqual:
-                out.Emit(OpCode::NotEqual);
-                break;
-            case parser::TokenType::Less:
-                out.Emit(OpCode::Less);
-                break;
-            case parser::TokenType::LessEqual:
-                out.Emit(OpCode::LessEqual);
-                break;
-            case parser::TokenType::Greater:
-                out.Emit(OpCode::Greater);
-                break;
-            case parser::TokenType::GreaterEqual:
-                out.Emit(OpCode::GreaterEqual);
-                break;
-            default:
-                Unsupported("binary operator");
-            }
-            return;
-        }
-
-        if (auto *call = dynamic_cast<cora::compiler::ast::CallExpr *>(expression))
-        {
-            CompileExpression(call->GetCallee(), out);
-            for (cora::compiler::ast::Expression *argument : call->GetArguments())
-            {
-                CompileExpression(argument, out);
-            }
-            out.Emit(OpCode::Call, static_cast<std::int32_t>(call->GetArguments().size()));
-            return;
-        }
-
-        Unsupported("expression");
     }
 
-    void BytecodeCompiler::CompileAssignment(cora::compiler::ast::Expression *target, cora::compiler::ast::Expression *value, BytecodeProgram &out)
+    IRBuilder::IRBuilder() = default;
+
+    BasicBlock *IRBuilder::Build(const std::deque<cora::compiler::ast::Statement *> &program)
     {
-        auto *variable = dynamic_cast<cora::compiler::ast::VariableExpr *>(target);
-        if (!variable)
+        Reset();
+
+        auto entry = std::make_unique<BasicBlock>();
+        entry->label = "entry";
+        m_entry = entry.get();
+        m_currentBlock = m_entry;
+        m_blocks.push_back(m_entry);
+        m_ownedBlocks.push_back(std::move(entry));
+
+        for (Statement *stmt : program)
         {
-            Unsupported("assignment target");
+            emitStatement(stmt);
         }
 
-        CompileExpression(value, out);
-        out.Emit(OpCode::StoreGlobal, out.AddName(variable->GetName()));
+        return m_entry;
     }
 
-    [[noreturn]] void BytecodeCompiler::Unsupported(const char *what) const
+    void IRBuilder::Reset()
     {
-        throw std::runtime_error(std::string("VM bytecode compiler does not support this ") + what);
+        m_ownedBlocks.clear();
+        m_blocks.clear();
+        m_ownedValues.clear();
+        m_variables.clear();
+        m_entry = nullptr;
+        m_currentBlock = nullptr;
+        m_tempIndex = 0;
     }
-}
+
+    const std::vector<BasicBlock *> &IRBuilder::GetBlocks() const
+    {
+        return m_blocks;
+    }
+
+    BasicBlock *IRBuilder::GetEntryBlock() const
+    {
+        return m_entry;
+    }
+
+    IRBuilder::~IRBuilder() = default;
+
+    Value *IRBuilder::emitExpression(Expression *expr)
+    {
+        if (expr == nullptr)
+        {
+            return makeConstant(0);
+        }
+
+        if (auto *integer = dynamic_cast<Integer *>(expr))
+        {
+            return makeConstant(integer->GetValue());
+        }
+
+        if (auto *literal = dynamic_cast<LiteralExpr *>(expr))
+        {
+            return makeConstant(literalToInt(literal));
+        }
+
+        if (auto *boolean = dynamic_cast<Bool *>(expr))
+        {
+            return makeConstant(boolean->GetValue() ? 1 : 0);
+        }
+
+        if (auto *floating = dynamic_cast<Float *>(expr))
+        {
+            return makeConstant(static_cast<int>(floating->GetValue()));
+        }
+
+        if (auto *identifier = dynamic_cast<Identifier *>(expr))
+        {
+            Value *existing = lookupVariable(identifier->GetName());
+            if (existing == nullptr)
+            {
+                throw std::runtime_error("IRBuilder: undefined variable '" + identifier->GetName() + "'");
+            }
+            return existing;
+        }
+
+        if (auto *binary = dynamic_cast<BinaryExpr *>(expr))
+        {
+            Value *lhs = emitExpression(binary->GetLeft());
+            Value *rhs = emitExpression(binary->GetRight());
+            return emitBinary(toOp(binary->GetOperator()), lhs, rhs, makeTempName("tmp"));
+        }
+
+        if (auto *stringExpr = dynamic_cast<String *>(expr))
+        {
+            return makeConstant(static_cast<int>(stringExpr->GetValue().size()));
+        }
+
+        throw std::runtime_error("IRBuilder: unsupported expression type");
+    }
+
+    void IRBuilder::emitStatement(Statement *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+
+        if (auto *block = dynamic_cast<BlockStmt *>(stmt))
+        {
+            for (Statement *nested : block->statements)
+            {
+                emitStatement(nested);
+            }
+            return;
+        }
+
+        if (auto *decl = dynamic_cast<VarDeclStmt *>(stmt))
+        {
+            Value *value = emitExpression(decl->GetExpression());
+            auto *store = emitInstruction(Instruction::STORE, decl->GetName(), true);
+            store->addOperand(value);
+            assignVariable(decl->GetName(), value);
+            return;
+        }
+
+        if (auto *assign = dynamic_cast<Assignment *>(stmt))
+        {
+            Value *value = emitExpression(assign->GetValue());
+            auto *target = dynamic_cast<Identifier *>(assign->GetTarget());
+            if (target == nullptr)
+            {
+                throw std::runtime_error("IRBuilder: only identifier assignments are supported");
+            }
+
+            auto *store = emitInstruction(Instruction::STORE, target->GetName(), true);
+            store->addOperand(value);
+            assignVariable(target->GetName(), value);
+            return;
+        }
+
+        if (auto *exprStmt = dynamic_cast<ExprStmt *>(stmt))
+        {
+            (void)emitExpression(exprStmt->GetExpression());
+            return;
+        }
+
+        if (auto *printStmt = dynamic_cast<PrintStmt *>(stmt))
+        {
+            for (Expression *expression : printStmt->expressions)
+            {
+                Value *value = emitExpression(expression);
+                auto *printInst = emitInstruction(Instruction::PRINT, makeTempName("print"), true);
+                printInst->addOperand(value);
+            }
+            return;
+        }
+
+        if (auto *ret = dynamic_cast<ReturnStmt *>(stmt))
+        {
+            Value *value = emitExpression(ret->GetValue());
+            auto *retInst = emitInstruction(Instruction::RETURN, makeTempName("ret"), true);
+            retInst->addOperand(value);
+            return;
+        }
+
+        if (auto *ifStmt = dynamic_cast<IfStmt *>(stmt))
+        {
+            for (const auto &branch : ifStmt->branches)
+            {
+                (void)emitExpression(branch.first);
+                if (branch.second != nullptr)
+                {
+                    for (Statement *branchStmt : branch.second->statements)
+                    {
+                        emitStatement(branchStmt);
+                    }
+                }
+            }
+
+            if (ifStmt->elseBlock != nullptr)
+            {
+                for (Statement *branchStmt : ifStmt->elseBlock->statements)
+                {
+                    emitStatement(branchStmt);
+                }
+            }
+            return;
+        }
+
+        if (auto *whileStmt = dynamic_cast<WhileStmt *>(stmt))
+        {
+            (void)emitExpression(whileStmt->condition);
+            if (whileStmt->block != nullptr)
+            {
+                for (Statement *loopStmt : whileStmt->block->statements)
+                {
+                    emitStatement(loopStmt);
+                }
+            }
+            return;
+        }
+
+        if (dynamic_cast<PassStmt *>(stmt) != nullptr)
+        {
+            return;
+        }
+
+        throw std::runtime_error("IRBuilder: unsupported statement type");
+    }
+
+    Instruction *IRBuilder::emitBinary(Instruction::OpKind kind, Value *lhs, Value *rhs, const std::string &name, bool sideEffect)
+    {
+        auto *inst = emitInstruction(kind, name, sideEffect);
+        inst->addOperand(lhs);
+        inst->addOperand(rhs);
+        return inst;
+    }
+
+    Instruction *IRBuilder::emitInstruction(Instruction::OpKind kind, const std::string &name, bool sideEffect)
+    {
+        auto instruction = std::make_unique<Instruction>(kind, name, sideEffect);
+        Instruction *raw = instruction.get();
+        m_ownedValues.push_back(std::move(instruction));
+        m_currentBlock->addInstruction(raw);
+        return raw;
+    }
+
+    ConstantInt *IRBuilder::makeConstant(int value)
+    {
+        auto constant = std::make_unique<ConstantInt>(value);
+        ConstantInt *raw = constant.get();
+        m_ownedValues.push_back(std::move(constant));
+        return raw;
+    }
+
+    Value *IRBuilder::lookupVariable(const std::string &name) const
+    {
+        const auto found = m_variables.find(name);
+        if (found == m_variables.end())
+        {
+            return nullptr;
+        }
+        return found->second;
+    }
+
+    void IRBuilder::assignVariable(const std::string &name, Value *value)
+    {
+        m_variables[name] = value;
+    }
+
+    std::string IRBuilder::makeTempName(const std::string &prefix)
+    {
+        std::ostringstream out;
+        out << '%' << prefix << m_tempIndex++;
+        return out.str();
+    }
+
+} // namespace cora::ir

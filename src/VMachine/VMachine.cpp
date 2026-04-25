@@ -1,394 +1,321 @@
 #include "VMachine.hpp"
 
+#include "../Runtime/Variable.hpp"
+#include "BytecodeReader.hpp"
+
+#include <iostream>
+#include <stdexcept>
 
 namespace cora::vmachine
 {
+    namespace
+    {
+        using cora::compiler::runtime::Value;
+
+        bool isValidOpcode(OpCode op)
+        {
+            switch (op)
+            {
+            case OpCode::PushConst:
+            case OpCode::LoadLocal:
+            case OpCode::StoreLocal:
+            case OpCode::Add:
+            case OpCode::Mul:
+            case OpCode::Sub:
+            case OpCode::Div:
+            case OpCode::Print:
+            case OpCode::Jump:
+            case OpCode::JumpIfFalse:
+            case OpCode::Return:
+            case OpCode::Halt:
+                return true;
+            }
+            return false;
+        }
+    } // namespace
 
     VMachine::VMachine()
+        : VMachine(&std::cout)
     {
     }
 
-    VMachine::~VMachine()
+    VMachine::VMachine(std::ostream *out)
+        : m_scope(nullptr, cora::compiler::runtime::ScopeKind::Module),
+          m_output(out != nullptr ? out : &std::cout)
     {
+        cora::compiler::runtime::GetGarbageCollector().RegisterRoot(&m_scope);
     }
 
-}
-
-#include "../JITCom/JitPipeline.hpp"
-
-#include "../Builtin/Builtin.hpp"
-#include "../Runtime/Scope.hpp"
-#include "../Runtime/Variable.hpp"
-
-#include <cmath>
-#include <stdexcept>
-
-namespace cora::embed::internal
-{
-    using namespace cora::compiler;
-
-    BytecodeVm::BytecodeVm(JitPipeline *jit)
-        : m_Jit(jit)
+    int VMachine::Run(const BytecodeProgram &program)
     {
-        runtime::Scope scope;
-        builtin::Builtins(scope);
+        m_stack.clear();
+        m_lastError.clear();
+        m_returnValue = Value();
 
-        for (const auto &entry : scope.GetVariables())
-        {
-            if (!entry.second || !entry.second->GetValue())
-            {
-                continue;
-            }
-
-            m_Globals[entry.first] = *(entry.second->GetValue());
-        }
-    }
-
-    void BytecodeVm::SetGlobal(const std::string &name, runtime::Value value)
-    {
-        m_Globals[name] = std::move(value);
-    }
-
-    bool BytecodeVm::HasGlobal(const std::string &name) const
-    {
-        return m_Globals.find(name) != m_Globals.end();
-    }
-
-    runtime::Value BytecodeVm::Execute(const BytecodeProgram &program)
-    {
-        if (m_Jit)
-        {
-            m_Jit->ResetExecutionState();
-        }
-
-        m_Stack.clear();
         std::size_t ip = 0;
-
-        auto popValue = [this]() -> runtime::Value
-        {
-            if (m_Stack.empty())
-            {
-                throw std::runtime_error("VM stack underflow");
-            }
-
-            runtime::Value value = m_Stack.back();
-            m_Stack.pop_back();
-            return value;
-        };
 
         while (ip < program.code.size())
         {
-            const Instruction &instruction = program.code[ip++];
+            const Instruction &instruction = program.code[ip];
+            if (!isValidOpcode(instruction.op))
+            {
+                SetRuntimeError("VMachine: invalid opcode at instruction " + std::to_string(ip));
+                return 2;
+            }
+
             switch (instruction.op)
             {
             case OpCode::PushConst:
-                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.constants.size())
-                {
-                    throw std::runtime_error("VM constant index out of range");
-                }
-                m_Stack.push_back(program.constants[static_cast<std::size_t>(instruction.a)]);
-                break;
-
-            case OpCode::PushNull:
-                m_Stack.emplace_back(nullptr);
-                break;
-
-            case OpCode::LoadGlobal:
             {
-                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.names.size())
-                {
-                    throw std::runtime_error("VM name index out of range");
-                }
-
-                const std::string &name = program.names[static_cast<std::size_t>(instruction.a)];
-                const auto found = m_Globals.find(name);
-                if (found == m_Globals.end())
-                {
-                    throw std::runtime_error("Unknown global: " + name);
-                }
-
-                m_Stack.push_back(found->second);
+                Value value(static_cast<double>(instruction.a));
+                value.SetValueKind(cora::compiler::runtime::ValueKind::Integer);
+                m_stack.push_back(value);
+                ++ip;
                 break;
             }
-
-            case OpCode::StoreGlobal:
+            case OpCode::LoadLocal:
+                if (!PushLocal(instruction.a))
+                {
+                    return 2;
+                }
+                ++ip;
+                break;
+            case OpCode::StoreLocal:
             {
-                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.names.size())
+                if (m_stack.empty())
                 {
-                    throw std::runtime_error("VM name index out of range");
+                    SetRuntimeError("VMachine: stack underflow on store_local");
+                    return 2;
                 }
 
-                if (m_Stack.empty())
+                const Value value = m_stack.back();
+                m_stack.pop_back();
+                if (!StoreLocal(instruction.a, value))
                 {
-                    throw std::runtime_error("VM stack underflow on store");
+                    return 2;
                 }
-
-                const std::string &name = program.names[static_cast<std::size_t>(instruction.a)];
-                m_Globals[name] = m_Stack.back();
+                ++ip;
                 break;
             }
-
-            case OpCode::Pop:
-                (void)popValue();
-                break;
-
             case OpCode::Add:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.push_back(Add(lhs, rhs));
-                break;
-            }
-
-            case OpCode::Sub:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.push_back(Sub(lhs, rhs));
-                break;
-            }
-
             case OpCode::Mul:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.push_back(Mul(lhs, rhs));
-                break;
-            }
-
+            case OpCode::Sub:
             case OpCode::Div:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.push_back(Div(lhs, rhs));
-                break;
-            }
-
-            case OpCode::Mod:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.push_back(Mod(lhs, rhs));
-                break;
-            }
-
-            case OpCode::Negate:
-            {
-                runtime::Value rhs = popValue();
-                m_Stack.emplace_back(-rhs.AsNumber());
-                break;
-            }
-
-            case OpCode::LogicalNot:
-            {
-                runtime::Value rhs = popValue();
-                m_Stack.emplace_back(!IsTruthy(rhs));
-                break;
-            }
-
-            case OpCode::Equal:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(ValuesEqual(lhs, rhs));
-                break;
-            }
-
-            case OpCode::NotEqual:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(!ValuesEqual(lhs, rhs));
-                break;
-            }
-
-            case OpCode::Less:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(lhs.AsNumber() < rhs.AsNumber());
-                break;
-            }
-
-            case OpCode::LessEqual:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(lhs.AsNumber() <= rhs.AsNumber());
-                break;
-            }
-
-            case OpCode::Greater:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(lhs.AsNumber() > rhs.AsNumber());
-                break;
-            }
-
-            case OpCode::GreaterEqual:
-            {
-                runtime::Value rhs = popValue();
-                runtime::Value lhs = popValue();
-                m_Stack.emplace_back(lhs.AsNumber() >= rhs.AsNumber());
-                break;
-            }
-
-            case OpCode::Jump:
-                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) > program.code.size())
+                if (!BinaryNumeric(instruction.op))
                 {
-                    throw std::runtime_error("VM jump target out of range");
+                    return 2;
+                }
+                ++ip;
+                break;
+            case OpCode::Print:
+            {
+                if (m_stack.empty())
+                {
+                    SetRuntimeError("VMachine: stack underflow on print");
+                    return 2;
                 }
 
-                if (m_Jit)
+                const Value value = m_stack.back();
+                m_stack.pop_back();
+                if (m_output != nullptr)
                 {
-                    const std::size_t currentIp = ip == 0 ? 0 : ip - 1;
-                    const std::size_t targetIp = static_cast<std::size_t>(instruction.a);
-                    if (targetIp < currentIp)
-                    {
-                        const bool compiled = m_Jit->OnLoopBackEdge(
-                            program,
-                            static_cast<std::int32_t>(targetIp),
-                            static_cast<std::int32_t>(currentIp));
-                        if (compiled)
-                        {
-                            m_Jit->RecordCompiledTraceExecution(static_cast<std::int32_t>(targetIp));
-                        }
-                    }
+                    *m_output << value.AsString() << '\n';
+                }
+                ++ip;
+                break;
+            }
+            case OpCode::Jump:
+            {
+                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.code.size())
+                {
+                    SetRuntimeError("VMachine: jump target out of range");
+                    return 2;
                 }
 
                 ip = static_cast<std::size_t>(instruction.a);
                 break;
-
+            }
             case OpCode::JumpIfFalse:
             {
-                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) > program.code.size())
+                if (m_stack.empty())
                 {
-                    throw std::runtime_error("VM jump target out of range");
+                    SetRuntimeError("VMachine: stack underflow on jump_if_false");
+                    return 2;
                 }
 
-                if (!IsTruthy(m_Stack.empty() ? runtime::Value(nullptr) : m_Stack.back()))
+                const Value condition = m_stack.back();
+                m_stack.pop_back();
+                if (!condition.AsBool())
                 {
+                    if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.code.size())
+                    {
+                        SetRuntimeError("VMachine: jump_if_false target out of range");
+                        return 2;
+                    }
                     ip = static_cast<std::size_t>(instruction.a);
                 }
+                else
+                {
+                    ++ip;
+                }
                 break;
             }
-
-            case OpCode::Call:
-            {
-                const std::int32_t argCount = instruction.a;
-                if (argCount < 0 || m_Stack.size() < static_cast<std::size_t>(argCount + 1))
-                {
-                    throw std::runtime_error("Invalid VM call frame");
-                }
-
-                std::vector<runtime::Value> args;
-                args.reserve(static_cast<std::size_t>(argCount));
-                for (std::int32_t i = 0; i < argCount; ++i)
-                {
-                    args.push_back(m_Stack[m_Stack.size() - static_cast<std::size_t>(argCount) + static_cast<std::size_t>(i)]);
-                }
-
-                runtime::Value callee = m_Stack[m_Stack.size() - static_cast<std::size_t>(argCount + 1)];
-                m_Stack.resize(m_Stack.size() - static_cast<std::size_t>(argCount + 1));
-
-                if (!callee.IsCallable())
-                {
-                    throw std::runtime_error("Attempted to call non-callable value");
-                }
-
-                auto callable = callee.AsCallable();
-                m_Stack.push_back(callable->Call(args));
-                break;
-            }
-
             case OpCode::Return:
-                return m_Stack.empty() ? runtime::Value(nullptr) : popValue();
+            {
+                if (m_stack.empty())
+                {
+                    m_returnValue = Value(nullptr);
+                }
+                else
+                {
+                    m_returnValue = m_stack.back();
+                    m_stack.pop_back();
+                }
 
+                cora::compiler::runtime::GetGarbageCollector().Collect();
+                return 0;
+            }
             case OpCode::Halt:
-                return m_Stack.empty() ? runtime::Value(nullptr) : m_Stack.back();
+                cora::compiler::runtime::GetGarbageCollector().Collect();
+                return 0;
             }
         }
 
-        return runtime::Value(nullptr);
+        cora::compiler::runtime::GetGarbageCollector().Collect();
+        return 0;
     }
 
-    bool BytecodeVm::IsTruthy(const runtime::Value &value)
+    int VMachine::RunFile(const std::string &bytecodeFile)
     {
-        if (value.IsNull())
+        try
         {
+            BytecodeReader reader;
+            reader.Read(bytecodeFile);
+            return Run(reader.GetProgram());
+        }
+        catch (const std::exception &error)
+        {
+            SetRuntimeError(error.what());
+            return 2;
+        }
+    }
+
+    const cora::compiler::runtime::Value &VMachine::GetReturnValue() const
+    {
+        return m_returnValue;
+    }
+
+    std::string VMachine::LastError() const
+    {
+        return m_lastError;
+    }
+
+    void VMachine::SetOutput(std::ostream *out)
+    {
+        m_output = out != nullptr ? out : &std::cout;
+    }
+
+    std::string VMachine::LocalName(std::int32_t slot)
+    {
+        return "$" + std::to_string(slot);
+    }
+
+    bool VMachine::PushLocal(std::int32_t slot)
+    {
+        cora::compiler::runtime::Variable *variable = m_scope.GetVariableValue(LocalName(slot));
+        if (variable == nullptr || variable->GetValue() == nullptr)
+        {
+            SetRuntimeError("VMachine: undefined local slot " + std::to_string(slot));
             return false;
         }
 
-        if (value.IsBool())
-        {
-            return value.AsBool();
-        }
-
-        if (value.IsNumber())
-        {
-            return value.AsNumber() != 0.0;
-        }
-
-        if (value.IsString())
-        {
-            return !value.AsString().empty();
-        }
-
+        m_stack.push_back(*variable->GetValue());
         return true;
     }
 
-    bool BytecodeVm::ValuesEqual(const runtime::Value &lhs, const runtime::Value &rhs)
+    bool VMachine::StoreLocal(std::int32_t slot, const cora::compiler::runtime::Value &value)
     {
-        if (lhs.IsNull() && rhs.IsNull())
+        try
         {
+            m_scope.SetVariableValue(LocalName(slot), new cora::compiler::runtime::Value(value));
             return true;
         }
-
-        if (lhs.IsNull() || rhs.IsNull())
+        catch (const std::exception &error)
         {
+            SetRuntimeError(error.what());
+            return false;
+        }
+    }
+
+    bool VMachine::BinaryNumeric(OpCode op)
+    {
+        if (m_stack.size() < 2)
+        {
+            SetRuntimeError("VMachine: stack underflow on arithmetic op");
             return false;
         }
 
-        if (lhs.IsNumber() && rhs.IsNumber())
+        const cora::compiler::runtime::Value rhs = m_stack.back();
+        m_stack.pop_back();
+        const cora::compiler::runtime::Value lhs = m_stack.back();
+        m_stack.pop_back();
+
+        double left = 0.0;
+        double right = 0.0;
+        try
         {
-            return lhs.AsNumber() == rhs.AsNumber();
+            left = lhs.AsNumber();
+            right = rhs.AsNumber();
+        }
+        catch (const std::exception &error)
+        {
+            SetRuntimeError(error.what());
+            return false;
         }
 
-        if (lhs.IsBool() && rhs.IsBool())
+        if (op == OpCode::Div && right == 0.0)
         {
-            return lhs.AsBool() == rhs.AsBool();
+            SetRuntimeError("VMachine: division by zero");
+            return false;
         }
 
-        return lhs.AsString() == rhs.AsString();
-    }
-
-    runtime::Value BytecodeVm::Add(const runtime::Value &lhs, const runtime::Value &rhs)
-    {
-        if (lhs.IsString() || rhs.IsString())
+        double result = 0.0;
+        switch (op)
         {
-            return runtime::Value(lhs.AsString() + rhs.AsString());
+        case OpCode::Add:
+            result = left + right;
+            break;
+        case OpCode::Mul:
+            result = left * right;
+            break;
+        case OpCode::Sub:
+            result = left - right;
+            break;
+        case OpCode::Div:
+            result = left / right;
+            break;
+        default:
+            SetRuntimeError("VMachine: unsupported arithmetic opcode");
+            return false;
         }
-        return runtime::Value(lhs.AsNumber() + rhs.AsNumber());
+
+        cora::compiler::runtime::Value value(result);
+        if (op != OpCode::Div)
+        {
+            value.SetValueKind(cora::compiler::runtime::ValueKind::Integer);
+        }
+        m_stack.push_back(value);
+        return true;
     }
 
-    runtime::Value BytecodeVm::Sub(const runtime::Value &lhs, const runtime::Value &rhs)
+    void VMachine::SetRuntimeError(const std::string &message)
     {
-        return runtime::Value(lhs.AsNumber() - rhs.AsNumber());
+        m_lastError = message;
     }
 
-    runtime::Value BytecodeVm::Mul(const runtime::Value &lhs, const runtime::Value &rhs)
+    VMachine::~VMachine()
     {
-        return runtime::Value(lhs.AsNumber() * rhs.AsNumber());
+        cora::compiler::runtime::GetGarbageCollector().UnregisterRoot(&m_scope);
     }
 
-    runtime::Value BytecodeVm::Div(const runtime::Value &lhs, const runtime::Value &rhs)
-    {
-        return runtime::Value(lhs.AsNumber() / rhs.AsNumber());
-    }
-
-    runtime::Value BytecodeVm::Mod(const runtime::Value &lhs, const runtime::Value &rhs)
-    {
-        return runtime::Value(std::fmod(lhs.AsNumber(), rhs.AsNumber()));
-    }
-}
+} // namespace cora::vmachine

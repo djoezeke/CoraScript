@@ -1,21 +1,13 @@
-#include "../IRGen/IRBuilder.hpp"
 
-#include "../IRGen/Bytecode.hpp"
-
-#include "../Parser/Parser.hpp"
-#include "../Semantic/Validator.hpp"
 #include "Cora/Basic/Error.hpp"
+#include "Pipeline.hpp"
 
-#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-using cora::compiler::ast::Statement;
-using cora::embed::internal::BytecodeCompiler;
-using cora::embed::internal::BytecodeProgram;
+#include <vector>
 
 namespace
 {
@@ -32,44 +24,87 @@ namespace
         return buffer.str();
     }
 
-    int CompileSource(const std::string &source, const std::string &fileName)
+    struct Args
     {
-        cora::compiler::parser::Parser parser;
-        parser.SetFileName(fileName);
-        parser.SetModuleName(std::filesystem::path(fileName).stem().string());
+        std::string source;
+        std::string sourceName{"<memory>"};
+        cora::tooling::FrontendOptions options;
+    };
 
-        std::deque<Statement *> program = parser.ParseProgram(source);
-
-        try
+    Args ParseArgs(int argc, char **argv)
+    {
+        Args args;
+        for (int i = 1; i < argc; ++i)
         {
-            cora::compiler::semantic::ValidateProgram(
-                program,
-                fileName,
-                std::filesystem::path(fileName).stem().string());
-
-            BytecodeCompiler compiler;
-            BytecodeProgram bytecode = compiler.Compile(program);
-
-            std::cout << "Bytecode compile successful\n";
-            std::cout << "  instructions: " << bytecode.code.size() << "\n";
-            std::cout << "  constants:    " << bytecode.constants.size() << "\n";
-            std::cout << "  names:        " << bytecode.names.size() << "\n";
-        }
-        catch (...)
-        {
-            for (Statement *statement : program)
+            const std::string current = argv[i];
+            if (current == "-c")
             {
-                delete statement;
+                if (i + 1 >= argc)
+                {
+                    throw std::runtime_error("Missing source after -c");
+                }
+                args.source = argv[++i];
+                args.sourceName = "<command>";
+                continue;
             }
-            throw;
+
+            if (current == "--print-ir")
+            {
+                args.options.printIR = true;
+                continue;
+            }
+
+            if (current == "--print-bytecode")
+            {
+                args.options.printBytecode = true;
+                continue;
+            }
+
+            if (current == "--no-opt")
+            {
+                args.options.optimize = false;
+                continue;
+            }
+
+            if (current == "-o" || current == "--emit-bc")
+            {
+                if (i + 1 >= argc)
+                {
+                    throw std::runtime_error("Missing output file after -o/--emit-bc");
+                }
+
+                args.options.bytecodeOutputFile = argv[++i];
+                continue;
+            }
+
+            if (args.source.empty())
+            {
+                const std::filesystem::path inputPath(current);
+                if (!std::filesystem::exists(inputPath))
+                {
+                    throw std::runtime_error("File not found: " + inputPath.string());
+                }
+
+                args.source = ReadFile(inputPath);
+                args.sourceName = inputPath.string();
+                continue;
+            }
+
+            throw std::runtime_error("Unexpected argument: " + current);
         }
 
-        for (Statement *statement : program)
+        if (args.source.empty())
         {
-            delete statement;
+            throw std::runtime_error("No input source provided");
         }
 
-        return 0;
+        if (args.options.bytecodeOutputFile.empty() && args.sourceName != "<command>")
+        {
+            std::filesystem::path srcPath(args.sourceName);
+            args.options.bytecodeOutputFile = srcPath.replace_extension(".cbc").string();
+        }
+
+        return args;
     }
 }
 
@@ -77,32 +112,32 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: corac <script-file>\n";
-        std::cerr << "       corac -c \"<source>\"\n";
+        std::cerr << "Usage: corac [--print-ir] [--print-bytecode] [--no-opt] [-o out.cbc] <script-file>\n";
+        std::cerr << "       corac [--print-ir] [--print-bytecode] [--no-opt] [-o out.cbc] -c \"<source>\"\n";
         return 1;
     }
 
     try
     {
-        if (std::string(argv[1]) == "-c")
-        {
-            if (argc < 3)
-            {
-                std::cerr << "Missing source after -c\n";
-                return 1;
-            }
+        const Args args = ParseArgs(argc, argv);
+        const cora::tooling::FrontendResult result = cora::tooling::CompileToBytecode(
+            args.source,
+            args.sourceName,
+            args.options,
+            &std::cout,
+            &std::cout);
 
-            return CompileSource(argv[2], "<command>");
+        std::cout << "Bytecode compile successful\n";
+        std::cout << "  instructions: " << result.program.code.size() << "\n";
+        std::cout << "  constants:    " << result.program.constants.size() << "\n";
+        std::cout << "  names:        " << result.program.names.size() << "\n";
+
+        if (!args.options.bytecodeOutputFile.empty())
+        {
+            std::cout << "  wrote:        " << args.options.bytecodeOutputFile << "\n";
         }
 
-        const std::filesystem::path filePath(argv[1]);
-        if (!std::filesystem::exists(filePath))
-        {
-            std::cerr << "File not found: " << filePath.string() << '\n';
-            return 1;
-        }
-
-        return CompileSource(ReadFile(filePath), filePath.string());
+        return 0;
     }
     catch (const cora::compiler::error::Error &error)
     {

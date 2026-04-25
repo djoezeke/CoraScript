@@ -3,16 +3,23 @@
 # Distributed under the terms of the MIT license.
 # ===================================================================
 
+set(CORA_CLI_COMMON_SOURCES
+	"${CORA_CORA_DIR}/Pipeline.cpp"
+)
+
 set(CORA_SOURCES 
 	"${CORA_CORA_DIR}/cora.cpp"
+	${CORA_CLI_COMMON_SOURCES}
 )
 
 set(CORAC_SOURCES
 	"${CORA_CORA_DIR}/corac.cpp"
+	${CORA_CLI_COMMON_SOURCES}
 )
 
 set(CORAVM_SOURCES
 	"${CORA_CORA_DIR}/coravm.cpp"
+	${CORA_CLI_COMMON_SOURCES}
 )
 
 add_executable(cora ${CORA_SOURCES})
@@ -26,7 +33,7 @@ target_link_libraries(cora
 		Cora::AST
 		Cora::Basic
 		Cora::IRGen
-		Cora::JITCom
+		# Cora::JITCom
 		Cora::Parser
 		Cora::Runtime
 		Cora::Builtin
@@ -41,7 +48,7 @@ target_link_libraries(coravm
 		Cora::AST
 		Cora::Basic
 		Cora::IRGen
-		Cora::JITCom
+		# Cora::JITCom
 		Cora::Parser
 		Cora::Runtime
 		Cora::Builtin
@@ -56,7 +63,7 @@ target_link_libraries(corac
 		Cora::AST
 		Cora::Basic
 		Cora::IRGen
-		Cora::JITCom
+		# Cora::JITCom
 		Cora::Parser
 		Cora::Runtime
 		Cora::Builtin

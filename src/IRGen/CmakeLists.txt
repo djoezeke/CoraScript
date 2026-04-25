@@ -11,6 +11,7 @@ set(CORA_IRGEN_SOURCES
 
     "${CORA_IRGEN_DIR}/IRBuilder.cpp"
     "${CORA_IRGEN_DIR}/IRPrinter.cpp"
+	"${CORA_IRGEN_DIR}/IROptimizer.cpp"
     "${CORA_IRGEN_DIR}/IRVerifier.cpp"
 )
 

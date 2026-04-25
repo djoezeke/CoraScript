@@ -9,6 +9,7 @@
 
 set(CORA_RUNTIME_SOURCES 
 
+    "${CORA_RUNTIME_DIR}/GarbageCollector.cpp"
     "${CORA_RUNTIME_DIR}/Scope.cpp"
     "${CORA_RUNTIME_DIR}/Value.cpp"
     "${CORA_RUNTIME_DIR}/Variable.cpp"

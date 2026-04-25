@@ -67,7 +67,7 @@ target_link_libraries(Modules
 		Cora::AST
 		Cora::Basic
 		Cora::IRGen
-		Cora::JITCom
+		# Cora::JITCom
 		Cora::Parser
 		Cora::Runtime
 		Cora::Builtin

@@ -1,91 +1,167 @@
-#include "../JITCom/JITEngine.hpp"
+#include "../VMachine/Interpreter.hpp"
+#include "Cora/Basic/Error.hpp"
+#include "Pipeline.hpp"
 
-#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
+
+namespace
+{
+    std::string ReadFile(const std::filesystem::path &path)
+    {
+        std::ifstream input(path);
+        if (!input)
+        {
+            throw std::runtime_error("Unable to open file: " + path.string());
+        }
+
+        std::stringstream buffer;
+        buffer << input.rdbuf();
+        return buffer.str();
+    }
+
+    struct Args
+    {
+        std::string source;
+        std::string sourceName{"<memory>"};
+        std::string bytecodeInputFile;
+        cora::tooling::FrontendOptions options;
+    };
+
+    Args ParseArgs(int argc, char **argv)
+    {
+        Args args;
+        for (int i = 1; i < argc; ++i)
+        {
+            const std::string current = argv[i];
+            if (current == "-c")
+            {
+                if (i + 1 >= argc)
+                {
+                    throw std::runtime_error("Missing source after -c");
+                }
+                args.source = argv[++i];
+                args.sourceName = "<command>";
+                continue;
+            }
+
+            if (current == "--load-bc")
+            {
+                if (i + 1 >= argc)
+                {
+                    throw std::runtime_error("Missing file after --load-bc");
+                }
+                args.bytecodeInputFile = argv[++i];
+                continue;
+            }
+
+            if (current == "--save-bc")
+            {
+                if (i + 1 >= argc)
+                {
+                    throw std::runtime_error("Missing file after --save-bc");
+                }
+                args.options.bytecodeOutputFile = argv[++i];
+                continue;
+            }
+
+            if (current == "--print-ir")
+            {
+                args.options.printIR = true;
+                continue;
+            }
+
+            if (current == "--print-bytecode")
+            {
+                args.options.printBytecode = true;
+                continue;
+            }
+
+            if (current == "--no-opt")
+            {
+                args.options.optimize = false;
+                continue;
+            }
+
+            if (args.source.empty())
+            {
+                const std::filesystem::path inputPath(current);
+                if (!std::filesystem::exists(inputPath))
+                {
+                    throw std::runtime_error("File not found: " + inputPath.string());
+                }
+
+                args.source = ReadFile(inputPath);
+                args.sourceName = inputPath.string();
+                continue;
+            }
+
+            throw std::runtime_error("Unexpected argument: " + current);
+        }
+
+        return args;
+    }
+}
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: coravm [--no-jit] [--hot N] <script-file>\n";
-        std::cerr << "       coravm [--no-jit] [--hot N] -c \"<source>\"\n";
+        std::cerr << "Usage: coravm [--print-ir] [--print-bytecode] [--save-bc out.cbc] [--no-opt] <script-file>\n";
+        std::cerr << "       coravm [--print-ir] [--print-bytecode] [--save-bc out.cbc] [--no-opt] -c \"<source>\"\n";
+        std::cerr << "       coravm --load-bc file.cbc\n";
         return 1;
     }
 
-    cora::embed::EngineConfig config{};
-    std::string scriptArg;
-    std::string commandSource;
-
-    for (int i = 1; i < argc; ++i)
+    try
     {
-        const std::string arg = argv[i];
-        if (arg == "--no-jit")
-        {
-            config.jit.enabled = false;
-            continue;
-        }
+        const Args args = ParseArgs(argc, argv);
 
-        if (arg == "--hot")
+        cora::vmachine::BytecodeProgram program;
+        if (!args.bytecodeInputFile.empty())
         {
-            if (i + 1 >= argc)
+            program = cora::tooling::LoadBytecodeFile(args.bytecodeInputFile);
+        }
+        else
+        {
+            if (args.source.empty())
             {
-                std::cerr << "Missing value for --hot\n";
-                return 1;
+                throw std::runtime_error("No input source provided");
             }
 
-            ++i;
-            config.jit.hotLoopThreshold = static_cast<std::uint32_t>(std::stoul(argv[i]));
-            continue;
+            const cora::tooling::FrontendResult result = cora::tooling::CompileToBytecode(
+                args.source,
+                args.sourceName,
+                args.options,
+                &std::cout,
+                &std::cout);
+            program = result.program;
         }
 
-        if (arg == "-c")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr << "Missing source after -c\n";
-                return 1;
-            }
-
-            ++i;
-            commandSource = argv[i];
-            continue;
-        }
-
-        scriptArg = arg;
-    }
-
-    cora::embed::Engine engine(config);
-
-    if (!commandSource.empty())
-    {
-        const int rc = engine.RunString(commandSource, "<command>");
+        cora::vmachine::Interpreter interpreter(&std::cout);
+        const int rc = interpreter.Run(program);
         if (rc != 0)
         {
-            std::cerr << engine.LastError() << '\n';
+            std::cerr << interpreter.LastError() << '\n';
         }
         return rc;
     }
-
-    if (scriptArg.empty())
+    catch (const cora::compiler::error::Error &error)
     {
-        std::cerr << "Missing script file\n";
+        std::cerr << error.Format() << '\n';
         return 1;
     }
-
-    const std::filesystem::path scriptPath(scriptArg);
-    if (!std::filesystem::exists(scriptPath))
+    catch (const std::runtime_error &error)
     {
-        std::cerr << "File not found: " << scriptPath.string() << '\n';
+        std::cerr << error.what() << '\n';
+        return 2;
+    }
+    catch (const std::exception &error)
+    {
+        std::cerr << error.what() << '\n';
         return 1;
     }
-
-    const int rc = engine.RunFile(scriptPath.string());
-    if (rc != 0)
-    {
-        std::cerr << engine.LastError() << '\n';
-    }
-
-    return rc;
 }

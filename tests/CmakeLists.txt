@@ -1,0 +1,13 @@
+add_executable(cora_ir_bytecode_tests
+	"${CMAKE_CURRENT_SOURCE_DIR}/IRBytecodeTests.cpp"
+)
+
+target_link_libraries(cora_ir_bytecode_tests
+	PRIVATE
+		Cora::AST
+		Cora::IRGen
+		Cora::VMachine
+)
+
+add_test(NAME cora.ir_bytecode_roundtrip
+		 COMMAND cora_ir_bytecode_tests)
