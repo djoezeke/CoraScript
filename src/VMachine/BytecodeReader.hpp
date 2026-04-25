@@ -5,7 +5,7 @@
 #ifndef CORA_VMACHINE_BYTECODEREADER_H
 #define CORA_VMACHINE_BYTECODEREADER_H
 
-#include "Bytecode.hpp"
+#include "VMInstruction.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -17,22 +17,28 @@ namespace cora::vmachine
     class BytecodeReader final
     {
     public:
-        using RawBytecode = std::vector<std::uint8_t>;
+        using Byte = std::uint8_t;
+        using RawBytecode = std::vector<Byte>;
 
         BytecodeReader() = default;
 
-        void Read(const std::string &file);
-        void Read(const RawBytecode &bytecode);
+        BytecodeReader(std::string filename)
+            : filename(std::move(filename)) {};
 
-        const RawBytecode &GetRawBytecode() const;
-        const BytecodeProgram &GetProgram() const;
+        void Read() const;
+
+    public:
+        int entry{-1};
+        int entry_end{-1};
+        int global_var_len{-1};
+        std::vector<Instruction *> vm_insts;
 
     private:
-        static constexpr std::uint32_t kMagic = 0xC0DEBEEF;
-        static constexpr std::uint32_t kVersion = 1;
-
-        RawBytecode m_bytecode;
-        BytecodeProgram m_program;
+        std::uint32_t kMagic;
+        std::uint32_t kVersion;
+        Opcode cur_opcode;
+        std::string filename;
+        std::ifstream in;
     };
 
 } // namespace cora::vmachine

@@ -5,7 +5,7 @@
 #ifndef CORA_VMACHINE_BYTECODEWRITER_H
 #define CORA_VMACHINE_BYTECODEWRITER_H
 
-#include "Bytecode.hpp"
+#include "VMInstruction.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -17,17 +17,27 @@ namespace cora::vmachine
     class BytecodeWriter final
     {
     public:
-        using RawBytecode = std::vector<std::uint8_t>;
+        using Byte = std::uint8_t;
+        using RawBytecode = std::vector<Byte>;
 
         BytecodeWriter() = default;
+         BytecodeWriter(std::string filename)
+            : filename(std::move(filename)) {};
 
-        RawBytecode Write(const BytecodeProgram &program) const;
-        void Write(const std::string &file, const BytecodeProgram &program) const;
-        void Write(const std::string &file, const RawBytecode &bytecode) const;
+        void Write() const;
+
+    public:
+        int entry{-1};
+        int entry_end{-1};
+        int global_var_len{-1};
+        std::vector<Instruction *> vm_insts;
 
     private:
-        static constexpr std::uint32_t kMagic = 0xC0DEBEEF;
-        static constexpr std::uint32_t kVersion = 1;
+        std::uint32_t kMagic;
+        std::uint32_t kVersion;
+        Instruction *cur_instr{nullptr};
+        std::string filename;
+        std::ofstream out;
     };
 
 } // namespace cora::vmachine

@@ -28,20 +28,20 @@ namespace cora::ir
         ~IRBuilder();
 
     private:
-        Value *emitExpression(cora::compiler::ast::Expression *expr);
+        IRValue *emitExpression(cora::compiler::ast::Expression *expr);
         void emitStatement(cora::compiler::ast::Statement *stmt);
-        Instruction *emitBinary(Instruction::OpKind kind, Value *lhs, Value *rhs, const std::string &name, bool sideEffect = false);
+        Instruction *emitBinary(Instruction::OpKind kind, IRValue *lhs, IRValue *rhs, const std::string &name, bool sideEffect = false);
         Instruction *emitInstruction(Instruction::OpKind kind, const std::string &name, bool sideEffect = false);
-        ConstantInt *makeConstant(int value);
-        Value *lookupVariable(const std::string &name) const;
-        void assignVariable(const std::string &name, Value *value);
+        ConstInstruction *makeConstant(int value);
+        IRValue *lookupVariable(const std::string &name) const;
+        void assignVariable(const std::string &name, IRValue *value);
         std::string makeTempName(const std::string &prefix = "t");
 
     private:
         std::vector<std::unique_ptr<BasicBlock>> m_ownedBlocks;
         std::vector<BasicBlock *> m_blocks;
-        std::vector<std::unique_ptr<Value>> m_ownedValues;
-        std::unordered_map<std::string, Value *> m_variables;
+        std::vector<std::unique_ptr<IRValue>> m_ownedValues;
+        std::unordered_map<std::string, IRValue *> m_variables;
         BasicBlock *m_entry{nullptr};
         BasicBlock *m_currentBlock{nullptr};
         std::size_t m_tempIndex{0};
