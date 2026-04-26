@@ -18,19 +18,6 @@ set(CORA_PARSER_SOURCES
 # Build Parser Library.
 #--------------------------------------------------------------------
 
-add_library(Parser STATIC ${CORA_PARSER_SOURCES})
-
-add_library(Cora::Parser ALIAS Parser)
-
-target_include_directories(Parser
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_PARSER_DIR}
-)
-
-target_link_libraries(AST
-	PRIVATE
-		Cora::Basic
-)
+cora_library(Parser SOURCES ${CORA_PARSER_SOURCES} STATIC)
 
 # ===================================================================

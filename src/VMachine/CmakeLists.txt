@@ -15,32 +15,13 @@ set(CORA_VMACHINE_SOURCES
 	"${CORA_VMACHINE_DIR}/BytecodeEmitter.cpp"
 	"${CORA_VMACHINE_DIR}/BytecodeReader.cpp"
 	"${CORA_VMACHINE_DIR}/BytecodeWriter.cpp"
+	"${CORA_VMACHINE_DIR}/BytecodeEmitter.cpp"
 )
 
 #--------------------------------------------------------------------
 # Build Virtual Machine Library.
 #--------------------------------------------------------------------
 
-add_library(VMachine STATIC ${CORA_VMACHINE_SOURCES})
-
-add_library(Cora::VMachine ALIAS VMachine)
-
-target_include_directories(VMachine
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_VMACHINE_DIR}
-)
-
-target_link_libraries(VMachine
-	PRIVATE
-		Cora::AST
-		Cora::Basic
-		Cora::IRGen
-		# Cora::JITCom
-		Cora::Parser
-		Cora::Runtime
-		Cora::Builtin
-		Cora::Semantic
-)
+cora_library(VMachine SOURCES ${CORA_VMACHINE_SOURCES} STATIC)
 
 # ===================================================================

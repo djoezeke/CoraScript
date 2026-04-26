@@ -17,14 +17,6 @@ set(CORA_BASIC_SOURCES
 # Build Basic Library.
 #--------------------------------------------------------------------
 
-add_library(Basic STATIC ${CORA_BASIC_SOURCES})
-
-add_library(Cora::Basic ALIAS Basic)
-
-target_include_directories(Basic
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_BASIC_DIR}
-)
+cora_library(Basic SOURCES ${CORA_BASIC_SOURCES} STATIC)
 
 # ===================================================================

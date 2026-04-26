@@ -2,128 +2,127 @@
 
 #include <unordered_map>
 
-namespace cora::compiler
+namespace cora::parser
 {
-    namespace parser
+    Token::Token()
+        : m_Type(TokenType::End), m_Range(basic::SourceRange()), m_TokenText() {}
+
+    Token::Token(TokenType tokentype, unsigned int line, unsigned int column)
+        : m_Type(tokentype),
+          m_Range(basic::SourceRange(basic::SourceLocation(line, column))),
+          m_TokenText() {}
+
+    Token::Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column)
+        : m_Type(tokentype),
+          m_Range(basic::SourceRange(basic::SourceLocation(line, column), basic::SourceLocation(line, column + static_cast<unsigned int>(tokentext.size())))),
+          m_TokenText(std::move(tokentext)) {}
+
+    std::string Token::Repr() { return GetText(); }
+
+    TokenType Token::GetTokenType() const { return m_Type; }
+
+    std::string Token::GetTokenTypeString() const
     {
+        static const std::unordered_map<TokenType, std::string> names = {
+            {TokenType::End, "End"},
+            {TokenType::Newline, "Newline"},
+            {TokenType::Indent, "Indent"},
+            {TokenType::Dedent, "Dedent"},
+            {TokenType::Identifier, "Identifier"},
+            {TokenType::Number, "Number"},
+            {TokenType::Null, "Null"},
+            {TokenType::True, "True"},
+            {TokenType::False, "False"},
+            {TokenType::Let, "Let"},
+            {TokenType::Const, "Const"},
+            {TokenType::String, "String"},
+            {TokenType::If, "If"},
+            {TokenType::Elif, "Elif"},
+            {TokenType::Else, "Else"},
+            {TokenType::While, "While"},
+            {TokenType::For, "For"},
+            {TokenType::Import, "Import"},
+            {TokenType::In, "In"},
+            {TokenType::Range, "Range"},
+            {TokenType::Break, "Break"},
+            {TokenType::Continue, "Continue"},
+            {TokenType::Pass, "Pass"},
+            {TokenType::Print, "Print"},
+            {TokenType::And, "And"},
+            {TokenType::Or, "Or"},
+            {TokenType::Not, "Not"},
+            {TokenType::LParen, "LParen"},
+            {TokenType::RParen, "RParen"},
+            {TokenType::LBrace, "LBrace"},
+            {TokenType::RBrace, "RBrace"},
+            {TokenType::Colon, "Colon"},
+            {TokenType::Comma, "Comma"},
+            {TokenType::Semicolon, "Semicolon"},
+            {TokenType::Assign, "Assign"},
+            {TokenType::Plus, "Plus"},
+            {TokenType::Minus, "Minus"},
+            {TokenType::Star, "Star"},
+            {TokenType::Slash, "Slash"},
+            {TokenType::Percent, "Percent"},
+            {TokenType::Dot, "Dot"},
+            {TokenType::Equal, "Equal"},
+            {TokenType::NotEqual, "NotEqual"},
+            {TokenType::Less, "Less"},
+            {TokenType::LessEqual, "LessEqual"},
+            {TokenType::Greater, "Greater"},
+            {TokenType::GreaterEqual, "GreaterEqual"},
+            {TokenType::T_PUBLIC, "Public"},
+            {TokenType::T_PRIVATE, "Private"},
+            {TokenType::T_NAMESPACE, "Namespace"},
+            {TokenType::T_TRY, "Try"},
+            {TokenType::T_CATCH, "Catch"},
+            {TokenType::T_THROW, "Throw"},
+        };
 
-        Token::Token()
-            : m_Type(TokenType::End), m_Range(SourceRange()), m_TokenText() {}
-
-        Token::Token(TokenType tokentype, unsigned int line, unsigned int column)
-            : m_Type(tokentype),
-              m_Range(SourceRange(SourceLocation(line, column))),
-              m_TokenText() {}
-
-        Token::Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column)
-            : m_Type(tokentype),
-              m_Range(SourceRange(SourceLocation(line, column), SourceLocation(line, column + static_cast<unsigned int>(tokentext.size())))),
-              m_TokenText(std::move(tokentext)) {}
-
-        std::string Token::Repr() { return GetText(); }
-
-        TokenType Token::GetTokenType() const { return m_Type; }
-
-        std::string Token::GetTokenTypeString() const
+        auto it = names.find(m_Type);
+        if (it != names.end())
         {
-            static const std::unordered_map<TokenType, std::string> names = {
-                {TokenType::End, "End"},
-                {TokenType::Newline, "Newline"},
-                {TokenType::Indent, "Indent"},
-                {TokenType::Dedent, "Dedent"},
-                {TokenType::Identifier, "Identifier"},
-                {TokenType::Number, "Number"},
-                {TokenType::Null, "Null"},
-                {TokenType::True, "True"},
-                {TokenType::False, "False"},
-                {TokenType::Let, "Let"},
-                {TokenType::Const, "Const"},
-                {TokenType::String, "String"},
-                {TokenType::If, "If"},
-                {TokenType::Elif, "Elif"},
-                {TokenType::Else, "Else"},
-                {TokenType::While, "While"},
-                {TokenType::For, "For"},
-                {TokenType::Import, "Import"},
-                {TokenType::In, "In"},
-                {TokenType::Range, "Range"},
-                {TokenType::Break, "Break"},
-                {TokenType::Continue, "Continue"},
-                {TokenType::Pass, "Pass"},
-                {TokenType::Print, "Print"},
-                {TokenType::And, "And"},
-                {TokenType::Or, "Or"},
-                {TokenType::Not, "Not"},
-                {TokenType::LParen, "LParen"},
-                {TokenType::RParen, "RParen"},
-                {TokenType::LBrace, "LBrace"},
-                {TokenType::RBrace, "RBrace"},
-                {TokenType::Colon, "Colon"},
-                {TokenType::Comma, "Comma"},
-                {TokenType::Semicolon, "Semicolon"},
-                {TokenType::Assign, "Assign"},
-                {TokenType::Plus, "Plus"},
-                {TokenType::Minus, "Minus"},
-                {TokenType::Star, "Star"},
-                {TokenType::Slash, "Slash"},
-                {TokenType::Percent, "Percent"},
-                {TokenType::Dot, "Dot"},
-                {TokenType::Equal, "Equal"},
-                {TokenType::NotEqual, "NotEqual"},
-                {TokenType::Less, "Less"},
-                {TokenType::LessEqual, "LessEqual"},
-                {TokenType::Greater, "Greater"},
-                {TokenType::GreaterEqual, "GreaterEqual"},
-                {TokenType::T_PUBLIC, "Public"},
-                {TokenType::T_PRIVATE, "Private"},
-                {TokenType::T_NAMESPACE, "Namespace"},
-                {TokenType::T_TRY, "Try"},
-                {TokenType::T_CATCH, "Catch"},
-                {TokenType::T_THROW, "Throw"},
-            };
-
-            auto it = names.find(m_Type);
-            if (it != names.end())
-            {
-                return it->second;
-            }
-
-            return "TokenType(" + std::to_string(static_cast<int>(m_Type)) + ")";
+            return it->second;
         }
 
-        bool Token::Is(TokenType tokentype) const { return m_Type == tokentype; }
-        bool Token::IsNot(TokenType tokentype) const { return m_Type != tokentype; }
+        return "TokenType(" + std::to_string(static_cast<int>(m_Type)) + ")";
+    }
 
-        bool Token::IsAny(TokenType tokentype) const
-        {
-            return Is(tokentype);
-        }
+    bool Token::Is(TokenType tokentype) const { return m_Type == tokentype; }
+    bool Token::IsNot(TokenType tokentype) const { return m_Type != tokentype; }
 
-        std::string Token::GetText() const { return m_TokenText; }
+    bool Token::IsAny(TokenType tokentype) const
+    {
+        return Is(tokentype);
+    }
 
-        unsigned int Token::GetLenght() const { return static_cast<unsigned int>(m_TokenText.size()); }
+    std::string Token::GetText() const { return m_TokenText; }
 
-        SourceLocation Token::GetStartPosition() const noexcept { return m_Range.GetStart(); }
+    unsigned int Token::GetLenght() const { return static_cast<unsigned int>(m_TokenText.size()); }
 
-        SourceLocation Token::GetEndPosition() const noexcept { return m_Range.GetEnd(); }
+    basic::SourceLocation Token::GetStartPosition() const noexcept { return m_Range.GetStart(); }
 
-        SourceRange Token::GetSourceRange() const { return m_Range; }
+    basic::SourceLocation Token::GetEndPosition() const noexcept { return m_Range.GetEnd(); }
 
-        void Token::SetText(std::string text) { m_TokenText = std::move(text); }
+    basic::SourceRange Token::GetSourceRange() const { return m_Range; }
 
-        void Token::SetTokenType(TokenType tokentype) noexcept { m_Type = tokentype; }
+    void Token::SetText(std::string text) { m_TokenText = std::move(text); }
 
-        void Token::SetStartPosition(SourceLocation start) noexcept { m_Range.SetStart(start); }
+    void Token::SetTokenType(TokenType tokentype) noexcept { m_Type = tokentype; }
 
-        void Token::SetEndPosition(SourceLocation end) noexcept { m_Range.SetEnd(end); }
+    void Token::SetStartPosition(basic::SourceLocation start) noexcept { m_Range.SetStart(start); }
 
-        void Token::SetSourceRange(SourceRange range) noexcept { m_Range = std::move(range); }
+    void Token::SetEndPosition(basic::SourceLocation end) noexcept { m_Range.SetEnd(end); }
 
-        std::ostream &operator<<(std::ostream &ostream, Token token)
-        {
-            return ostream << token.GetText();
-        }
+    void Token::SetSourceRange(basic::SourceRange range) noexcept { m_Range = std::move(range); }
 
-    } // namespace parser
+    std::ostream &operator<<(std::ostream &ostream, Token token)
+    {
+        // (Type=type : Text=test )
+        ostream << "( Type=" << token.GetTokenTypeString();
+        ostream << " : Text=" << token.GetText();
+        ostream << " )";
+        return ostream;
+    };
 
-} // namespace cora::compiler
+} // namespace cora::parser

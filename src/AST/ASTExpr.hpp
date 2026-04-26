@@ -10,275 +10,263 @@
 
 namespace cora::ast
 {
-}
 
-namespace cora::compiler
-{
-    namespace ast
+    using LiteralValue = std::variant<std::monostate, bool, double, std::string>;
+
+    class Expression : public Node
     {
+    public:
+        Expression();
+        explicit Expression(NodeType kind);
+        std::string Repr() override;
+        ~Expression() override;
+    };
 
-        using LiteralValue = std::variant<std::monostate, bool, double, std::string>;
+    class LiteralExpr : public Expression
+    {
+    public:
+        explicit LiteralExpr(LiteralValue value);
+        explicit LiteralExpr(double value);
+        explicit LiteralExpr(bool value);
+        explicit LiteralExpr(const std::string &value);
+        const LiteralValue &GetValue() const;
+        std::string Repr() override;
 
-        class Expression : public Node
-        {
-        public:
-            Expression();
-            explicit Expression(ExpressionType kind);
-            ExpressionType GetExprType() const;
-            std::string Repr() override;
-            ~Expression() override;
+    private:
+        LiteralValue m_Value;
+    };
 
-        private:
-            ExpressionType m_ExprType;
-        };
+    class VariableExpr : public Expression
+    {
+    public:
+        explicit VariableExpr(std::string name);
+        const std::string &GetName() const;
+        std::string Repr() override;
 
-        class LiteralExpr : public Expression
-        {
-        public:
-            explicit LiteralExpr(LiteralValue value);
-            explicit LiteralExpr(double value);
-            explicit LiteralExpr(bool value);
-            explicit LiteralExpr(const std::string &value);
-            const LiteralValue &GetValue() const;
-            std::string Repr() override;
+    private:
+        std::string m_Name;
+    };
 
-        private:
-            LiteralValue m_Value;
-        };
+    class UnaryExpr : public Expression
+    {
+    public:
+        UnaryExpr(parser::TokenType op, Expression *rhs);
+        parser::TokenType GetOperator() const;
+        Expression *GetRhs() const;
+        std::string Repr() override;
+        ~UnaryExpr() override;
 
-        class VariableExpr : public Expression
-        {
-        public:
-            explicit VariableExpr(std::string name);
-            const std::string &GetName() const;
-            std::string Repr() override;
+    private:
+        parser::TokenType m_Operator;
+        Expression *m_Rhs;
+    };
 
-        private:
-            std::string m_Name;
-        };
+    class Null : public Expression
+    {
+    public:
+        Null();
+    };
 
-        class UnaryExpr : public Expression
-        {
-        public:
-            UnaryExpr(parser::TokenType op, Expression *rhs);
-            parser::TokenType GetOperator() const;
-            Expression *GetRhs() const;
-            std::string Repr() override;
-            ~UnaryExpr() override;
+    class Bool : public Expression
+    {
+    public:
+        explicit Bool(bool const value);
+        bool GetValue() const;
 
-        private:
-            parser::TokenType m_Operator;
-            Expression *m_Rhs;
-        };
+    private:
+        bool m_Value{false};
+    };
 
-        class Null : public Expression
-        {
-        public:
-            Null();
-        };
+    class Byte : public Expression
+    {
+    public:
+        explicit Byte(char const value);
+        char GetValue() const;
 
-        class Bool : public Expression
-        {
-        public:
-            explicit Bool(bool const value);
-            bool GetValue() const;
+    private:
+        char m_Value{0};
+    };
 
-        private:
-            bool m_Value{false};
-        };
+    class Float : public Expression
+    {
+    public:
+        explicit Float(double value);
+        double GetValue() const;
 
-        class Byte : public Expression
-        {
-        public:
-            explicit Byte(char const value);
-            char GetValue() const;
+    private:
+        double m_Value{0.0};
+    };
 
-        private:
-            char m_Value{0};
-        };
+    class Array : public Expression
+    {
+    public:
+        explicit Array(std::deque<Expression *> array);
+        std::deque<Expression *> GetElements() const;
+        ~Array() override;
 
-        class Float : public Expression
-        {
-        public:
-            explicit Float(double value);
-            double GetValue() const;
+    private:
+        std::deque<Expression *> m_Elements;
+    };
 
-        private:
-            double m_Value{0.0};
-        };
+    class String : public Expression
+    {
+    public:
+        explicit String(std::string value);
+        std::string GetValue() const;
 
-        class Array : public Expression
-        {
-        public:
-            explicit Array(std::deque<Expression *> array);
-            std::deque<Expression *> GetElements() const;
-            ~Array() override;
+    private:
+        std::string m_Value;
+    };
 
-        private:
-            std::deque<Expression *> m_Elements;
-        };
+    class Integer : public Expression
+    {
+    public:
+        explicit Integer(long long value);
+        int GetValue() const;
 
-        class String : public Expression
-        {
-        public:
-            explicit String(std::string value);
-            std::string GetValue() const;
+    private:
+        int m_Value{0};
+    };
 
-        private:
-            std::string m_Value;
-        };
+    class Identifier : public Expression
+    {
+    public:
+        explicit Identifier(std::string name);
+        std::string GetName() const;
 
-        class Integer : public Expression
-        {
-        public:
-            explicit Integer(long long value);
-            int GetValue() const;
+    private:
+        std::string m_Value;
+    };
 
-        private:
-            int m_Value{0};
-        };
+    class TryExpr : public Expression
+    {
+    public:
+        TryExpr();
+        ~TryExpr() override;
+    };
 
-        class Identifier : public Expression
-        {
-        public:
-            explicit Identifier(std::string name);
-            std::string GetName() const;
+    class CastExpr : public Expression
+    {
+    public:
+        CastExpr();
+        ~CastExpr() override;
+    };
 
-        private:
-            std::string m_Value;
-        };
+    class CallExpr : public Expression
+    {
+    public:
+        CallExpr(Expression *callee, std::deque<Expression *> arguments);
+        Expression *GetCallee() const;
+        const std::deque<Expression *> &GetArguments() const;
+        std::string Repr() override;
+        ~CallExpr() override;
 
-        class TryExpr : public Expression
-        {
-        public:
-            TryExpr();
-            ~TryExpr() override;
-        };
+    private:
+        Expression *m_Callee;
+        std::deque<Expression *> m_Arguments;
+    };
 
-        class CastExpr : public Expression
-        {
-        public:
-            CastExpr();
-            ~CastExpr() override;
-        };
+    class MemberExpr : public Expression
+    {
+    public:
+        MemberExpr(Expression *object, std::string member);
+        Expression *GetObject() const;
+        const std::string &GetMember() const;
+        std::string Repr() override;
+        ~MemberExpr() override;
 
-        class CallExpr : public Expression
-        {
-        public:
-            CallExpr(Expression *callee, std::deque<Expression *> arguments);
-            Expression *GetCallee() const;
-            const std::deque<Expression *> &GetArguments() const;
-            std::string Repr() override;
-            ~CallExpr() override;
+    private:
+        Expression *m_Object;
+        std::string m_Member;
+    };
 
-        private:
-            Expression *m_Callee;
-            std::deque<Expression *> m_Arguments;
-        };
+    class NewExpr : public Expression
+    {
+    public:
+        NewExpr(std::string className, std::deque<Expression *> arguments);
+        const std::string &GetClassName() const;
+        const std::deque<Expression *> &GetArguments() const;
+        std::string Repr() override;
+        ~NewExpr() override;
 
-        class MemberExpr : public Expression
-        {
-        public:
-            MemberExpr(Expression *object, std::string member);
-            Expression *GetObject() const;
-            const std::string &GetMember() const;
-            std::string Repr() override;
-            ~MemberExpr() override;
+    private:
+        std::string m_ClassName;
+        std::deque<Expression *> m_Arguments;
+    };
 
-        private:
-            Expression *m_Object;
-            std::string m_Member;
-        };
+    class BlockExpr : public Expression
+    {
+    public:
+        BlockExpr();
+        ~BlockExpr() override;
+    };
 
-        class NewExpr : public Expression
-        {
-        public:
-            NewExpr(std::string className, std::deque<Expression *> arguments);
-            const std::string &GetClassName() const;
-            const std::deque<Expression *> &GetArguments() const;
-            std::string Repr() override;
-            ~NewExpr() override;
+    class AssignExpr : public Expression
+    {
+    public:
+        AssignExpr();
+        ~AssignExpr() override;
+    };
 
-        private:
-            std::string m_ClassName;
-            std::deque<Expression *> m_Arguments;
-        };
+    class BinaryExpr : public Expression
+    {
+    public:
+        BinaryExpr(Expression *left, parser::TokenType op, Expression *right);
+        Expression *GetLeft() const;
+        parser::TokenType GetOperator() const;
+        Expression *GetRight() const;
+        std::string Repr() override;
+        ~BinaryExpr() override;
 
-        class BlockExpr : public Expression
-        {
-        public:
-            BlockExpr();
-            ~BlockExpr() override;
-        };
+    private:
+        Expression *m_Left;
+        parser::TokenType m_Operator;
+        Expression *m_Right;
+    };
 
-        class AssignExpr : public Expression
-        {
-        public:
-            AssignExpr();
-            ~AssignExpr() override;
-        };
+    class TernaryExpr : public Expression
+    {
+    public:
+        TernaryExpr(Expression *condExpr, Expression *thenExpr, Expression *elseExpr);
+        ~TernaryExpr() override;
 
-        class BinaryExpr : public Expression
-        {
-        public:
-            BinaryExpr(Expression *left, parser::TokenType op, Expression *right);
-            Expression *GetLeft() const;
-            parser::TokenType GetOperator() const;
-            Expression *GetRight() const;
-            std::string Repr() override;
-            ~BinaryExpr() override;
+    private:
+        Expression *m_CondExpr;
+        Expression *m_ThenExpr;
+        Expression *m_ElseExpr;
+    };
 
-        private:
-            Expression *m_Left;
-            parser::TokenType m_Operator;
-            Expression *m_Right;
-        };
+    class ArrayAccessExpr : public Expression
+    {
+    public:
+        ArrayAccessExpr();
+        ~ArrayAccessExpr() override;
+    };
 
-        class TernaryExpr : public Expression
-        {
-        public:
-            TernaryExpr(Expression *condExpr, Expression *thenExpr, Expression *elseExpr);
-            ~TernaryExpr() override;
+    class PrefixUnaryExpr : public Expression
+    {
+    public:
+        PrefixUnaryExpr(parser::TokenType op, Expression *operand);
+        PrefixUnaryExpr(Expression *operand, parser::TokenType op);
+        ~PrefixUnaryExpr() override;
 
-        private:
-            Expression *m_CondExpr;
-            Expression *m_ThenExpr;
-            Expression *m_ElseExpr;
-        };
+    private:
+        parser::TokenType m_Operator;
+        Expression *m_Operand;
+    };
 
-        class ArrayAccessExpr : public Expression
-        {
-        public:
-            ArrayAccessExpr();
-            ~ArrayAccessExpr() override;
-        };
+    class PostfixUnaryExpr : public Expression
+    {
+    public:
+        PostfixUnaryExpr(parser::TokenType op, Expression *operand);
+        PostfixUnaryExpr(Expression *operand, parser::TokenType op);
+        ~PostfixUnaryExpr() override;
 
-        class PrefixUnaryExpr : public Expression
-        {
-        public:
-            PrefixUnaryExpr(parser::TokenType op, Expression *operand);
-            PrefixUnaryExpr(Expression *operand, parser::TokenType op);
-            ~PrefixUnaryExpr() override;
+    private:
+        parser::TokenType m_Operator;
+        Expression *m_Operand;
+    };
 
-        private:
-            parser::TokenType m_Operator;
-            Expression *m_Operand;
-        };
-
-        class PostfixUnaryExpr : public Expression
-        {
-        public:
-            PostfixUnaryExpr(parser::TokenType op, Expression *operand);
-            PostfixUnaryExpr(Expression *operand, parser::TokenType op);
-            ~PostfixUnaryExpr() override;
-
-        private:
-            parser::TokenType m_Operator;
-            Expression *m_Operand;
-        };
-
-    } // namespace ast
-
-} // namespace cora::compiler
+} // namespace cora::ast
 
 #endif // CORA_AST_ASTEXPR_H

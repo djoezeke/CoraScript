@@ -1,22 +1,20 @@
-#ifndef CORA_COMPILER_SEMANTIC_VALIDATOR_H
-#define CORA_COMPILER_SEMANTIC_VALIDATOR_H
+#ifndef CORA_SEMANTIC_VALIDATOR_H
+#define CORA_SEMANTIC_VALIDATOR_H
 
 #include "../AST/ASTStmt.hpp"
 
 #include <deque>
 #include <string>
 
-namespace cora::compiler
+namespace cora::semantic
 {
-    namespace semantic
-    {
 
-        void ValidateProgram(const std::deque<ast::Statement *> &program,
-                             const std::string &fileName,
-                             const std::string &moduleName);
+    using namespace cora::compiler;
 
-    } // namespace semantic
+    void ValidateProgram(const std::deque<ast::Statement *> &program,
+                         const std::string &fileName,
+                         const std::string &moduleName);
 
-} // namespace cora::compiler
+} // namespace cora::semantic
 
-#endif // CORA_COMPILER_SEMANTIC_VALIDATOR_H
+#endif // CORA_SEMANTIC_VALIDATOR_H

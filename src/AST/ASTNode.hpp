@@ -1,214 +1,203 @@
-#ifndef CORA_COMPILER_AST_NODES_H
-#define CORA_COMPILER_AST_NODES_H
+#ifndef CORA_AST_ASTNODE_H
+#define CORA_AST_ASTNODE_H
 
 #include <deque>
 #include <iostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "Cora/Basic/Location.hpp"
 
 namespace cora::ast
 {
-}
+    using namespace cora::basic;
 
-namespace cora::compiler
-{
-    using namespace basic;
+    using ModuleList = std::deque<class Module *>;
+    using StatementList = std::deque<class Statement *>;
+    using ExpressionList = std::deque<class Expression *>;
 
-    namespace ast
+    enum class NodeType
     {
+        Module,
+        Program,
+        Statement,
+        Expression,
 
-        using ModuleList = std::deque<class Module *>;
-        using StatementList = std::deque<class Statement *>;
-        using ExpressionList = std::deque<class Expression *>;
+        ///////
+        Null,
+        Bool,
+        Byte,
+        Float,
+        Array,
+        String,
+        Integer,
 
-        enum class NodeType
-        {
-            Module,
-            Program,
-            Statement,
-            Expression,
-        };
+        Identifier,
 
-        enum class StatementType
-        {
-            IfStmt,
-            DoStmt,
-            ForStmt,
-            NewStmt,
-            PassStmt,
-            Assignment,
-            WhileStmt,
-            BreakStmt,
-            BraceStmt,
-            YieldStmt,
-            ThrowStmt,
-            TryCatchStmt,
-            DeleteStmt,
-            SwitchStmt,
-            ReturnStmt,
-            ForEachStmt,
-            ContinueStmt,
-            VarDeclaration,
-        };
+        TryExpr,
+        CastExpr,
+        CallExpr,
+        MemberExpr,
+        NewExpr,
+        BlockExpr,
+        AssignExpr,
+        BinaryExpr,
+        TernaryExpr,
+        ArrayAccessExpr,
+        PrefixUnaryExpr,
+        PostfixUnaryExpr,
+        /////
+        IfStmt,
+        DoStmt,
+        ForStmt,
+        NewStmt,
+        PassStmt,
+        Assignment,
+        WhileStmt,
+        BreakStmt,
+        BraceStmt,
+        YieldStmt,
+        ThrowStmt,
+        TryCatchStmt,
+        DeleteStmt,
+        SwitchStmt,
+        ReturnStmt,
+        ForEachStmt,
+        ContinueStmt,
+        VarDeclaration,
+    };
 
-        enum class ExpressionType
-        {
-            Null,
-            Bool,
-            Byte,
-            Float,
-            Array,
-            String,
-            Integer,
+    class Node
+    {
+    public:
+        Node(NodeType nodetype);
 
-            Identifier,
+        Node(NodeType nodetype, SourceRange sourcerange);
 
-            TryExpr,
-            CastExpr,
-            CallExpr,
-            MemberExpr,
-            NewExpr,
-            BlockExpr,
-            AssignExpr,
-            BinaryExpr,
-            TernaryExpr,
-            ArrayAccessExpr,
-            PrefixUnaryExpr,
-            PostfixUnaryExpr,
+        Node(NodeType nodetype, SourceLocation location);
 
-        };
+        Node(NodeType nodetype, SourceLocation start, SourceLocation end);
 
-        class Node
-        {
-        public:
-            Node(NodeType nodetype);
+        /**
+         * @brief Compute a representation of the node.
+         * @return String representation of the node
+         */
+        virtual std::string Repr() = 0;
 
-            Node(NodeType nodetype, SourceRange sourcerange);
+        /**
+         * @brief Return the node type
+         *
+         * @return NodeType
+         */
+        NodeType GetNodeType();
 
-            Node(NodeType nodetype, SourceLocation location);
+        /**
+         * @brief Return the node type string
+         *
+         * @return const std::string&
+         */
+        std::string GetNodeTypeString() const;
 
-            Node(NodeType nodetype, SourceLocation start, SourceLocation end);
+        /**
+         * @brief Get the start position of the node
+         *
+         * @return Position
+         */
+        SourceLocation GetStartPosition() const noexcept;
 
-            /**
-             * @brief Compute a representation of the node.
-             * @return String representation of the node
-             */
-            virtual std::string Repr() = 0;
+        /**
+         * @brief Get the end position of the node
+         *
+         * @return Position
+         */
+        SourceLocation GetEndPosition() const noexcept;
 
-            /**
-             * @brief Return the node type
-             *
-             * @return NodeType
-             */
-            NodeType GetNodeType();
+        /**
+         * @brief Get the source range of the node
+         *
+         * @return SourceRange
+         */
+        SourceRange GetSourceRange() const;
 
-            /**
-             * @brief Return the node type string
-             *
-             * @return const std::string&
-             */
-            // std::string GetNodeType();
+        /**
+         * @brief Set the Node Type object
+         *
+         * @param nodetype
+         */
+        void SetNodeType(NodeType nodetype) noexcept;
 
-            /**
-             * @brief Get the start position of the node
-             *
-             * @return Position
-             */
-            SourceLocation GetStartPosition() const noexcept;
+        /**
+         * @brief Set the Node start position
+         *
+         * @param start
+         */
+        void SetStartPosition(SourceLocation start) noexcept;
 
-            /**
-             * @brief Get the end position of the node
-             *
-             * @return Position
-             */
-            SourceLocation GetEndPosition() const noexcept;
+        /**
+         * @brief Set the Node end position
+         *
+         * @param end
+         */
+        void SetEndPosition(SourceLocation end) noexcept;
 
-            /**
-             * @brief Get the source range of the node
-             *
-             * @return SourceRange
-             */
-            SourceRange GetSourceRange() const;
+        /**
+         * @brief Set the Node source range.
+         *
+         * @param range
+         */
+        void SetSourceRange(SourceRange range) noexcept;
 
-            /**
-             * @brief Set the Node Type object
-             *
-             * @param nodetype
-             */
-            void SetNodeType(NodeType nodetype) noexcept;
+        virtual ~Node() = default;
 
-            /**
-             * @brief Set the Node start position
-             *
-             * @param start
-             */
-            void SetStartPosition(SourceLocation start) noexcept;
+    private:
+        std::vector<std::string> Parts(int depth = 0);
 
-            /**
-             * @brief Set the Node end position
-             *
-             * @param end
-             */
-            void SetEndPosition(SourceLocation end) noexcept;
+    private:
+        NodeType m_Type;
+        SourceRange m_Range;
+    };
 
-            /**
-             * @brief Set the Node source range.
-             *
-             * @param range
-             */
-            void SetSourceRange(SourceRange range) noexcept;
+    class Program : public Node
+    {
+    public:
+        Program();
 
-            virtual ~Node() = default;
+        void PushBack(Module *module);
 
-        private:
-            NodeType m_Type;
-            SourceRange m_Range;
-        };
+        void EmplaceBack(Module *module);
 
-        class Program : public Node
-        {
-        public:
-            Program();
+        const ModuleList &GetModules() const;
 
-            void PushBack(Module *module);
+        std::string Repr() override;
 
-            void EmplaceBack(Module *module);
+        ~Program() override;
 
-            const ModuleList &GetModules() const;
+    private:
+        ModuleList m_Modules;
+    };
 
-            std::string Repr() override;
+    class Module : public Node
+    {
+    public:
+        Module();
 
-            ~Program() override;
+        void PushBack(Statement *statement);
 
-        private:
-            ModuleList m_Modules;
-        };
+        void EmplaceBack(Statement *statement);
 
-        class Module : public Node
-        {
-        public:
-            Module();
+        const StatementList &GetStatements() const;
 
-            void PushBack(Statement *statement);
+        std::string Repr() override;
 
-            void EmplaceBack(Statement *statement);
+        ~Module() override;
 
-            const StatementList &GetStatements() const;
+    private:
+        StatementList m_Statements;
+    };
 
-            std::string Repr() override;
+    std::ostream &operator<<(std::ostream &ostream, const Node *node);
 
-            ~Module() override;
+} // namespace cora::asts
 
-        private:
-            StatementList m_Statements;
-        };
-
-        std::ostream &operator<<(std::ostream &ostream, const Node *node);
-
-    } // namespace ast
-
-} // namespace cora::compiler
-
-#endif // CORA_COMPILER_AST_NODES_H
+#endif // CORA_AST_ASTNODE_H

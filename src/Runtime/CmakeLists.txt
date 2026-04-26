@@ -19,14 +19,6 @@ set(CORA_RUNTIME_SOURCES
 # Build Runtime Library.
 #--------------------------------------------------------------------
 
-add_library(Runtime STATIC ${CORA_RUNTIME_SOURCES})
-
-add_library(Cora::Runtime ALIAS Runtime)
-
-target_include_directories(Runtime
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_RUNTIME_DIR}
-)
+cora_library(Runtime SOURCES ${CORA_RUNTIME_SOURCES} STATIC)
 
 # ===================================================================

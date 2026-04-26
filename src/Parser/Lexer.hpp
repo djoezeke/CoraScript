@@ -6,46 +6,44 @@
 #include <deque>
 #include <string>
 
-namespace cora::compiler
+namespace cora::parser
 {
-    namespace parser
+    using namespace cora;
+
+    class Lexer
     {
-        class Lexer
-        {
-        public:
-            Lexer();
-            explicit Lexer(std::string source);
+    public:
+        Lexer();
+        explicit Lexer(std::string source);
 
-            std::deque<Token> Lex(const std::string &source);
-            std::deque<Token> Tokenize();
+        std::deque<Token> Lex(const std::string &source);
+        std::deque<Token> Tokenize();
 
-            void SetFileName(std::string fileName);
-            void SetModuleName(std::string moduleName);
+        void SetFileName(std::string fileName);
+        void SetModuleName(std::string moduleName);
 
-            Token NextToken();
-            Token PrevToken() const;
+        Token NextToken();
+        Token PrevToken() const;
 
-            ~Lexer();
+        ~Lexer();
 
-        private:
-            static std::string Trim(const std::string &line);
-            static int CountIndent(const std::string &line);
+    private:
+        static std::string Trim(const std::string &line);
+        static int CountIndent(const std::string &line);
 
-            void BuildTokens();
-            void PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column);
-            [[noreturn]] void RaiseLexError(const std::string &message, unsigned int line, unsigned int column) const;
+        void BuildTokens();
+        void PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column);
+        [[noreturn]] void RaiseLexError(const std::string &message, unsigned int line, unsigned int column) const;
 
-        private:
-            std::string m_Source;
-            std::deque<Token> m_Tokens;
-            std::size_t m_Position{0};
-            Token m_Prev;
-            std::string m_FileName{"<memory>"};
-            std::string m_ModuleName;
-        };
+    private:
+        std::string m_Source;
+        std::deque<Token> m_Tokens;
+        std::size_t m_Position{0};
+        Token m_Prev;
+        std::string m_FileName{"<memory>"};
+        std::string m_ModuleName;
+    };
 
-    } // namespace parser
-
-} // namespace cora::compiler
+} // namespace cora::parser
 
 #endif // CORA_PARSER_LEXER_H

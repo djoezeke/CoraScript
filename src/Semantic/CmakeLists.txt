@@ -16,22 +16,6 @@ set(CORA_SEMANTIC_SOURCES
 # Build Semantic Analysis Library.
 #--------------------------------------------------------------------
 
-add_library(Semantic STATIC ${CORA_SEMANTIC_SOURCES})
-
-add_library(Cora::Semantic ALIAS Semantic)
-
-target_include_directories(Semantic
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_SEMANTIC_DIR}
-)
-
-
-target_link_libraries(Semantic
-	PRIVATE
-		Cora::AST
-		Cora::Basic
-		Cora::Parser
-)
+cora_library(Semantic SOURCES ${CORA_SEMANTIC_SOURCES} STATIC)
 
 # ===================================================================

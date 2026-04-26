@@ -18,14 +18,6 @@ set(CORA_BUILTIN_SOURCES
 # Build Builtin Library.
 #--------------------------------------------------------------------
 
-add_library(Builtin STATIC ${CORA_BUILTIN_SOURCES})
-
-add_library(Cora::Builtin ALIAS Builtin)
-
-target_include_directories(Builtin
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_BUILTIN_DIR}
-)
+cora_library(Builtin SOURCES ${CORA_BUILTIN_SOURCES} STATIC)
 
 # ===================================================================

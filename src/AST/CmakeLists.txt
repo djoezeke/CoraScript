@@ -18,20 +18,6 @@ set(CORA_AST_SOURCES
 # Build AST Library.
 #--------------------------------------------------------------------
 
-add_library(AST STATIC ${CORA_AST_SOURCES})
-
-add_library(Cora::AST ALIAS AST)
-
-target_include_directories(AST
-	PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_AST_DIR}
-)
-
-target_link_libraries(AST
-	PRIVATE
-		Cora::Basic
-		Cora::Parser
-)
+cora_library(AST SOURCES ${CORA_AST_SOURCES} STATIC)
 
 # ===================================================================
