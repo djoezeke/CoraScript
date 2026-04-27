@@ -21,7 +21,7 @@ namespace cora::vmachine
         using RawBytecode = std::vector<Byte>;
 
         BytecodeWriter() = default;
-         BytecodeWriter(std::string filename)
+        BytecodeWriter(std::string filename)
             : filename(std::move(filename)) {};
 
         void Write() const;

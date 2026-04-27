@@ -153,8 +153,10 @@ namespace cora::ast
     private:
         std::vector<std::string> Parts(int depth = 0);
 
+    public:
+        NodeType node_type;
+
     private:
-        NodeType m_Type;
         SourceRange m_Range;
     };
 

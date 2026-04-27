@@ -15,13 +15,13 @@ namespace cora::compiler
     namespace runtime
     {
 
-        class Value;
+        class value;
 
         class Callable
         {
         public:
             virtual ~Callable() = default;
-            virtual Value Call(const std::vector<Value> &arguments) = 0;
+            virtual value Call(const std::vector<value> &arguments) = 0;
             virtual std::string Name() const = 0;
             virtual int Arity() const;
             virtual std::string Doc() const;
@@ -34,10 +34,10 @@ namespace cora::compiler
         class Object
         {
         public:
-            explicit Object(std::string className = "Object");
+            Object(std::string className = "Object");
 
             std::string className;
-            std::unordered_map<std::string, Value> fields;
+            std::unordered_map<std::string, value> fields;
             std::unordered_set<std::string> privateMembers;
             std::unordered_set<std::string> constMembers;
             std::unordered_set<std::string> initializedConstMembers;
@@ -58,12 +58,12 @@ namespace cora::compiler
         class Method final : public Callable
         {
         public:
-            using Func = std::function<Value(const std::vector<Value> &)>;
+            using Func = std::function<value(const std::vector<value> &)>;
 
         public:
             Method(std::shared_ptr<Object> object, std::string name, Func function, int arity = -1);
 
-            Value Call(const std::vector<Value> &arguments) override;
+            value Call(const std::vector<value> &arguments) override;
             std::string Name() const override;
             int Arity() const override;
 
@@ -77,12 +77,12 @@ namespace cora::compiler
         class Function final : public Callable
         {
         public:
-            using Func = std::function<Value(const std::vector<Value> &)>;
+            using Func = std::function<value(const std::vector<value> &)>;
 
         public:
             Function(std::string name, Func function, int arity = -1);
 
-            Value Call(const std::vector<Value> &arguments) override;
+            value Call(const std::vector<value> &arguments) override;
             std::string Name() const override;
             int Arity() const override;
 
@@ -97,7 +97,7 @@ namespace cora::compiler
         public:
             BoundMethod(std::shared_ptr<Object> receiver, std::shared_ptr<Callable> callable, std::string name);
 
-            Value Call(const std::vector<Value> &arguments) override;
+            value Call(const std::vector<value> &arguments) override;
             std::string Name() const override;
             int Arity() const override;
 
@@ -124,63 +124,485 @@ namespace cora::compiler
             Undefined,
         };
 
-        class Value
+        /**
+         * @enum value_t
+         * @brief Defines all possible value types.
+         */
+        enum class value_t : uint8_t
+        {
+            null,     ///< null value
+            object,   ///< object
+            array,    ///< array (vector of values)
+            string,   ///< string value
+            integer,  ///< integer value
+            boolean,  ///< boolean value
+            floating, ///< numeric value (floating point)
+            callable, ///< callable value
+        };
+
+        class value
         {
         public:
-            using ObjectPtr = std::shared_ptr<Object>;
-            using CallablePtr = std::shared_ptr<Callable>;
-            using Data = std::variant<std::monostate, bool, double, std::string, ObjectPtr, CallablePtr>;
+            /**
+             * @name container
+             * {@
+             */
+
+            /**
+             * @brief A type for a value object.
+             */
+            using value_type = value_t;
+
+            /**
+             * @brief A type for a pointer to a value object.
+             */
+            using pointer = value *;
+
+            /**
+             * @brief A type for a reference to a value object.
+             */
+            using reference = value &;
+
+            /**
+             * @brief A type for a constant pointer to a value object.
+             */
+            using const_pointer = const value *;
+
+            /**
+             * @brief A type for a constant reference to a value object.
+             */
+            using const_reference = const value &;
+
+            /**
+             * @brief A type to represent differences between value iterators.
+             */
+            using difference_type = std::ptrdiff_t;
+
+            /**
+             * @brief A type to represent value sizes.
+             */
+            using size_type = std::size_t;
+
+            /* @} container */
+
+            /**
+             * @name types
+             * @brief Type aliases for convenience.
+             * {@
+             */
+
+            /**
+             * @brief A type for a null value.
+             */
+            using null_type = std::nullptr_t;
+
+            /**
+             * @brief A type for an array value.
+             */
+            using array_type = std::vector<value>;
+
+            /**
+             * @brief A type for an object value.
+             */
+            using object_type = std::shared_ptr<Object>;
+
+            /**
+             * @brief A type for a string value.
+             */
+            using string_type = std::string;
+
+            /**
+             * @brief A type for a integer value.
+             */
+            using integer_type = int64_t;
+
+            /**
+             * @brief A type for a boolean value.
+             */
+            using boolean_type = bool;
+
+            /**
+             * @brief A type for a float number value.
+             */
+            using floating_type = double;
+
+            /**
+             * @brief A type for a callable value.
+             */
+            using callable_type = std::shared_ptr<Callable>;
+
+            /* @} types */
 
         public:
-            Value();
-            explicit Value(ValueKind valuekind);
-            explicit Value(std::nullptr_t);
-            explicit Value(bool value);
-            explicit Value(double value);
-            explicit Value(const std::string &value);
-            explicit Value(const char *value);
-            explicit Value(ObjectPtr object);
-            explicit Value(CallablePtr callable);
+            //========== Constructors ==========
 
-            explicit Value(Method method);
-            explicit Value(Function function);
-            explicit Value(BoundMethod method);
+            /**
+             * @brief Construct a null value.
+             */
+            value();
 
-            explicit Value(std::shared_ptr<Method> method);
-            explicit Value(std::shared_ptr<Function> function);
-            explicit Value(std::shared_ptr<BoundMethod> method);
+            // value(Method method);
+            // value(Function function);
+            // value(BoundMethod method);
+
+            // value(std::shared_ptr<Method> method);
+            // value(std::shared_ptr<Function> function);
+            // value(std::shared_ptr<BoundMethod> method);
+
+            /**
+             * @brief Construct an empty value of type.
+             */
+            value(value_type value);
+
+            /**
+             * @brief Construct null explicitly.
+             */
+            value(null_type value);
+
+            /**
+             * @brief Construct a integer value.
+             */
+            value(integer_type value);
+
+            /**
+             * @brief Construct a integer value from int.
+             */
+            value(int value);
+
+            /**
+             * @brief Construct a boolean value.
+             */
+            value(boolean_type value);
+
+            /**
+             * @brief Construct a floating-point value.
+             */
+            value(floating_type value);
+
+            /**
+             * @brief Construct a array value from a copy an array object.
+             * @param[in] value A lvalue array node value.
+             * @return A value array node.
+             */
+            value(const array_type &value);
+
+            /**
+             * @brief Construct a array value by moving a array object.
+             * @param[in] value A rvalue array node value.
+             * @return A value array node.
+             */
+            value(array_type &&value);
+
+            /**
+             * @brief Construct a object by copy.
+             * @param[in] value A lvalue object node value.
+             * @return A value object node.
+             */
+            value(const object_type &value);
+
+            /**
+             * @brief Construct a object by move.
+             * @param[in] value A rvalue object node value.
+             * @return A value object node.
+             */
+            value(object_type &&value);
+
+            /**
+             * @brief Construct a string by copy.
+             * @param[in] value A lvalue string node value.
+             * @return A value string node.
+             */
+            value(const string_type &value);
+
+            /**
+             * @brief Construct a string by move.
+             * @param[in] value A rvalue string node value.
+             * @return A value string node.
+             */
+            value(string_type &&value);
+
+            /**
+             * @brief Construct a string from a C string.
+             */
+            value(const char *value);
+
+            /**
+             * @brief Copy constructor.
+             */
+            value(const value &other);
+
+            /**
+             * @brief Move constructor.
+             */
+            value(value &&other);
 
             virtual std::string Repr() const;
 
-            ValueKind GetValueKind() const;
-            std::string GetValueKindString() const;
+            //========== Type Information ==========
 
-            void SetValueKind(ValueKind valuekind) noexcept;
+            template <typename T>
+            bool is();
 
-            const Data &GetData() const;
-            void SetData(Data data);
+            /**
+             * @brief Check this value type.
+             * @return the value value type.
+             */
+            value_type type() const;
 
-            bool IsNull() const;
-            bool IsBool() const;
-            bool IsNumber() const;
-            bool IsString() const;
-            bool IsObject() const;
-            bool IsCallable() const;
+            /**
+             * @brief Check whether this value is null.
+             * @return true if value is null else false.
+             */
+            bool is_null() const;
 
-            bool AsBool() const;
-            double AsNumber() const;
-            std::string AsString() const;
-            ObjectPtr AsObject() const;
-            CallablePtr AsCallable() const;
+            /**
+             * @brief Check whether this value is an object.
+             * @return true if value is an object else false.
+             */
+            bool is_object() const;
 
-            virtual ~Value() = default;
+            /**
+             * @brief Check whether this value is an array.
+             * @return true if value is an array else false.
+             */
+            bool is_array() const;
+
+            /**
+             * @brief Check whether this value is a string.
+             * @return true if value is a string else false.
+             */
+            bool is_string() const;
+
+            /**
+             * @brief Check whether this value is an integer.
+             * @return true if value is an integer else false.
+             */
+            bool is_integer() const;
+
+            /**
+             * @brief Check whether this value is a boolean.
+             * @return true if value is null else false.
+             */
+            bool is_boolean() const;
+
+            /**
+             * @brief Check whether this value is a float number.
+             * @return true if value is a float number else false.
+             */
+            bool is_floating() const;
+
+            /**
+             * @brief Check whether this value is a callable.
+             * @return true if value is callable else false.
+             */
+            bool is_callable() const;
+
+            //========== Type Conversions ==========
+
+            /**
+             * @brief Get value as target type T with default fallback.
+             * @tparam T The target type (bool, int, double, string, etc.)
+             * @param default_value The value to return if conversion fails.
+             * @return Converted value or default_value.
+             */
+            template <typename T>
+            T as(const T &default_value = T()) const;
+
+            /**
+             * @brief Get value as an array type .
+             * @return The converted array value.
+             * @throws cast_error if conversion fails.
+             */
+            array_type &as_array();
+
+            /**
+             * @brief Get value as an object type .
+             * @return The converted object value.
+             * @throws cast_error if conversion fails.
+             */
+            object_type &as_object();
+
+            /**
+             * @brief Get value as a string type .
+             * @return The converted string value.
+             * @throws cast_error if conversion fails.
+             */
+            string_type &as_string();
+
+            /**
+             * @brief Get value as an integer type .
+             * @return The converted integer value.
+             * @throws cast_error if conversion fails.
+             */
+            integer_type &as_integer();
+
+            /**
+             * @brief Get value as a boolean type .
+             * @return The converted boolean value.
+             * @throws cast_error if conversion fails.
+             */
+            boolean_type &as_boolean();
+
+            /**
+             * @brief Get value as a float number type .
+             * @return The converted float number value.
+             * @throws cast_error if conversion fails.
+             */
+            floating_type &as_floating();
+
+            /**
+             * @brief Get value as an array type .
+             * @return The converted array value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const array_type &as_array() const;
+
+            /**
+             * @brief Get value as an object type .
+             * @return The converted object value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const object_type &as_object() const;
+
+            /**
+             * @brief Get value as a string type .
+             * @return The converted string value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const string_type &as_string() const;
+
+            /**
+             * @brief Get value as an integer type .
+             * @return The converted integer value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const integer_type &as_integer() const;
+
+            /**
+             * @brief Get value as a boolean type .
+             * @return The converted boolean value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const boolean_type &as_boolean() const;
+
+            /**
+             * @brief Get value as a float number type .
+             * @return The converted float number value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const floating_type &as_floating() const;
+
+            //========== Assignment ==========
+
+            /**
+             * @brief Copy assignment.
+             */
+            reference operator=(const value &other);
+
+            /**
+             * @brief Move assignment.
+             */
+            reference operator=(value &&other);
+
+            /**
+             * @brief Assign an int value.
+             */
+            reference operator=(int value);
+
+            /**
+             * @brief Assign a C-string value.
+             * @note nullptr becomes empty string.
+             */
+            reference operator=(const char *value);
+
+            /**
+             * @brief Assign a null value.
+             */
+            reference operator=(null_type value);
+
+            /**
+             * @brief Assign an array value.
+             */
+            reference operator=(array_type value);
+
+            /**
+             * @brief Assign an object value.
+             */
+            reference operator=(object_type value);
+
+            /**
+             * @brief Assign a string value.
+             */
+            reference operator=(string_type value);
+
+            /**
+             * @brief Assign a integer value.
+             */
+            reference operator=(integer_type value);
+
+            /**
+             * @brief Assign a boolean value.
+             */
+            reference operator=(boolean_type value);
+
+            /**
+             * @brief Assign a floating-point numeric value.
+             */
+            reference operator=(floating_type value);
+
+            //========== Comparison ==========
+
+            bool operator<(const value &other) const;
+            bool operator>(const value &other) const;
+            bool operator==(const value &other) const;
+            bool operator!=(const value &other) const;
+            bool operator<=(const value &other) const;
+            bool operator>=(const value &other) const;
+            bool operator&&(const value &other);
+            bool operator||(const value &other);
+
+            //========== operator ==========
+
+            value operator+(value &rhs);
+            value operator-(value &rhs);
+            value operator*(value &rhs);
+            value operator/(value &rhs);
+            value operator%(value &rhs);
+            value operator&(value &rhs);
+            value operator|(value &rhs);
+            value operator^(value &rhs);
+            value operator<<(value &rhs);
+            value operator>>(value &rhs);
+
+            value operator~();
+            value operator~();
+            value operator~();
+            value operator!();
+
+            //========== Utility ==========
+            template <typename T>
+            T *value_ptr();
+            bool has_value();
+
+            void reset();
+
+            /**
+             * @brief Deep-copy this value.
+             */
+            value clone() const;
+
+            virtual ~value() = default;
 
         private:
-            ValueKind m_Kind;
-            Data m_Data;
+            using data_type = std::variant<std::monostate, null_type, boolean_type, integer_type, floating_type, string_type, object_type, array_type, callable_type>;
+
+            value_type m_type;
+            data_type m_value;
         };
 
-        std::ostream &operator<<(std::ostream &ostream, const Value *value);
+        using Value = value;
+
+        std::ostream &operator<<(std::ostream &ostream, const value *value);
 
     } // namespace runtime
 

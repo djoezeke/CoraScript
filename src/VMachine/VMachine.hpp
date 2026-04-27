@@ -4,7 +4,7 @@
 #include "../Runtime/GarbageCollector.hpp"
 #include "../Runtime/Scope.hpp"
 #include "../Runtime/Value.hpp"
-#include "Bytecode.hpp"
+#include "VMInstruction.hpp"
 
 #include <iosfwd>
 #include <string>
@@ -18,7 +18,7 @@ namespace cora::vmachine
         VMachine();
         explicit VMachine(std::ostream *out);
 
-        int Run(const BytecodeProgram &program);
+        int Run(const std::vector<Instruction *> &program);
         int RunFile(const std::string &bytecodeFile);
 
         const cora::compiler::runtime::Value &GetReturnValue() const;
@@ -32,7 +32,7 @@ namespace cora::vmachine
         static std::string LocalName(std::int32_t slot);
         bool PushLocal(std::int32_t slot);
         bool StoreLocal(std::int32_t slot, const cora::compiler::runtime::Value &value);
-        bool BinaryNumeric(OpCode op);
+        bool BinaryNumeric(VMOpcode op);
         void SetRuntimeError(const std::string &message);
 
     private:

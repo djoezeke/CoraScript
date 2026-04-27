@@ -7,18 +7,19 @@
 # Basic Configs   
 #--------------------------------------------------------------------
 
-set(CORA_IRGEN_SOURCES 
+set(CORA_BYTECODE_SOURCES 
 
-    "${CORA_IRGEN_DIR}/IRBuilder.cpp"
-    "${CORA_IRGEN_DIR}/IRPrinter.cpp"
-	"${CORA_IRGEN_DIR}/IROptimizer.cpp"
-    "${CORA_IRGEN_DIR}/IRVerifier.cpp"
+	"${CORA_BYTECODE_DIR}/BCWriter.cpp"
+    "${CORA_BYTECODE_DIR}/BCReader.cpp"
+    "${CORA_BYTECODE_DIR}/BCBuilder.cpp"
+	"${CORA_BYTECODE_DIR}/BCOptimizer.cpp"
+	# "${CORA_BYTECODE_DIR}/BCInstruction.cpp"
 )
 
 #--------------------------------------------------------------------
-# Build IR Generation Library.
+# Build Bytecode Generation Library.
 #--------------------------------------------------------------------
 
-cora_library(IRGen SOURCES ${CORA_IRGEN_SOURCES} STATIC)
+cora_library(Bytecode SOURCES ${CORA_BYTECODE_SOURCES} STATIC)
 
 # ===================================================================

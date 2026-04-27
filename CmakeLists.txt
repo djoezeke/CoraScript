@@ -29,8 +29,9 @@ option(CORA_BUILD_TESTS "Enable CTest-based project tests" ON)
 set(CORA_AST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/AST")
 set(CORA_BASIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Basic")
 set(CORA_BUILTIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Builtin")
+set(CORA_BYTECODE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Bytecode")
 set(CORA_CORA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Cora")
-set(CORA_IRGEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/IRGen")
+set(CORA_IR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/IR")
 set(CORA_JITCOM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/JITCom")
 set(CORA_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Parser")
 set(CORA_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime")
@@ -64,9 +65,9 @@ target_include_directories(Modules
 
 target_link_libraries(Modules
 	PRIVATE
+		Cora::IR
 		Cora::AST
 		Cora::Basic
-		Cora::IRGen
 		# Cora::JITCom
 		Cora::Parser
 		Cora::Runtime

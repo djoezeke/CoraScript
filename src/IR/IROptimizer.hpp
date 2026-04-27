@@ -17,13 +17,13 @@ namespace cora::ir
         ~IROptimizer();
 
     private:
-        Value *foldConstants(Instruction::OpKind op, int left, int right);
-        void performGVN(std::vector<Instruction *> &block);
-        void performDCE(std::vector<Instruction *> &block);
-        void performFoldingAndGVN(std::vector<Instruction *> &block);
+        IRValue *foldConstants(IROpcode op, runtime::Value left, runtime::Value right);
+        void performGVN(std::vector<IRInstruction *> &block);
+        void performDCE(std::vector<IRInstruction *> &block);
+        void performFoldingAndGVN(std::vector<IRInstruction *> &block);
 
     private:
-        std::unordered_map<ValueKey, Instruction *, KeyHasher> valueTable;
+        std::unordered_map<ValueKey, IRInstruction *, KeyHasher> valueTable;
     };
 
 } // namespace cora::ir

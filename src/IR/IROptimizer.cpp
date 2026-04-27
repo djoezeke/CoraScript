@@ -7,39 +7,39 @@ namespace cora::ir
 {
     IROptimizer::IROptimizer() = default;
 
-    Value *IROptimizer::foldConstants(Instruction::OpKind op, int left, int right)
+    IRValue *IROptimizer::foldConstants(IROpcode op, runtime::Value left, runtime::Value right)
     {
         switch (op)
         {
-        case Instruction::ADD:
-            return new ConstantInt(left + right);
-        case Instruction::MUL:
-            return new ConstantInt(left * right);
-        case Instruction::SUB:
-            return new ConstantInt(left - right);
-        case Instruction::DIV:
-            return new ConstantInt(right == 0 ? 0 : left / right);
+        case IROpcode::ADD:
+            return new ConstInstruction(runtime::Value(left.AsNumber() + right.AsNumber()));
+        case IROpcode::MUL:
+            return new ConstInstruction(runtime::Value(left.AsNumber() * right.AsNumber()));
+        case IROpcode::SUB:
+            return new ConstInstruction(runtime::Value(left.AsNumber() - right.AsNumber()));
+        case IROpcode::DIV:
+            return new ConstInstruction(runtime::Value(left.AsNumber() == 0 ? 0 : left.AsNumber() / right.AsNumber()));
         default:
             return nullptr;
         }
-    }
+    };
 
-    void IROptimizer::performGVN(std::vector<Instruction *> &block)
+    void IROptimizer::performGVN(std::vector<IRInstruction *> &block)
     {
         valueTable.clear();
 
         for (auto it = block.begin(); it != block.end();)
         {
-            Instruction *inst = *it;
+            IRInstruction *inst = *it;
             if (inst == nullptr || inst->hasSideEffects || inst->operands.size() < 2)
             {
                 ++it;
                 continue;
             }
 
-            Value *left = inst->operands[0];
-            Value *right = inst->operands[1];
-            if ((inst->op == Instruction::ADD || inst->op == Instruction::MUL) && left > right)
+            IRValue *left = inst->operands[0];
+            IRValue *right = inst->operands[1];
+            if ((inst->op == IROpcode::ADD || inst->op == IROpcode::MUL) && left > right)
             {
                 std::swap(left, right);
             }
@@ -48,11 +48,11 @@ namespace cora::ir
             const auto found = valueTable.find(key);
             if (found != valueTable.end())
             {
-                Instruction *existing = found->second;
-                std::vector<Instruction *> usersToUpdate = inst->users;
-                for (Instruction *user : usersToUpdate)
+                IRInstruction *existing = found->second;
+                std::vector<IRInstruction *> usersToUpdate = inst->users;
+                for (IRInstruction *user : usersToUpdate)
                 {
-                    for (Value *&operand : user->operands)
+                    for (IRValue *&operand : user->operands)
                     {
                         if (operand == inst)
                         {
@@ -62,7 +62,7 @@ namespace cora::ir
                     }
                 }
 
-                for (Value *operand : inst->operands)
+                for (IRValue *operand : inst->operands)
                 {
                     operand->removeUse(inst);
                 }
@@ -76,7 +76,7 @@ namespace cora::ir
         }
     }
 
-    void IROptimizer::performDCE(std::vector<Instruction *> &block)
+    void IROptimizer::performDCE(std::vector<IRInstruction *> &block)
     {
         bool changed = true;
         while (changed)
@@ -84,10 +84,10 @@ namespace cora::ir
             changed = false;
             for (auto it = block.begin(); it != block.end();)
             {
-                Instruction *inst = *it;
+                IRInstruction *inst = *it;
                 if (inst != nullptr && inst->users.empty() && !inst->hasSideEffects)
                 {
-                    for (Value *operand : inst->operands)
+                    for (IRValue *operand : inst->operands)
                     {
                         operand->removeUse(inst);
                     }
@@ -101,11 +101,11 @@ namespace cora::ir
         }
     }
 
-    void IROptimizer::performFoldingAndGVN(std::vector<Instruction *> &block)
+    void IROptimizer::performFoldingAndGVN(std::vector<IRInstruction *> &block)
     {
         for (auto it = block.begin(); it != block.end();)
         {
-            Instruction *inst = *it;
+            IRInstruction *inst = *it;
             if (inst == nullptr)
             {
                 it = block.erase(it);
@@ -116,13 +116,13 @@ namespace cora::ir
             {
                 const int left = static_cast<ConstantInt *>(inst->operands[0])->value;
                 const int right = static_cast<ConstantInt *>(inst->operands[1])->value;
-                Value *foldedValue = foldConstants(inst->op, left, right);
+                IRValue *foldedValue = foldConstants(inst->op, left, right);
                 if (foldedValue != nullptr)
                 {
-                    std::vector<Instruction *> usersToUpdate = inst->users;
-                    for (Instruction *user : usersToUpdate)
+                    std::vector<IRInstruction *> usersToUpdate = inst->users;
+                    for (IRInstruction *user : usersToUpdate)
                     {
-                        for (Value *&operand : user->operands)
+                        for (IRValue *&operand : user->operands)
                         {
                             if (operand == inst)
                             {
@@ -132,7 +132,7 @@ namespace cora::ir
                         }
                     }
 
-                    for (Value *operand : inst->operands)
+                    for (IRValue *operand : inst->operands)
                     {
                         operand->removeUse(inst);
                     }

@@ -189,9 +189,9 @@ namespace cora::vmachine
     {
         try
         {
-            BytecodeReader reader;
-            reader.Read(bytecodeFile);
-            return Run(reader.GetProgram());
+            BytecodeReader reader(bytecodeFile);
+            reader.Read();
+            return Run(reader.Instructions());
         }
         catch (const std::exception &error)
         {

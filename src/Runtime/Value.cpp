@@ -141,224 +141,312 @@ namespace cora::compiler
             return m_Callable ? m_Callable->Arity() : -1;
         }
 
-        Value::Value()
-            : m_Kind(ValueKind::Undefined), m_Data(std::monostate{}) {}
+        //-----------------------------------------------------------------------------
+        // [Class] value
+        //-----------------------------------------------------------------------------
 
-        Value::Value(ValueKind valuekind)
-            : m_Kind(valuekind), m_Data(std::monostate{}) {}
-
-        Value::Value(std::nullptr_t)
-            : m_Kind(ValueKind::Null), m_Data(std::monostate{}) {}
-
-        Value::Value(bool value)
-            : m_Kind(ValueKind::Bool), m_Data(value) {}
-
-        Value::Value(double value)
-            : m_Kind(ValueKind::Float), m_Data(value) {}
-
-        Value::Value(const std::string &value)
-            : m_Kind(ValueKind::String), m_Data(value) {}
-
-        Value::Value(const char *value)
-            : m_Kind(ValueKind::String), m_Data(std::string(value)) {}
-
-        Value::Value(ObjectPtr object)
-            : m_Kind(ValueKind::Object), m_Data(std::move(object)) {}
-
-        Value::Value(CallablePtr callable)
-            : m_Kind(ValueKind::Callable), m_Data(std::move(callable)) {}
-
-        Value::Value(std::shared_ptr<Method> method)
-            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
-
-        Value::Value(std::shared_ptr<Function> function)
-            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(function))) {};
-
-        Value::Value(std::shared_ptr<BoundMethod> method)
-            : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
-
-        Value::Value(Method method)
-            : Value(std::make_shared<Method>(method)) {};
-
-        Value::Value(Function function)
-            : Value(std::make_shared<Function>(function)) {};
-
-        Value::Value(BoundMethod method)
-            : Value(std::make_shared<BoundMethod>(method)) {};
-
-        std::string Value::Repr() const
+        value::value(value::null_type value)
+            : m_value(value)
         {
-            return AsString();
         }
 
-        ValueKind Value::GetValueKind() const
+        value::value(value::integer_type value)
+            : m_value(value)
         {
-            return m_Kind;
         }
 
-        std::string Value::GetValueKindString() const
+        value::value(int value)
+            : m_value(static_cast<integer_type>(value))
         {
-            switch (m_Kind)
+        }
+
+        value::value(value::boolean_type value)
+            : m_value(value)
+        {
+        }
+
+        value::value(value::floating_type value)
+            : m_value(value)
+        {
+        }
+
+        value::value(const value::array_type &value)
+            : m_value(value)
+        {
+        }
+
+        value::value(value::array_type &&value)
+            : m_value(std::move(value))
+        {
+        }
+
+        value::value(const value::object_type &value)
+            : m_value(value)
+        {
+        }
+
+        value::value(value::object_type &&value)
+            : m_value(std::move(value))
+        {
+        }
+
+        value::value(const value::string_type &value)
+            : m_value(value)
+        {
+        }
+
+        value::value(value::string_type &&value)
+            : m_value(std::move(value))
+        {
+        }
+
+        value::value(const char *value)
+            : m_value(string_type(value != nullptr ? value : ""))
+        {
+        }
+
+        // Value::Value(std::shared_ptr<Method> method)
+        //     : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
+
+        // Value::Value(std::shared_ptr<Function> function)
+        //     : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(function))) {};
+
+        // Value::Value(std::shared_ptr<BoundMethod> method)
+        //     : m_Kind(ValueKind::Callable), m_Data(std::move(std::static_pointer_cast<runtime::Callable>(method))) {};
+
+        // Value::Value(Method method)
+        //     : Value(std::make_shared<Method>(method)) {};
+
+        // Value::Value(Function function)
+        //     : Value(std::make_shared<Function>(function)) {};
+
+        // Value::Value(BoundMethod method)
+        //     : Value(std::make_shared<BoundMethod>(method)) {};
+
+        //========== Assignment ==========
+
+        value::~value() = default;
+
+        value &value::operator=(const value &other) = default;
+
+        value &value::operator=(value &&other) = default;
+
+        value &value::operator=(null_type value)
+        {
+            m_value = value;
+            return *this;
+        }
+
+        value &value::operator=(bool value)
+        {
+            m_value = value;
+            return *this;
+        }
+
+        value &value::operator=(integer_type value)
+        {
+            m_value = value;
+            return *this;
+        }
+
+        value &value::operator=(int value)
+        {
+            m_value = static_cast<integer_type>(value);
+            return *this;
+        }
+
+        value &value::operator=(floating_type value)
+        {
+            m_value = value;
+            return *this;
+        }
+
+        value &value::operator=(string_type value)
+        {
+            m_value = std::move(value);
+            return *this;
+        }
+
+        value &value::operator=(const char *value)
+        {
+            m_value = string_type(value != nullptr ? value : "");
+            return *this;
+        }
+
+        value &value::operator=(array_type value)
+        {
+            m_value = std::move(value);
+            return *this;
+        }
+
+        value &value::operator=(object_type value)
+        {
+            m_value = std::move(value);
+            return *this;
+        }
+
+        //========== Type Information ==========
+
+        value::value_type value::type() const
+        {
+            return m_type;
+        };
+
+        template <class T>
+        bool value::is() { return std::holds_alternative<T>(m_value); };
+
+        bool value::is_null() const { return type() == value_type::null; };
+
+        bool value::is_array() const { return type() == value_type::object; };
+
+        bool value::is_object() const { return type() == value_type::object; };
+
+        bool value::is_string() const { return type() == value_type::string; };
+
+        bool value::is_integer() const { return type() == value_type::integer; };
+
+        bool value::is_boolean() const { return type() == value_type::boolean; };
+
+        bool value::is_floating() const { return type() == value_type::floating; };
+
+        bool value::is_callable() const { return type() == value_type::callable; };
+
+        //========== Type Conversions ==========
+
+        template <class T>
+        T value::as(const T &default_value)
+        {
+            if (is<T>())
+                return value<T>();
+            if constexpr (std::is_same<T, std::string>::value)
+                return asString();
+            if constexpr (std::is_same<T, long long>::value)
+                return asInt();
+            if constexpr (std::is_same<T, double>::value)
+                return asDouble();
+        };
+
+        value::array_type &value::as_array()
+        {
+            if (!is_array())
+                throw(std::runtime_error("Cannot access as array"));
+            return std::get<array_type>(m_value);
+        }
+
+        value::object_type &value::as_object()
+        {
+            if (!is_object())
+                throw(std::runtime_error("Cannot access as object"));
+            return std::get<object_type>(m_value);
+        }
+
+        value::string_type &value::as_string()
+        {
+            if (!is_string())
+                throw(std::runtime_error("Cannot access as string"));
+            return std::get<string_type>(m_value);
+        }
+
+        value::integer_type &value::as_integer()
+        {
+            if (!is_integer())
+                throw(std::runtime_error("Cannot access as integer"));
+            return std::get<integer_type>(m_value);
+        }
+
+        value::boolean_type &value::as_boolean()
+        {
+            if (!is_boolean())
+                throw(std::runtime_error("Cannot access as boolean"));
+            return std::get<boolean_type>(m_value);
+        }
+
+        value::floating_type &value::as_floating()
+        {
+            if (!is_floating())
+                throw(std::runtime_error("Cannot access as floating"));
+            return std::get<floating_type>(m_value);
+        }
+
+        const value::array_type &value::as_array() const
+        {
+            if (!is_array())
+                throw(std::runtime_error("Cannot access as array"));
+            return std::get<array_type>(m_value);
+        }
+
+        const value::object_type &value::as_object() const
+        {
+            if (!is_object())
+                throw(std::runtime_error("Cannot access as object"));
+            return std::get<object_type>(m_value);
+        }
+
+        const value::string_type &value::as_string() const
+        {
+            if (!is_string())
+                throw(std::runtime_error("Cannot access as string"));
+            return std::get<string_type>(m_value);
+        }
+
+        const value::integer_type &value::as_integer() const
+        {
+            if (!is_integer())
+                throw(std::runtime_error("Cannot access as integer"));
+            return std::get<integer_type>(m_value);
+        }
+
+        const value::boolean_type &value::as_boolean() const
+        {
+            if (!is_boolean())
+                throw(std::runtime_error("Cannot access as boolean"));
+            return std::get<boolean_type>(m_value);
+        }
+
+        const value::floating_type &value::as_floating() const
+        {
+            if (!is_floating())
+                throw(std::runtime_error("Cannot access as floating"));
+            return std::get<floating_type>(m_value);
+        }
+
+        //========== Comparison ==========
+
+        bool value::operator<(const value &other) const
+        {
+            if (type() != other.type())
+                return static_cast<uint8_t>(type()) < static_cast<uint8_t>(other.type());
+
+            switch (type())
             {
-            case ValueKind::Null:
-                return "null";
-            case ValueKind::Bool:
-                return "bool";
-            case ValueKind::Byte:
-                return "byte";
-            case ValueKind::Float:
-                return "float";
-            case ValueKind::Array:
-                return "array";
-            case ValueKind::Object:
-                return "object";
-            case ValueKind::String:
-                return "string";
-            case ValueKind::Integer:
-                return "integer";
-            case ValueKind::Pointer:
-                return "pointer";
-            case ValueKind::Reference:
-                return "reference";
-            case ValueKind::Callable:
-                return "callable";
-            case ValueKind::Undefined:
-                return "undefined";
-            case ValueKind::Any:
-            default:
-                return "any";
-            }
-        }
-
-        void Value::SetValueKind(ValueKind valuekind) noexcept
-        {
-            m_Kind = valuekind;
-        }
-
-        const Value::Data &Value::GetData() const
-        {
-            return m_Data;
-        }
-
-        void Value::SetData(Data data)
-        {
-            m_Data = std::move(data);
-        }
-
-        bool Value::IsNull() const
-        {
-            return std::holds_alternative<std::monostate>(m_Data);
-        }
-
-        bool Value::IsBool() const
-        {
-            return std::holds_alternative<bool>(m_Data);
-        }
-
-        bool Value::IsNumber() const
-        {
-            return std::holds_alternative<double>(m_Data);
-        }
-
-        bool Value::IsString() const
-        {
-            return std::holds_alternative<std::string>(m_Data);
-        }
-
-        bool Value::IsObject() const
-        {
-            return std::holds_alternative<ObjectPtr>(m_Data);
-        }
-
-        bool Value::IsCallable() const
-        {
-            return std::holds_alternative<CallablePtr>(m_Data);
-        }
-
-        bool Value::AsBool() const
-        {
-            if (IsNull())
-            {
+            case value_type::null:
                 return false;
+            case value_type::boolean:
+                return as_boolean() < other.as_boolean();
+            case value_type::integer:
+                return as_integer() < other.as_integer();
+            case value_type::floating:
+                return as_floating() < other.as_floating();
+            case value_type::string:
+                return as_string() < other.as_string();
+            case value_type::array:
+                return as_array() < other.as_array();
+            case value_type::object:
+                return as_object() < other.as_object();
             }
-            if (IsBool())
-            {
-                return std::get<bool>(m_Data);
-            }
-            if (IsNumber())
-            {
-                return std::get<double>(m_Data) != 0.0;
-            }
-            if (IsString())
-            {
-                return !std::get<std::string>(m_Data).empty();
-            }
-            if (IsObject() || IsCallable())
-            {
-                return true;
-            }
+
             return false;
-        }
+        };
 
-        double Value::AsNumber() const
-        {
-            if (!IsNumber())
-            {
-                throw std::runtime_error("Expected numeric value");
-            }
-            return std::get<double>(m_Data);
-        }
+        bool value::operator>(const value &other) const { return other < *this; }
+        bool value::operator==(const value &other) const { return m_value == other.m_value; }
+        bool value::operator!=(const value &other) const { return !(*this == other); }
+        bool value::operator<=(const value &other) const { return (*this < other) || (*this == other); }
+        bool value::operator>=(const value &other) const { return !(*this < other); }
 
-        std::string Value::AsString() const
-        {
-            if (IsNull())
-            {
-                return "null";
-            }
-            if (IsBool())
-            {
-                return std::get<bool>(m_Data) ? "true" : "false";
-            }
-            if (IsNumber())
-            {
-                std::ostringstream out;
-                out << std::get<double>(m_Data);
-                return out.str();
-            }
-            if (IsString())
-            {
-                return std::get<std::string>(m_Data);
-            }
-            if (IsObject())
-            {
-                auto object = std::get<ObjectPtr>(m_Data);
-                return "<object " + (object ? object->className : std::string("null")) + ">";
-            }
-            if (IsCallable())
-            {
-                auto callable = std::get<CallablePtr>(m_Data);
-                return "<callable " + (callable ? callable->Name() : std::string("null")) + ">";
-            }
-            return "<value>";
-        }
+        //========== Utility ==========
 
-        Value::ObjectPtr Value::AsObject() const
-        {
-            if (!IsObject())
-            {
-                return nullptr;
-            }
-            return std::get<ObjectPtr>(m_Data);
-        }
-
-        Value::CallablePtr Value::AsCallable() const
-        {
-            if (!IsCallable())
-            {
-                return nullptr;
-            }
-            return std::get<CallablePtr>(m_Data);
-        }
+        value value::clone() const { return value(*this); }
 
         std::ostream &operator<<(std::ostream &ostream, const Value *value)
         {

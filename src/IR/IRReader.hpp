@@ -18,6 +18,8 @@ namespace cora::ir
         void Print(const std::vector<BasicBlock *> &blocks, std::ostream &out) const;
 
         ~IRPrinter();
+
+    public:
     };
 
 } // namespace cora::ir

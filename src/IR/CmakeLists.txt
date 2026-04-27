@@ -7,17 +7,20 @@
 # Basic Configs   
 #--------------------------------------------------------------------
 
-set(CORA_VMACHINE_SOURCES 
+set(CORA_IR_SOURCES 
 
-	"${CORA_VMACHINE_DIR}/VMachine.cpp"
-    "${CORA_VMACHINE_DIR}/Interpreter.cpp"
-    "${CORA_VMACHINE_DIR}/SharedLibrary.cpp"
+	"${CORA_IR_DIR}/IRWriter.cpp"
+    "${CORA_IR_DIR}/IRReader.cpp"
+    "${CORA_IR_DIR}/IRBuilder.cpp"
+    "${CORA_IR_DIR}/IRVerifier.cpp"
+	"${CORA_IR_DIR}/IROptimizer.cpp"
+	# "${CORA_IR_DIR}/IRInstruction.cpp"
 )
 
 #--------------------------------------------------------------------
-# Build Virtual Machine Library.
+# Build IR Generation Library.
 #--------------------------------------------------------------------
 
-cora_library(VMachine SOURCES ${CORA_VMACHINE_SOURCES} STATIC)
+cora_library(IR SOURCES ${CORA_IR_SOURCES} STATIC)
 
 # ===================================================================

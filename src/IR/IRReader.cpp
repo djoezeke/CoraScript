@@ -6,7 +6,7 @@ namespace cora::ir
 {
     namespace
     {
-        std::string formatValue(const Value *value)
+        std::string formatValue(const IRValue *value)
         {
             if (value == nullptr)
             {
@@ -44,17 +44,17 @@ namespace cora::ir
             for (const PhiInstruction *phi : block->phis)
             {
                 out << "  " << phi->name << " = phi";
-                for (Value *operand : phi->operands)
+                for (IRValue *operand : phi->operands)
                 {
                     out << ' ' << formatValue(operand);
                 }
                 out << '\n';
             }
 
-            for (const Instruction *inst : block->instructions)
+            for (const IRInstruction *inst : block->instructions)
             {
                 out << "  " << inst->name << " = " << opToString(inst->op);
-                for (Value *operand : inst->operands)
+                for (IRValue *operand : inst->operands)
                 {
                     out << ' ' << formatValue(operand);
                 }

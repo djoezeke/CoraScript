@@ -11,333 +11,159 @@
 
 namespace cora::ast
 {
-
-    enum class AccessModifier
-    {
-        Public,
-        Private,
-    };
-
-    class Statement : public Node
+    struct Statement : public Node
     {
     public:
         Statement();
-        explicit Statement(NodeType kind);
+        Statement(NodeType kind);
         std::string Repr() override;
         ~Statement() override;
     };
 
-    class Assignment : public Statement
+    struct ExprStmt : public Statement
     {
     public:
-        Assignment(Expression *target, Expression *value);
-        Expression *GetTarget() const;
-        Expression *GetValue() const;
-        ~Assignment() override;
+        ExprStmt(Expression *expr)
+            : Statement(), expr(expr) {};
 
-    private:
-        Expression *m_Target;
-        Expression *m_Value;
-    };
-
-    class VarDeclaration : public Statement
-    {
-    public:
-        VarDeclaration(std::string name, std::string type, Expression *expr, bool constant = false);
-        const std::string &GetName() const;
-        const std::string &GetType() const;
-        Expression *GetExpression() const;
-        bool IsConst() const;
-        ~VarDeclaration() override;
-
-    private:
-        std::string m_Name;
-        std::string m_Type;
-        Expression *m_Expression;
-        bool m_Constant;
-    };
-
-    class ExprStmt : public Statement
-    {
-    public:
-        explicit ExprStmt(Expression *expr);
-        Expression *GetExpression() const;
         ~ExprStmt() override;
 
-    private:
-        Expression *m_Expr;
+    public:
+        Expression *expr;
     };
 
-    class PrintStmt : public Statement
+    struct BlockStmt : public Statement
     {
     public:
-        PrintStmt();
-        std::deque<Expression *> expressions;
-        ~PrintStmt() override;
+        BlockStmt(std::vector<Statement *> stmts)
+            : Statement(), stmts(std::move(stmts)) {};
+
+    public:
+        std::vector<Statement *> stmts;
     };
 
-    class AssignStmt : public Statement
+    struct IfStmt : public Statement
     {
     public:
-        AssignStmt(Expression *target, Expression *expr);
-        Expression *GetTarget() const;
-        Expression *GetValue() const;
-        ~AssignStmt() override;
+        IfStmt(Expression *cond, BlockStmt *true_block, BlockStmt *false_block)
+            : Statement(), cond(cond), true_block(true_block), false_block(false_block) {};
 
-    private:
-        Expression *m_Target;
-        Expression *m_Value;
-    };
-
-    class VarDeclStmt : public Statement
-    {
-    public:
-        VarDeclStmt(std::string name, std::optional<std::string> declaredType, Expression *expr,
-                    AccessModifier access = AccessModifier::Public, bool constant = false);
-        const std::string &GetName() const;
-        const std::optional<std::string> &GetDeclaredType() const;
-        Expression *GetExpression() const;
-        AccessModifier GetAccessModifier() const;
-        bool IsConst() const;
-        ~VarDeclStmt() override;
-
-    private:
-        std::string m_Name;
-        std::optional<std::string> m_DeclaredType;
-        Expression *m_Expr;
-        AccessModifier m_Access;
-        bool m_Constant;
-    };
-
-    class IfStmt : public Statement
-    {
-    public:
-        IfStmt();
-        std::deque<std::pair<Expression *, class BlockStmt *>> branches;
-        class BlockStmt *elseBlock;
         ~IfStmt() override;
+
+    public:
+        Expression *cond{nullptr};
+        BlockStmt *true_block{nullptr};
+        BlockStmt *false_block{nullptr};
+        // std::deque<std::pair<Expression *, struct BlockStmt *>> branches;
     };
 
-    class DoStmt : public Statement
+    struct ForStmt : public Statement
     {
     public:
-        DoStmt();
-        ~DoStmt() override;
-    };
+        ForStmt(Statement *init, Expression *condition, Statement *update, BlockStmt *block)
+            : Statement(), init(init), condition(condition), update(update), block(block) {};
 
-    class ForStmt : public Statement
-    {
-    public:
-        ForStmt();
         ~ForStmt() override;
-    };
 
-    class NewStmt : public Statement
-    {
     public:
-        NewStmt();
-        ~NewStmt() override;
-    };
-
-    class PassStmt : public Statement
-    {
-    public:
-        PassStmt();
-    };
-
-    class WhileStmt : public Statement
-    {
-    public:
-        WhileStmt();
-        WhileStmt(Expression *condition, class BlockStmt *block);
-        Expression *condition;
-        class BlockStmt *block;
-        ~WhileStmt() override;
-    };
-
-    class BreakStmt : public Statement
-    {
-    public:
-        BreakStmt();
-    };
-
-    class BlockStmt : public Statement
-    {
-    public:
-        BlockStmt();
-        std::deque<Statement *> statements;
-        ~BlockStmt() override;
-    };
-
-    class YieldStmt : public Statement
-    {
-    public:
-        YieldStmt();
-        ~YieldStmt() override;
-    };
-
-    class ThrowStmt : public Statement
-    {
-    public:
-        explicit ThrowStmt(Expression *value);
-        Expression *GetValue() const;
-        ~ThrowStmt() override;
-
-    private:
-        Expression *m_Value;
-    };
-
-    class TryCatchStmt : public Statement
-    {
-    public:
-        struct CatchClause
-        {
-            std::string typeName;
-            std::optional<std::string> variableName;
-            class BlockStmt *block;
-        };
-
-        TryCatchStmt(class BlockStmt *tryBlock, std::vector<CatchClause> catches);
-
-        class BlockStmt *GetTryBlock() const;
-        const std::vector<CatchClause> &GetCatches() const;
-        ~TryCatchStmt() override;
-
-    private:
-        class BlockStmt *m_TryBlock;
-        std::vector<CatchClause> m_Catches;
-    };
-
-    class DeleteStmt : public Statement
-    {
-    public:
-        explicit DeleteStmt(Expression *target);
-        Expression *GetTarget() const;
-        ~DeleteStmt() override;
-
-    private:
-        Expression *m_Target;
-    };
-
-    class SwitchStmt : public Statement
-    {
-    public:
-        SwitchStmt();
-        ~SwitchStmt() override;
-    };
-
-    class ReturnStmt : public Statement
-    {
-    public:
-        explicit ReturnStmt(Expression *value);
-        Expression *GetValue() const;
-        ~ReturnStmt() override;
-
-    private:
-        Expression *m_Value;
-    };
-
-    class FunctionDeclStmt : public Statement
-    {
-    public:
-        FunctionDeclStmt(std::string name, std::deque<std::string> parameters, class BlockStmt *body, AccessModifier access = AccessModifier::Public,
-                         std::optional<std::string> returnType = std::nullopt, std::string doc = {});
-        const std::string &GetName() const;
-        const std::deque<std::string> &GetParameters() const;
-        class BlockStmt *GetBody() const;
-        AccessModifier GetAccessModifier() const;
-        const std::optional<std::string> &GetReturnType() const;
-        const std::string &GetDoc() const;
-        ~FunctionDeclStmt() override;
-
-    private:
-        std::string m_Name;
-        std::deque<std::string> m_Parameters;
-        class BlockStmt *m_Body;
-        AccessModifier m_Access;
-        std::optional<std::string> m_ReturnType;
-        std::string m_Doc;
-    };
-
-    class ClassDeclStmt : public Statement
-    {
-    public:
-        ClassDeclStmt(std::string name, std::deque<VarDeclStmt *> fields, std::deque<FunctionDeclStmt *> methods, std::string doc = {});
-        const std::string &GetName() const;
-        const std::deque<VarDeclStmt *> &GetFields() const;
-        const std::deque<FunctionDeclStmt *> &GetMethods() const;
-        const std::string &GetDoc() const;
-        ~ClassDeclStmt() override;
-
-    private:
-        std::string m_Name;
-        std::deque<VarDeclStmt *> m_Fields;
-        std::deque<FunctionDeclStmt *> m_Methods;
-        std::string m_Doc;
-    };
-
-    class NamespaceDeclStmt : public Statement
-    {
-    public:
-        NamespaceDeclStmt(std::string name, class BlockStmt *body);
-
-        const std::string &GetName() const;
-        class BlockStmt *GetBody() const;
-
-        ~NamespaceDeclStmt() override;
-
-    private:
-        std::string m_Name;
-        class BlockStmt *m_Body;
-    };
-
-    class ImportStmt : public Statement
-    {
-    public:
-        explicit ImportStmt(std::string moduleName);
-
-        const std::string &GetModuleName() const;
-
-        ~ImportStmt() override;
-
-    private:
-        std::string m_ModuleName;
-    };
-
-    class ForEachStmt : public Statement
-    {
-    public:
-        ForEachStmt();
-        ~ForEachStmt() override;
-    };
-
-    class ContinueStmt : public Statement
-    {
-    public:
-        ContinueStmt();
-    };
-
-    class ForRangeStmt : public Statement
-    {
-    public:
-        ForRangeStmt(std::string name, Expression *start, Expression *end, Expression *step, BlockStmt *block);
-        std::string name;
-        Expression *start;
-        Expression *end;
-        Expression *step;
-        BlockStmt *block;
-        ~ForRangeStmt() override;
-    };
-
-    class ForCStyleStmt : public Statement
-    {
-    public:
-        ForCStyleStmt(Statement *init, Expression *condition, Statement *update, BlockStmt *block);
         Statement *init;
-        Expression *condition;
         Statement *update;
         BlockStmt *block;
-        ~ForCStyleStmt() override;
+        Expression *condition;
+    };
+
+    struct WhileStmt : public Statement
+    {
+    public:
+        WhileStmt(Expression *condition, BlockStmt *block)
+            : Statement(), condition(condition), block(block) {};
+
+        ~WhileStmt() override;
+
+    public:
+        Expression *condition;
+        BlockStmt *block;
+    };
+
+    struct SwitchStmt : public Statement
+    {
+    public:
+        SwitchStmt(Expression *cond, std::vector<MatchStmt *> matches)
+            : Statement(), cond(cond), matches(matches) {};
+
+    public:
+        Expression *cond{nullptr};
+        std::vector<MatchStmt *> matches;
+    };
+
+    struct MatchStmt : public Statement
+    {
+    public:
+        MatchStmt(Expression *cond, BlockStmt *block)
+            : Statement(), cond(cond), block(block) {};
+
+    public:
+        Expression *cond{nullptr};
+        BlockStmt *block{nullptr};
+    };
+
+    struct FuncDeclStmt : public Statement
+    {
+    public:
+        FuncDeclStmt(IdentifierExpr *name, std::vector<ParamExpr *> params, BlockStmt *block, IdentifierExpr *type)
+            : Statement(), name(name), params(params), block(block), type(type) {};
+
+    public:
+        IdentifierExpr *name{nullptr};
+        IdentifierExpr *type{nullptr};
+        std::vector<ParamExpr *> params;
+        BlockStmt *block{nullptr};
+    };
+
+    struct VarDeclStmt : public Statement
+    {
+    public:
+        VarDeclStmt(IdentifierExpr *name, Statement *value)
+            : Statement(), name(name), value(value) {};
+
+        ~VarDeclStmt() override;
+
+    public:
+        IdentifierExpr *name{nullptr};
+        Statement *value{nullptr};
+    };
+
+    struct PassStmt : public Statement
+    {
+    public:
+        PassStmt()
+            : Statement() {};
+    };
+
+    struct BreakStmt : public Statement
+    {
+    public:
+        BreakStmt()
+            : Statement() {};
+    };
+
+    struct ContinueStmt : public Statement
+    {
+    public:
+        ContinueStmt()
+            : Statement() {};
+    };
+
+    struct ThrowStmt : public Statement
+    {
+    public:
+        ThrowStmt(Expression *value)
+            : Statement(), value(value) {};
+
+        ~ThrowStmt() override;
+
+    public:
+        Expression *value;
     };
 
 } // namespace cora::ast

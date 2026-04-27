@@ -18,14 +18,14 @@ namespace cora::parser
         BuildTokens();
     }
 
-    std::deque<Token> Lexer::Lex(const std::string &source)
+    std::vector<Token> Lexer::Lex(const std::string &source)
     {
         m_Source = source;
         BuildTokens();
         return m_Tokens;
     }
 
-    std::deque<Token> Lexer::Tokenize()
+    std::vector<Token> Lexer::Tokenize()
     {
         if (m_Tokens.empty())
         {
@@ -107,7 +107,7 @@ namespace cora::parser
         };
 
         std::istringstream stream(m_Source);
-        std::deque<int> indentStack;
+        std::vector<int> indentStack;
         indentStack.push_back(0);
 
         std::string line;

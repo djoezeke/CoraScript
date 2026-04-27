@@ -23,19 +23,11 @@ namespace cora::ir
                 }
             }
 
-            for (const Instruction *inst : block->instructions)
+            for (const IRInstruction *inst : block->instructions)
             {
                 if (inst == nullptr)
                 {
                     throw std::runtime_error("IRVerifier: null instruction encountered");
-                }
-
-                for (Value *operand : inst->operands)
-                {
-                    if (operand == nullptr)
-                    {
-                        throw std::runtime_error("IRVerifier: null instruction operand encountered");
-                    }
                 }
             }
         }

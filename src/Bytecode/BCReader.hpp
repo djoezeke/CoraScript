@@ -27,6 +27,8 @@ namespace cora::vmachine
 
         void Read() const;
 
+        std::vector<BytecodeBlock *> Instructions();
+
     public:
         int entry{-1};
         int entry_end{-1};
@@ -36,7 +38,7 @@ namespace cora::vmachine
     private:
         std::uint32_t kMagic;
         std::uint32_t kVersion;
-        Opcode cur_opcode;
+        VMOpcode cur_opcode;
         std::string filename;
         std::ifstream in;
     };
