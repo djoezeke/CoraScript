@@ -2,44 +2,52 @@
  * Bytecode Writer
  */
 
-#ifndef CORA_VMACHINE_BYTECODEWRITER_H
-#define CORA_VMACHINE_BYTECODEWRITER_H
+#ifndef CORA_BYTECODE_BCWRITER_H
+#define CORA_BYTECODE_BCWRITER_H
 
-#include "VMInstruction.hpp"
+#include "BCInstruction.hpp"
 
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <vector>
 
-namespace cora::vmachine
+namespace cora::bc
 {
-    class BytecodeWriter final
+    class BCWriter final
     {
     public:
         using Byte = std::uint8_t;
+        // A simple buffer to hold raw bytes
         using RawBytecode = std::vector<Byte>;
 
-        BytecodeWriter() = default;
-        BytecodeWriter(std::string filename)
-            : filename(std::move(filename)) {};
-
-        void Write() const;
-
     public:
-        int entry{-1};
-        int entry_end{-1};
-        int global_var_len{-1};
-        std::vector<Instruction *> vm_insts;
+        BCWriter();
+        BCWriter(std::ostream &out);
+
+        void Write(const std::vector<BasicBlock *> &blocks);
+
+        static void Write(const std::vector<BasicBlock *> &blocks, std::ostream &out);
+        static void WriteFile(const std::vector<BasicBlock *> &blocks, std::string filename);
+
+        ~BCWriter();
+
+    private:
+        void WriteBinaryInstruction();
+        void WriteLoadInstruction();
+        void WriteStoreInstruction();
+        void WriteCallInstruction();
+        void WriteReturnInstruction();
+        void WriteJumpInstruction();
+        void WriteAllocaInstruction();
 
     private:
         std::uint32_t kMagic;
         std::uint32_t kVersion;
-        Instruction *cur_instr{nullptr};
-        std::string filename;
-        std::ofstream out;
+        std::ostream &m_out;
+        std::vector<BasicBlock *> *blocks;
     };
 
-} // namespace cora::vmachine
+} // namespace cora::bc
 
-#endif // CORA_VMACHINE_BYTECODEWRITER_H
+#endif // CORA_BYTECODE_BCWRITER_H

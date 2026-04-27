@@ -1,8 +1,8 @@
 #ifndef CORA_VMACHINE_BYTECODEEMITTER_H
 #define CORA_VMACHINE_BYTECODEEMITTER_H
 
-#include "../IRGen/IRInstruction.hpp"
-#include "VMInstruction.hpp"
+#include "../IR/IRInstruction.hpp"
+#include "BCInstruction.hpp"
 
 #include <cstdint>
 #include <map>
@@ -26,7 +26,7 @@ namespace cora::bc
     public:
         BytecodeEmitter(const std::vector<cora::ir::BasicBlock *> &program);
 
-        std::vector<BytecodeBlock *> Emit();
+        std::vector<BasicBlock *> Emit();
 
     public:
         int entry{-1};
@@ -34,7 +34,7 @@ namespace cora::bc
         int global_var_len{-1};
         std::vector<ir::Function *> funcs;
         std::vector<Instruction *> vm_insts;
-        std::vector<BytecodeBlock *> bytecode_blocks;
+        std::vector<BasicBlock *> bytecode_blocks;
         ir::BasicBlock *global_vars{nullptr};
 
     private:
@@ -58,7 +58,7 @@ namespace cora::bc
         void addInstruction(Instruction *inst);
 
     private:
-        std::vector<BytecodeBlock *> output;
+        std::vector<BasicBlock *> output;
         std::map<cora::ir::Value *, std::int32_t> valueToLocal;
         std::map<std::string, std::int32_t> nameToLocal;
         std::int32_t nextLocal{0};

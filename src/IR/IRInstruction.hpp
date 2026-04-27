@@ -23,44 +23,78 @@ namespace cora::ir
 
     using namespace cora::compiler;
 
+    // Forward declarations
+    struct User;
+    struct Value;
+
     struct Type
     {
-        enum ID
+        enum class ID
         {
-            Int32,
+            Int,
+            Void,
+            Label,
             Float,
             Pointer,
-            Void,
-            Label
         };
 
-        ID id;
-        Type *pointee = nullptr; // Only used if id == Pointer
+    public:
+        Type(ID i) : id(i) {};
 
-        Type(ID i) : id(i) {}
-        static Type *getInt32Ty() { return new Type(Int32); }
-        static Type *getVoidTy() { return new Type(Void); }
-        static Type *getPtrTy(Type *element)
+        static Type *Int() { return new Type(ID::Int); };
+        static Type *Void() { return new Type(ID::Void); };
+        static Type *Float() { return new Type(ID::Float); };
+        static Type *Label() { return new Type(ID::Label); };
+        static Type *Pointer(Type *element)
         {
-            Type *t = new Type(Pointer);
+            Type *t = new Type(ID::Pointer);
             t->pointee = element;
             return t;
         };
 
-        bool isPointer() const { return id == Pointer; }
-        bool equals(Type *other) const
+        bool is(Type type) const
+        {
+            return id == type;
+        };
+        bool isInt() const { return id == ID::Int; };
+        bool isVoid() const { return id == ID::Void; };
+        bool isFloat() const { return id == ID::Float; };
+        bool isLabel() const { return id == ID::Label; };
+        bool isPointer() const { return id == ID::Pointer; };
+
+        bool operator==(Type *other) const
         {
             if (id != other->id)
                 return false;
-            if (id == Pointer)
-                return pointee->equals(other->pointee);
+            if (id == ID::Pointer)
+                return pointee == other->pointee;
             return true;
         };
-    };
 
-    // Forward declarations
-    struct User;
-    struct Value;
+        bool operator!=(Type *other) const
+        {
+            return !((this) == other);
+        };
+
+        bool operator==(const Type &other) const
+        {
+            if (id != other.id)
+                return false;
+            if (id == ID::Pointer)
+                return pointee == other.pointee;
+            return true;
+        };
+
+        bool operator!=(const Type &other) const
+        {
+            return !((*this) == other);
+        };
+
+    public:
+        ID id;
+        // Only used if id == Pointer
+        Type *pointee = nullptr;
+    };
 
     /**
      * @brief THE USE: The "glue" object.
@@ -112,8 +146,8 @@ namespace cora::ir
         void killUse(Use &use) {
         };
 
-        // "Replace All Uses With" - Essential SSA optimization tool
-        void RAUW(Value *NewV);
+        // "Replace All Uses With"
+        void RAUW(Value *new_value);
 
     public:
         Kind kind;
@@ -182,24 +216,24 @@ namespace cora::ir
         User(Kind k, std::string name, int num_ops)
             : Value(k, name)
         {
-            op_storage.resize(num_ops);
-            for (auto &use : op_storage)
+            operands.resize(num_ops);
+            for (auto &use : operands)
                 use.user = this;
         };
 
         void setOperand(int i, Value *value)
         {
-            op_storage[i].set(value, this);
+            operands[i].set(value, this);
         };
 
         Value *getOperand(int i) const
         {
-            return op_storage[i].value;
+            return operands[i].value;
         };
 
     public:
         // The operands are stored as Use objects
-        std::vector<Use> op_storage;
+        std::vector<Use> operands;
     };
 
     // ARGUMENT: Represents a function parameter (e.g., i32 %0)
@@ -267,6 +301,7 @@ namespace cora::ir
             Br,
             Ret,
             Phi,
+            Jump,
         };
 
     public:
@@ -305,7 +340,7 @@ namespace cora::ir
         {
             Use use;
             use.set(value, this);
-            op_storage.push_back(use);
+            operands.push_back(use);
             // Additional logic to track which block matches which operand
         };
     };
@@ -416,9 +451,9 @@ namespace cora::ir
             }
             else
             {
-                this->type = Type::getVoidTy();
+                this->type = Type::Void();
             }
-        };
+        }; 
     };
 
     // JUMP (Unconditional Branch)
@@ -433,7 +468,7 @@ namespace cora::ir
             // Link CFG
             block->succs.push_back(dest);
             dest->preds.push_back(block);
-            this->type = Type::getVoidTy();
+            this->type = Type::Void();
         };
     };
 
@@ -446,7 +481,7 @@ namespace cora::ir
             : Instruction(Opcode::Alloca, name, block, 0), type(ty)
         {
             // Result is a pointer to the type
-            this->type = Type::getPtrTy(ty);
+            this->type = Type::Pointer(ty);
         };
     };
 

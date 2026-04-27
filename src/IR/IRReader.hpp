@@ -1,27 +1,42 @@
-#ifndef CORA_IR_IRPRINTER_H
-#define CORA_IR_IRPRINTER_H
+#ifndef CORA_IR_IRREADER_H
+#define CORA_IR_IRREADER_H
 
 #include "IRInstruction.hpp"
 
-#include <ostream>
+#include <istream>
 #include <string>
 #include <vector>
 
 namespace cora::ir
 {
-    class IRPrinter final
+    class IRReader final
     {
     public:
-        IRPrinter();
+        IRReader();
+        IRReader(std::istream &in);
+        std::vector<BasicBlock *> Read();
 
-        std::string Print(const std::vector<BasicBlock *> &blocks) const;
-        void Print(const std::vector<BasicBlock *> &blocks, std::ostream &out) const;
+        static std::vector<BasicBlock *> Read(std::istream &in);
+        static std::vector<BasicBlock *> ReadFile(std::string filename);
 
-        ~IRPrinter();
+        ~IRReader();
 
-    public:
+    private:
+        void ReadPhiInstruction();
+        void ReadBinaryInstruction();
+        void ReadLoadInstruction();
+        void ReadStoreInstruction();
+        void ReadCallInstruction();
+        void ReadBranchInstruction();
+        void ReadReturnInstruction();
+        void ReadJumpInstruction();
+        void ReadAllocaInstruction();
+
+    private:
+        std::istream m_in;
+        std::vector<BasicBlock *> blocks;
     };
 
 } // namespace cora::ir
 
-#endif // CORA_IR_IRPRINTER_H
+#endif // CORA_IR_IRREADER_H

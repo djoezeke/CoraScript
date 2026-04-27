@@ -2,47 +2,50 @@
  * Bytecode Reader
  */
 
-#ifndef CORA_VMACHINE_BYTECODEREADER_H
-#define CORA_VMACHINE_BYTECODEREADER_H
+#ifndef CORA_BYTECODE_BCREADER_H
+#define CORA_BYTECODE_BCREADER_H
 
-#include "VMInstruction.hpp"
+#include "BCInstruction.hpp"
 
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <vector>
 
-namespace cora::vmachine
+namespace cora::bc
 {
-    class BytecodeReader final
+    class BCReader final
     {
     public:
         using Byte = std::uint8_t;
         using RawBytecode = std::vector<Byte>;
 
-        BytecodeReader() = default;
-
-        BytecodeReader(std::string filename)
-            : filename(std::move(filename)) {};
-
-        void Read() const;
-
-        std::vector<BytecodeBlock *> Instructions();
-
     public:
-        int entry{-1};
-        int entry_end{-1};
-        int global_var_len{-1};
-        std::vector<Instruction *> vm_insts;
+        BCReader();
+        BCReader(std::istream &in);
+        std::vector<BasicBlock *> Read();
+
+        static std::vector<BasicBlock *> Read(std::istream &in);
+        static std::vector<BasicBlock *> ReadFile(std::string filename);
+
+        ~BCReader();
+
+    private:
+        void ReadBinaryInstruction();
+        void ReadLoadInstruction();
+        void ReadStoreInstruction();
+        void ReadCallInstruction();
+        void ReadReturnInstruction();
+        void ReadJumpInstruction();
+        void ReadAllocaInstruction();
 
     private:
         std::uint32_t kMagic;
         std::uint32_t kVersion;
-        VMOpcode cur_opcode;
-        std::string filename;
-        std::ifstream in;
+        std::istream m_in;
+        std::vector<BasicBlock *> blocks;
     };
 
-} // namespace cora::vmachine
+} // namespace cora::bc
 
-#endif // CORA_VMACHINE_BYTECODEREADER_H
+#endif // CORA_BYTECODE_BCREADER_H

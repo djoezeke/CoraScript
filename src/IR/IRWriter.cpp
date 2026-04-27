@@ -1,37 +1,14 @@
-#include "IRPrinter.hpp"
+#include "IRWriter.hpp"
 
 #include <sstream>
 
 namespace cora::ir
 {
-    namespace
-    {
-        std::string formatValue(const IRValue *value)
-        {
-            if (value == nullptr)
-            {
-                return "<null>";
-            }
 
-            if (const auto *constant = dynamic_cast<const ConstantInt *>(value))
-            {
-                return std::to_string(constant->value);
-            }
+    IRWriter::IRWriter(std::ostream &out)
+        : m_out(out) {};
 
-            return value->name.empty() ? "<unnamed>" : value->name;
-        }
-    }
-
-    IRPrinter::IRPrinter() = default;
-
-    std::string IRPrinter::Print(const std::vector<BasicBlock *> &blocks) const
-    {
-        std::ostringstream out;
-        Print(blocks, out);
-        return out.str();
-    }
-
-    void IRPrinter::Print(const std::vector<BasicBlock *> &blocks, std::ostream &out) const
+    void IRWriter::Write(const std::vector<BasicBlock *> &blocks)
     {
         for (const BasicBlock *block : blocks)
         {
@@ -40,29 +17,72 @@ namespace cora::ir
                 continue;
             }
 
-            out << block->label << ":\n";
+            m_out << block->name << ":\n";
             for (const PhiInstruction *phi : block->phis)
             {
-                out << "  " << phi->name << " = phi";
-                for (IRValue *operand : phi->operands)
-                {
-                    out << ' ' << formatValue(operand);
-                }
-                out << '\n';
             }
 
-            for (const IRInstruction *inst : block->instructions)
+            for (const Instruction *inst : block->insts)
             {
-                out << "  " << inst->name << " = " << opToString(inst->op);
-                for (IRValue *operand : inst->operands)
+                switch (inst->opcode)
                 {
-                    out << ' ' << formatValue(operand);
+                case Instruction::Opcode::Add:
+                case Instruction::Opcode::Mul:
+                case Instruction::Opcode::Sub:
+                case Instruction::Opcode::Div:
+                    WriteBinaryInstruction();
+                    break;
+                case Instruction::Opcode::Alloca:
+                    WriteAllocaInstruction();
+                    break;
+                case Instruction::Opcode::Call:
+                    WriteBinaryInstruction();
+                    break;
+                case Instruction::Opcode::Load:
+                    WriteLoadInstruction();
+                    break;
+                case Instruction::Opcode::Store:
+                    WriteStoreInstruction();
+                    break;
+                case Instruction::Opcode::Br:
+                    WriteBranchInstruction();
+                    break;
+                case Instruction::Opcode::Phi:
+                    WritePhiInstruction();
+                    break;
+                case Instruction::Opcode::Ret:
+                    WriteReturnInstruction();
+                    break;
+                case Instruction::Opcode::Jump:
+                    WriteJumpInstruction();
+                    break;
+
+                default:
+                    break;
                 }
-                out << '\n';
             }
         }
-    }
+    };
 
-    IRPrinter::~IRPrinter() = default;
+    void IRWriter::Write(const std::vector<BasicBlock *> &blocks, std::ostream &out)
+    {
+        IRWriter writer(out);
+        writer.Write(blocks);
+    };
+
+    void IRWriter::WriteFile(const std::vector<BasicBlock *> &blocks, std::string filename) {
+    };
+
+    void IRWriter::WritePhiInstruction() {};
+    void IRWriter::WriteBinaryInstruction() {};
+    void IRWriter::WriteLoadInstruction() {};
+    void IRWriter::WriteStoreInstruction() {};
+    void IRWriter::WriteCallInstruction() {};
+    void IRWriter::WriteBranchInstruction() {};
+    void IRWriter::WriteReturnInstruction() {};
+    void IRWriter::WriteJumpInstruction() {};
+    void IRWriter::WriteAllocaInstruction() {};
+
+    IRWriter::~IRWriter() = default;
 
 } // namespace cora::ir
