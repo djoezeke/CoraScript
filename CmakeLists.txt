@@ -61,6 +61,8 @@ target_include_directories(Modules
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include
+		${CORA_RUNTIME_DIR}
+		${CORA_BUILTIN_DIR}
 )
 
 target_link_libraries(Modules

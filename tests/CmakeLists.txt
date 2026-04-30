@@ -25,6 +25,16 @@ set(CORA_TEST_INCLUDE_DIR
 
 )
 
+set(LEXER_TEST_SOURCES
+
+    "${PARSER_TEST_DIR}/lexer.test.cpp"
+	"${CORA_BASIC_DIR}/Location.cpp"
+	"${CORA_BASIC_DIR}/Error.cpp"
+	"${CORA_PARSER_DIR}/Token.cpp"
+	"${CORA_PARSER_DIR}/Lexer.cpp"
+
+)
+
 #--------------------------------------------------------------------
 # Test Functions
 #--------------------------------------------------------------------
@@ -82,7 +92,7 @@ endfunction()
 # Manually or Recursively add Tests
 #--------------------------------------------------------------------
 
-cora_test(lexer_test "${PARSER_TEST_DIR}/lexer.test.cpp" Cora::AST Cora::Basic Cora::Parser )
+cora_test(lexer_test "${LEXER_TEST_SOURCES}" Cora::AST Cora::Basic Cora::Parser )
 cora_test(parser_test "${PARSER_TEST_DIR}/parser.test.cpp" Cora::AST Cora::Basic Cora::Parser )
 
 # ===================================================================

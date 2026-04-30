@@ -7,22 +7,22 @@ namespace cora::compiler
 {
     namespace runtime
     {
-        Variable::Variable(Value *value, VariableScope type, bool constant)
+        Variable::Variable(value *value, VariableScope type, bool constant)
             : m_Value(value), m_Scope(type), m_Constant(constant) {}
 
-        Variable *Variable::LocalVariable(Value *value, bool constant)
+        Variable *Variable::LocalVariable(value *value, bool constant)
         {
             return new Variable(value, VariableScope::Local, constant);
         };
 
-        Variable *Variable::GlobalVariable(Value *value, bool constant)
+        Variable *Variable::GlobalVariable(value *value, bool constant)
         {
             return new Variable(value, VariableScope::Global, constant);
         };
 
-        Value *Variable::GetValue() const { return m_Value; };
+        value *Variable::GetValue() const { return m_Value; };
 
-        void Variable::SetValue(Value *value)
+        void Variable::SetValue(value *value)
         {
             if (m_Constant)
             {

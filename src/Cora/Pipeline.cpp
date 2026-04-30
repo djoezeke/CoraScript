@@ -1,9 +1,9 @@
 #include "Pipeline.hpp"
 
-#include "../IRGen/IRBuilder.hpp"
-#include "../IRGen/IROptimizer.hpp"
-#include "../IRGen/IRPrinter.hpp"
-#include "../IRGen/IRVerifier.hpp"
+#include "../IR/IRBuilder.hpp"
+#include "../IR/IROptimizer.hpp"
+#include "../IR/IRPrinter.hpp"
+#include "../IR/IRVerifier.hpp"
 #include "../Parser/Parser.hpp"
 #include "../Semantic/Validator.hpp"
 #include "../VMachine/BytecodeEmitter.hpp"
@@ -13,6 +13,7 @@
 #include <deque>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace cora::tooling
 {
@@ -21,7 +22,7 @@ namespace cora::tooling
         class ProgramGuard
         {
         public:
-            explicit ProgramGuard(std::deque<cora::compiler::ast::Statement *> statements)
+            explicit ProgramGuard(std::deque<cora::ast::Statement *> statements)
                 : m_Statements(std::move(statements))
             {
             }
@@ -31,19 +32,19 @@ namespace cora::tooling
 
             ~ProgramGuard()
             {
-                for (cora::compiler::ast::Statement *statement : m_Statements)
+                for (cora::ast::Statement *statement : m_Statements)
                 {
                     delete statement;
                 }
             }
 
-            const std::deque<cora::compiler::ast::Statement *> &Get() const
+            const std::deque<cora::ast::Statement *> &Get() const
             {
                 return m_Statements;
             }
 
         private:
-            std::deque<cora::compiler::ast::Statement *> m_Statements;
+            std::deque<cora::ast::Statement *> m_Statements;
         };
     } // namespace
 
@@ -53,13 +54,15 @@ namespace cora::tooling
                                      std::ostream *irOut,
                                      std::ostream *bytecodeOut)
     {
-        cora::compiler::parser::Parser parser;
+        cora::parser::Parser parser;
         parser.SetFileName(fileName);
         parser.SetModuleName(fileName);
 
-        ProgramGuard program(parser.ParseProgram(source));
+        std::vector<cora::ast::Statement *> parsed = parser.Parse(source);
+        std::deque<cora::ast::Statement *> programQueue(parsed.begin(), parsed.end());
+        ProgramGuard program(std::move(programQueue));
 
-        cora::compiler::semantic::ValidateProgram(program.Get(), fileName, fileName);
+        cora::semantic::ValidateProgram(program.Get(), fileName, fileName);
 
         cora::ir::IRBuilder builder;
         builder.Build(program.Get());

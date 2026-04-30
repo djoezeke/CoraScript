@@ -85,17 +85,6 @@ namespace cora::ast
         BlockStmt *block;
     };
 
-    struct SwitchStmt : public Statement
-    {
-    public:
-        SwitchStmt(Expression *cond, std::vector<MatchStmt *> matches)
-            : Statement(), cond(cond), matches(matches) {};
-
-    public:
-        Expression *cond{nullptr};
-        std::vector<MatchStmt *> matches;
-    };
-
     struct MatchStmt : public Statement
     {
     public:
@@ -105,6 +94,17 @@ namespace cora::ast
     public:
         Expression *cond{nullptr};
         BlockStmt *block{nullptr};
+    };
+
+    struct SwitchStmt : public Statement
+    {
+    public:
+        SwitchStmt(Expression *cond, std::vector<MatchStmt *> matches)
+            : Statement(), cond(cond), matches(matches) {};
+
+    public:
+        Expression *cond{nullptr};
+        std::vector<MatchStmt *> matches;
     };
 
     struct FuncDeclStmt : public Statement

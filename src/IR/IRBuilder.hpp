@@ -6,6 +6,7 @@
 #include "../AST/ASTExpr.hpp"
 #include "../AST/ASTStmt.hpp"
 
+#include <deque>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -17,40 +18,40 @@ namespace cora::ir
     {
     public:
         IRBuilder();
-        IRBuilder(const std::vector<cora::ast::Statement *> &program);
+        ~IRBuilder();
 
-        std::vector<BasicBlock *> Build();
-        void Build(const std::vector<cora::ast::Statement *> &program);
+        BasicBlock *Build(const std::deque<cora::ast::Statement *> &program);
+
+        const std::vector<BasicBlock *> &GetBlocks() const;
+        BasicBlock *GetEntryBlock() const;
 
     private:
         Instruction *EmitStatement(ast::Statement *stmt);
-        Instruction *EmitExprStmt(ast::Statement *stmt);
-        Instruction *EmitBlockStmt(ast::Statement *stmt);
-        Instruction *EmitIfStmt(ast::Statement *stmt);
-        Instruction *EmitForStmt(ast::Statement *stmt);
-        Instruction *EmitWhileStmt(ast::Statement *stmt);
-        Instruction *EmitSwitchStmt(ast::Statement *stmt);
-        Instruction *EmitMatchStmt(ast::Statement *stmt);
-        Value *EmitFuncDeclStmt(ast::Statement *stmt);
-        Value *EmitVarDeclStmt(ast::Statement *stmt);
-        Instruction *EmitPassStmt(ast::Statement *stmt);
-        Instruction *EmitBreakStmt(ast::Statement *stmt);
-        Instruction *EmitContinueStmt(ast::Statement *stmt);
-        Instruction *EmitThrowStmt(ast::Statement *stmt);
+        Value *EmitExpression(ast::Expression *expr);
+        Value *EmitBinaryExpr(ast::BinaryExpr *expr);
+        Value *EmitUnaryExpr(ast::UnaryExpr *expr);
+        Value *EmitAssignExpr(ast::AssignExpr *expr);
+        Value *EmitFuncCallExpr(ast::FuncCallExpr *expr);
+        Value *EmitLiteral(ast::Expression *expr);
+        Value *EmitIdentifier(ast::IdentifierExpr *expr, bool load);
+        void EmitBlock(ast::BlockStmt *block);
+        void EmitIf(ast::IfStmt *stmt);
+        void EmitWhile(ast::WhileStmt *stmt);
+        void EmitFor(ast::ForStmt *stmt);
+        void EmitVarDecl(ast::VarDeclStmt *stmt);
+        void EmitFuncDecl(ast::FuncDeclStmt *stmt);
 
-        Instruction *EmitExpression(ast::Expression *expr);
-        Instruction *EmitGroupExpr(ast::Expression *expr);
-        Instruction *EmitArrayExpr(ast::Expression *expr);
-        Instruction *EmitArrayIdExpr(ast::Expression *expr);
-        Value EmitParamExpr(ast::Expression *expr);
-        Instruction *EmitUnaryExpr(ast::Expression *expr);
-        Instruction *EmitPrefixUnaryExpr(ast::Expression *expr);
-        Instruction *EmitPostfixUnaryExpr(ast::Expression *expr);
-        Instruction *EmitBinaryExpr(ast::Expression *expr);
-        Instruction *EmitAssignExpr(ast::Expression *expr);
-        Instruction *EmitFuncCallExpr(ast::Expression *expr);
+        BasicBlock *CreateBlock(const std::string &name);
+        Value *MakeConstant(runtime::value value, const std::string &name = "");
+        template <typename T, typename... Args>
+        T *MakeValue(Args &&...args)
+        {
+            auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
+            T *raw = ptr.get();
+            m_ownedValues.push_back(std::move(ptr));
+            return raw;
+        }
 
-    private:
         void Reset();
         Value *lookupVariable(const std::string &name) const;
         void assignVariable(const std::string &name, Value *value);

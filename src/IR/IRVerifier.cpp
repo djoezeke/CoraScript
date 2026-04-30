@@ -23,7 +23,7 @@ namespace cora::ir
                 }
             }
 
-            for (const IRInstruction *inst : block->instructions)
+            for (const Instruction *inst : block->insts)
             {
                 if (inst == nullptr)
                 {

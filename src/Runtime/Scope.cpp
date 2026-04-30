@@ -85,7 +85,7 @@ namespace cora::compiler
             return GetVariable(name);
         }
 
-        void Scope::SetVariableValue(const std::string &name, Value *value, bool constant)
+        void Scope::SetVariableValue(const std::string &name, value *value, bool constant)
         {
             Scope *scope = ResolveVariable(name);
             if (scope == nullptr)
@@ -104,7 +104,7 @@ namespace cora::compiler
             target->SetValue(value);
         }
 
-        Variable *Scope::NewVariableValue(const std::string &name, Value *value, bool constant)
+        Variable *Scope::NewVariablevalue(const std::string &name, value *value, bool constant)
         {
             return NewVariable(name, new Variable(value, VariableScope::Local, constant));
         }

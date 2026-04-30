@@ -3,8 +3,8 @@
 
 #include "Token.hpp"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace cora::parser
 {

@@ -91,19 +91,6 @@ namespace cora::parser
             {"none", TokenType::Null},
             {"true", TokenType::True},
             {"false", TokenType::False},
-            {"class", TokenType::T_CLASS},
-            {"new", TokenType::T_NEW},
-            {"delete", TokenType::T_DELETE},
-            {"fun", TokenType::T_FUN},
-            {"return", TokenType::T_RETURN},
-            {"this", TokenType::T_THIS},
-            {"pub", TokenType::T_PUBLIC},
-            {"public", TokenType::T_PUBLIC},
-            {"private", TokenType::T_PRIVATE},
-            {"namespace", TokenType::T_NAMESPACE},
-            {"try", TokenType::T_TRY},
-            {"catch", TokenType::T_CATCH},
-            {"throw", TokenType::T_THROW},
         };
 
         std::istringstream stream(m_Source);
@@ -208,7 +195,18 @@ namespace cora::parser
                         }
                     }
 
-                    PushToken(TokenType::Number, line.substr(start, pos - start), lineNo, startCol);
+                    if (sawDot)
+                    {
+                        PushToken(TokenType::Float,
+                                  line.substr(start, pos - start), lineNo,
+                                  startCol);
+                    }
+                    else
+                    {
+                        PushToken(TokenType::Integer,
+                                  line.substr(start, pos - start), lineNo,
+                                  startCol);
+                    }
                     continue;
                 }
 

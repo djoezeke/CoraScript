@@ -8,7 +8,7 @@ namespace cora::compiler
     namespace runtime
     {
 
-        class Value;
+        class value;
 
         enum class VariableScope
         {
@@ -19,25 +19,25 @@ namespace cora::compiler
         class Variable
         {
         public:
-            Variable(Value *value, VariableScope type, bool constant);
+            Variable(value *value, VariableScope type, bool constant);
 
-            static Variable *LocalVariable(Value *value, bool constant = false);
+            static Variable *LocalVariable(value *value, bool constant = false);
 
-            static Variable *GlobalVariable(Value *value, bool constant = false);
+            static Variable *GlobalVariable(value *value, bool constant = false);
 
             /**
              * @brief Return the value object
              *
-             * @return Value *
+             * @return value *
              */
-            Value *GetValue() const;
+            value *GetValue() const;
 
             /**
              * @brief Set the value object
              *
              * @param value
              */
-            void SetValue(Value *value);
+            void SetValue(value *value);
 
             /**
              * @brief Return the value kind
@@ -62,7 +62,7 @@ namespace cora::compiler
             ~Variable();
 
         private:
-            Value *m_Value;
+            value *m_Value;
             VariableScope m_Scope;
             bool m_Constant;
         };

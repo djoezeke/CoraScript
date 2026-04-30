@@ -9,7 +9,7 @@ namespace cora::compiler
     namespace runtime
     {
 
-        class Value;
+        class value;
         class Variable;
 
         enum class ScopeKind
@@ -49,8 +49,8 @@ namespace cora::compiler
             bool DeleteVariable(const std::string &name);
 
             Variable *GetVariableValue(const std::string &name) const;
-            void SetVariableValue(const std::string &name, Value *value, bool constant = false);
-            Variable *NewVariableValue(const std::string &name, Value *value, bool constant = false);
+            void SetVariableValue(const std::string &name, value *value, bool constant = false);
+            Variable *NewVariablevalue(const std::string &name, value *value, bool constant = false);
 
             [[nodiscard]] bool isLocal() const;
             [[nodiscard]] bool isGlobal() const;

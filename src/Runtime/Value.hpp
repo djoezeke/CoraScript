@@ -308,6 +308,11 @@ namespace cora::compiler
             value(object_type &&value);
 
             /**
+             * @brief Construct a callable value.
+             */
+            value(callable_type value);
+
+            /**
              * @brief Construct a string by copy.
              * @param[in] value A lvalue string node value.
              * @return A value string node.
@@ -335,6 +340,25 @@ namespace cora::compiler
              * @brief Move constructor.
              */
             value(value &&other);
+
+            // Convenience API for the VM/FFI layer.
+            ValueKind GetValueKind() const;
+            void SetValueKind(ValueKind kind);
+            bool IsNull() const;
+            bool IsBool() const;
+            bool IsString() const;
+            bool IsInteger() const;
+            bool IsFloat() const;
+            bool IsNumber() const;
+            bool IsArray() const;
+            bool IsObject() const;
+            bool IsCallable() const;
+
+            double AsNumber() const;
+            std::string AsString() const;
+            bool AsBool() const;
+            object_type AsObject() const;
+            callable_type AsCallable() const;
 
             virtual std::string Repr() const;
 
@@ -405,8 +429,8 @@ namespace cora::compiler
              * @param default_value The value to return if conversion fails.
              * @return Converted value or default_value.
              */
-            template <typename T>
-            T as(const T &default_value = T()) const;
+            // template <typename T>
+            // T as(const T &default_value = T()) const;
 
             /**
              * @brief Get value as an array type .
@@ -575,8 +599,6 @@ namespace cora::compiler
             value operator>>(value &rhs);
 
             value operator~();
-            value operator~();
-            value operator~();
             value operator!();
 
             //========== Utility ==========
@@ -597,11 +619,15 @@ namespace cora::compiler
             using data_type = std::variant<std::monostate, null_type, boolean_type, integer_type, floating_type, string_type, object_type, array_type, callable_type>;
 
             value_type m_type;
+            ValueKind m_kind{ValueKind::Undefined};
             data_type m_value;
+
+            void SetType(value_type type);
         };
 
         using Value = value;
 
+        std::ostream &operator<<(std::ostream &ostream, const value &value);
         std::ostream &operator<<(std::ostream &ostream, const value *value);
 
     } // namespace runtime

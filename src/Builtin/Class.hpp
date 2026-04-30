@@ -28,7 +28,7 @@ namespace cora::compiler
         class Class
         {
             using Obj = std::shared_ptr<runtime::Object>;
-            using Field = runtime::Value;
+            using Field = runtime::value;
             using Method = std::shared_ptr<runtime::Callable>;
 
         public:

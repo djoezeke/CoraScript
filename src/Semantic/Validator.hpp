@@ -9,7 +9,7 @@
 namespace cora::semantic
 {
 
-    using namespace cora::compiler;
+    using namespace cora;
 
     void ValidateProgram(const std::deque<ast::Statement *> &program,
                          const std::string &fileName,

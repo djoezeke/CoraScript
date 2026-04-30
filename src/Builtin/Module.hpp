@@ -27,11 +27,11 @@ namespace cora::compiler
         {
             using Obj = std::shared_ptr<runtime::Object>;
             using Class = builtin::Class;
-            using Variable = runtime::Value;
+            using Variable = runtime::value;
             using Function = std::shared_ptr<runtime::Callable>;
 
         public:
-            using Func = std::function<runtime::Value(const std::vector<runtime::Value> &)>;
+            using Func = std::function<runtime::value(const std::vector<runtime::value> &)>;
 
             using Classes = std::unordered_map<std::string, Class>;
             using Functions = std::unordered_map<std::string, Function>;

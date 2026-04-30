@@ -188,7 +188,7 @@ namespace cora::ast
     {
     public:
         AssignExpr(Expression *left, Expression *right)
-            : BinaryExpr(left, parser::TokenType::EQUAL, right) { node_type = NodeType::AssignExpr; };
+            : BinaryExpr(left, parser::TokenType::Equal, right) { node_type = NodeType::AssignExpr; };
     };
 
     struct FuncCallExpr : public Expression

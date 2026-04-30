@@ -12,6 +12,9 @@ set(CORA_VMACHINE_SOURCES
 	"${CORA_VMACHINE_DIR}/VMachine.cpp"
     "${CORA_VMACHINE_DIR}/Interpreter.cpp"
     "${CORA_VMACHINE_DIR}/SharedLibrary.cpp"
+    "${CORA_VMACHINE_DIR}/BytecodeEmitter.cpp"
+    "${CORA_VMACHINE_DIR}/BytecodeReader.cpp"
+    "${CORA_VMACHINE_DIR}/BytecodeWriter.cpp"
 )
 
 #--------------------------------------------------------------------

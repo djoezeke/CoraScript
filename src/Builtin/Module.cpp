@@ -29,7 +29,7 @@ namespace cora::compiler
             auto object = Object();
             for (const auto &field : object->fields)
             {
-                scope->SetVariableValue(field.first, new runtime::Value(field.second), false);
+                scope->SetVariableValue(field.first, new runtime::value(field.second), false);
             }
             return scope;
         };
@@ -38,35 +38,35 @@ namespace cora::compiler
         {
             auto object = MakeObject(m_Name);
 
-            AddVariable(object, "__doc__", runtime::Value(Doc()));
+            AddVariable(object, "__doc__", runtime::value(Doc()));
 
-            auto str_method = MakeMethod(object, "__str__", [object](const std::vector<runtime::Value> &) -> runtime::Value
-                                         { return runtime::Value("<object " + object->Name() + ">"); });
+            auto str_method = MakeMethod(object, "__str__", [object](const std::vector<runtime::value> &) -> runtime::value
+                                         { return runtime::value("<object " + object->Name() + ">"); });
 
-            auto get_method = MakeMethod(object, "__get__", [object](const std::vector<runtime::Value> &arguments) -> runtime::Value
+            auto get_method = MakeMethod(object, "__get__", [object](const std::vector<runtime::value> &arguments) -> runtime::value
                                          {                         if (arguments.empty())
                         {
-                            return runtime::Value(nullptr);
+                            return runtime::value(nullptr);
                         }
                         const std::string key = arguments.front().AsString();
                         auto it = object->fields.find(key);
                         if (it == object->fields.end())
                         {
-                            return runtime::Value(nullptr);
+                            return runtime::value(nullptr);
                         }
                         return it->second; });
 
-            auto set_method = MakeMethod(object, "__set__", [object](const std::vector<runtime::Value> &arguments) -> runtime::Value
+            auto set_method = MakeMethod(object, "__set__", [object](const std::vector<runtime::value> &arguments) -> runtime::value
                                          {                         
                         if (arguments.size() < 2)
                         {
-                            return runtime::Value(nullptr);
+                            return runtime::value(nullptr);
                         }
                         const std::string key = arguments[0].AsString();
                         object->fields[key] = arguments[1];
                         return arguments[1]; });
 
-            auto dir_method = MakeMethod(object, "__dir__", [object](const std::vector<runtime::Value> &) -> runtime::Value
+            auto dir_method = MakeMethod(object, "__dir__", [object](const std::vector<runtime::value> &) -> runtime::value
                                          {                         
                                             std::string result;
                         bool first = true;
@@ -79,7 +79,7 @@ namespace cora::compiler
                             result += entry.first;
                             first = false;
                         }
-                        return runtime::Value(result); });
+                        return runtime::value(result); });
 
             AddFunction(object, "__str__", str_method);
             AddFunction(object, "__set__", set_method);
@@ -135,7 +135,7 @@ namespace cora::compiler
                 return;
             }
 
-            object->fields[name] = runtime::Value(cls.Object());
+            object->fields[name] = runtime::value(cls.Object());
             object->SetMemberVisibility(name, false);
         };
 
@@ -146,7 +146,7 @@ namespace cora::compiler
                 return;
             }
 
-            object->fields[name] = runtime::Value(std::move(function));
+            object->fields[name] = runtime::value(std::move(function));
             object->SetMemberVisibility(name, false);
         };
 

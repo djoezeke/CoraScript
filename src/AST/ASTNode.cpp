@@ -7,20 +7,20 @@
 namespace cora::ast
 {
     Node::Node(NodeType nodetype)
-        : m_Type(nodetype), m_Range(SourceRange()) {}
+        : node_type(nodetype), m_Range(SourceRange()) {}
 
     Node::Node(NodeType nodetype, SourceRange sourcerange)
-        : m_Type(nodetype), m_Range(std::move(sourcerange)) {}
+        : node_type(nodetype), m_Range(std::move(sourcerange)) {}
 
     Node::Node(NodeType nodetype, SourceLocation location)
-        : m_Type(nodetype), m_Range(SourceRange(location)) {}
+        : node_type(nodetype), m_Range(SourceRange(location)) {}
 
     Node::Node(NodeType nodetype, SourceLocation start, SourceLocation end)
-        : m_Type(nodetype), m_Range(SourceRange(start, end)) {}
+        : node_type(nodetype), m_Range(SourceRange(start, end)) {}
 
     NodeType Node::GetNodeType()
     {
-        return m_Type;
+        return node_type;
     }
 
     std::string Node::GetNodeTypeString() const
@@ -37,13 +37,13 @@ namespace cora::ast
             {NodeType::Integer, "Integer"},
         };
 
-        auto it = names.find(m_Type);
+        auto it = names.find(node_type);
         if (it != names.end())
         {
             return it->second;
         }
 
-        return "NodeType(" + std::to_string(static_cast<int>(m_Type)) + ")";
+        return "NodeType(" + std::to_string(static_cast<int>(node_type)) + ")";
     };
 
     SourceLocation Node::GetStartPosition() const noexcept
@@ -63,7 +63,7 @@ namespace cora::ast
 
     void Node::SetNodeType(NodeType nodetype) noexcept
     {
-        m_Type = nodetype;
+        node_type = nodetype;
     }
 
     void Node::SetStartPosition(SourceLocation start) noexcept

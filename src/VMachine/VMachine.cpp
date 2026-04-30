@@ -10,28 +10,7 @@ namespace cora::vmachine
 {
     namespace
     {
-        using cora::compiler::runtime::Value;
-
-        bool isValidOpcode(OpCode op)
-        {
-            switch (op)
-            {
-            case OpCode::PushConst:
-            case OpCode::LoadLocal:
-            case OpCode::StoreLocal:
-            case OpCode::Add:
-            case OpCode::Mul:
-            case OpCode::Sub:
-            case OpCode::Div:
-            case OpCode::Print:
-            case OpCode::Jump:
-            case OpCode::JumpIfFalse:
-            case OpCode::Return:
-            case OpCode::Halt:
-                return true;
-            }
-            return false;
-        }
+        using cora::compiler::runtime::value;
     } // namespace
 
     VMachine::VMachine()
@@ -40,118 +19,102 @@ namespace cora::vmachine
     }
 
     VMachine::VMachine(std::ostream *out)
-        : m_scope(nullptr, cora::compiler::runtime::ScopeKind::Module),
+        : m_registers(kRegisterCount),
+          m_globals(nullptr, cora::compiler::runtime::ScopeKind::Module),
           m_output(out != nullptr ? out : &std::cout)
     {
-        cora::compiler::runtime::GetGarbageCollector().RegisterRoot(&m_scope);
+        cora::compiler::runtime::GetGarbageCollector().RegisterRoot(&m_globals);
     }
 
     int VMachine::Run(const BytecodeProgram &program)
     {
-        m_stack.clear();
+        m_registers.assign(kRegisterCount, value(nullptr));
+        m_callStack.clear();
         m_lastError.clear();
-        m_returnValue = Value();
+        m_returnValue = value(nullptr);
 
         std::size_t ip = 0;
-
         while (ip < program.code.size())
         {
             const Instruction &instruction = program.code[ip];
-            if (!isValidOpcode(instruction.op))
-            {
-                SetRuntimeError("VMachine: invalid opcode at instruction " + std::to_string(ip));
-                return 2;
-            }
-
             switch (instruction.op)
             {
-            case OpCode::PushConst:
-            {
-                Value value(static_cast<double>(instruction.a));
-                value.SetValueKind(cora::compiler::runtime::ValueKind::Integer);
-                m_stack.push_back(value);
+            case OpCode::Nop:
                 ++ip;
                 break;
-            }
-            case OpCode::LoadLocal:
-                if (!PushLocal(instruction.a))
+            case OpCode::LoadConst:
+                if (!IsRegisterValid(instruction.a) || instruction.b < 0 ||
+                    static_cast<std::size_t>(instruction.b) >= program.constants.size())
                 {
+                    SetRuntimeError("VMachine: invalid load_const operand");
                     return 2;
                 }
+                m_registers[static_cast<std::size_t>(instruction.a)] = program.constants[static_cast<std::size_t>(instruction.b)];
                 ++ip;
                 break;
-            case OpCode::StoreLocal:
-            {
-                if (m_stack.empty())
+            case OpCode::Move:
+                if (!IsRegisterValid(instruction.a) || !IsRegisterValid(instruction.b))
                 {
-                    SetRuntimeError("VMachine: stack underflow on store_local");
+                    SetRuntimeError("VMachine: invalid move operand");
                     return 2;
                 }
-
-                const Value value = m_stack.back();
-                m_stack.pop_back();
-                if (!StoreLocal(instruction.a, value))
-                {
-                    return 2;
-                }
+                m_registers[static_cast<std::size_t>(instruction.a)] = m_registers[static_cast<std::size_t>(instruction.b)];
                 ++ip;
                 break;
-            }
             case OpCode::Add:
-            case OpCode::Mul:
             case OpCode::Sub:
+            case OpCode::Mul:
             case OpCode::Div:
-                if (!BinaryNumeric(instruction.op))
+            case OpCode::Mod:
+                if (!BinaryOp(instruction.op, instruction.a, instruction.b, instruction.c))
                 {
                     return 2;
                 }
                 ++ip;
                 break;
-            case OpCode::Print:
-            {
-                if (m_stack.empty())
+            case OpCode::Neg:
+            case OpCode::Not:
+                if (!UnaryOp(instruction.op, instruction.a, instruction.b))
                 {
-                    SetRuntimeError("VMachine: stack underflow on print");
                     return 2;
-                }
-
-                const Value value = m_stack.back();
-                m_stack.pop_back();
-                if (m_output != nullptr)
-                {
-                    *m_output << value.AsString() << '\n';
                 }
                 ++ip;
                 break;
-            }
+            case OpCode::Eq:
+            case OpCode::Ne:
+            case OpCode::Lt:
+            case OpCode::Le:
+            case OpCode::Gt:
+            case OpCode::Ge:
+                if (!CompareOp(instruction.op, instruction.a, instruction.b, instruction.c))
+                {
+                    return 2;
+                }
+                ++ip;
+                break;
             case OpCode::Jump:
-            {
                 if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.code.size())
                 {
                     SetRuntimeError("VMachine: jump target out of range");
                     return 2;
                 }
-
                 ip = static_cast<std::size_t>(instruction.a);
                 break;
-            }
+            case OpCode::JumpIfTrue:
             case OpCode::JumpIfFalse:
-            {
-                if (m_stack.empty())
+                if (!IsRegisterValid(instruction.b))
                 {
-                    SetRuntimeError("VMachine: stack underflow on jump_if_false");
+                    SetRuntimeError("VMachine: invalid jump condition register");
                     return 2;
                 }
-
-                const Value condition = m_stack.back();
-                m_stack.pop_back();
-                if (!condition.AsBool())
+                if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.code.size())
                 {
-                    if (instruction.a < 0 || static_cast<std::size_t>(instruction.a) >= program.code.size())
-                    {
-                        SetRuntimeError("VMachine: jump_if_false target out of range");
-                        return 2;
-                    }
+                    SetRuntimeError("VMachine: jump target out of range");
+                    return 2;
+                }
+                if ((instruction.op == OpCode::JumpIfTrue && m_registers[static_cast<std::size_t>(instruction.b)].AsBool()) ||
+                    (instruction.op == OpCode::JumpIfFalse && !m_registers[static_cast<std::size_t>(instruction.b)].AsBool()))
+                {
                     ip = static_cast<std::size_t>(instruction.a);
                 }
                 else
@@ -159,22 +122,126 @@ namespace cora::vmachine
                     ++ip;
                 }
                 break;
+            case OpCode::LoadGlobal:
+                if (!LoadGlobal(program, instruction.a, instruction.b))
+                {
+                    return 2;
+                }
+                ++ip;
+                break;
+            case OpCode::StoreGlobal:
+                if (!StoreGlobal(program, instruction.a, instruction.b))
+                {
+                    return 2;
+                }
+                ++ip;
+                break;
+            case OpCode::Call:
+            {
+                if (!IsRegisterValid(instruction.a) || !IsRegisterValid(instruction.b) || instruction.c < 0)
+                {
+                    SetRuntimeError("VMachine: invalid call operands");
+                    return 2;
+                }
+                const auto &calleeValue = m_registers[static_cast<std::size_t>(instruction.b)];
+                if (calleeValue.IsCallable())
+                {
+                    std::vector<value> args;
+                    args.reserve(static_cast<std::size_t>(instruction.c));
+                    for (std::int32_t i = 0; i < instruction.c; ++i)
+                    {
+                        const std::int32_t argReg = instruction.b + 1 + i;
+                        if (!IsRegisterValid(argReg))
+                        {
+                            SetRuntimeError("VMachine: invalid call argument register");
+                            return 2;
+                        }
+                        args.push_back(m_registers[static_cast<std::size_t>(argReg)]);
+                    }
+
+                    try
+                    {
+                        auto callable = calleeValue.AsCallable();
+                        m_registers[static_cast<std::size_t>(instruction.a)] = callable->Call(args);
+                    }
+                    catch (const std::exception &error)
+                    {
+                        SetRuntimeError(error.what());
+                        return 2;
+                    }
+                    ++ip;
+                    break;
+                }
+
+                if (!calleeValue.IsInteger() && !calleeValue.IsFloat())
+                {
+                    SetRuntimeError("VMachine: call target is not callable or function address");
+                    return 2;
+                }
+
+                const std::size_t entryIp = static_cast<std::size_t>(calleeValue.AsNumber());
+                if (entryIp >= program.code.size())
+                {
+                    SetRuntimeError("VMachine: call target out of range");
+                    return 2;
+                }
+
+                CallFrame frame;
+                frame.returnIp = ip + 1;
+                frame.destRegister = instruction.a;
+                frame.registers = std::move(m_registers);
+
+                m_registers.assign(kRegisterCount, value(nullptr));
+                for (std::int32_t i = 0; i < instruction.c; ++i)
+                {
+                    const std::int32_t argReg = instruction.b + 1 + i;
+                    if (!IsRegisterValid(argReg))
+                    {
+                        SetRuntimeError("VMachine: invalid call argument register");
+                        return 2;
+                    }
+                    m_registers[static_cast<std::size_t>(i)] = frame.registers[static_cast<std::size_t>(argReg)];
+                }
+
+                m_callStack.push_back(std::move(frame));
+                ip = entryIp;
+                break;
             }
             case OpCode::Return:
-            {
-                if (m_stack.empty())
+                if (instruction.a >= 0 && IsRegisterValid(instruction.a))
                 {
-                    m_returnValue = Value(nullptr);
+                    m_returnValue = m_registers[static_cast<std::size_t>(instruction.a)];
                 }
                 else
                 {
-                    m_returnValue = m_stack.back();
-                    m_stack.pop_back();
+                    m_returnValue = value(nullptr);
                 }
-
+                if (!m_callStack.empty())
+                {
+                    CallFrame frame = std::move(m_callStack.back());
+                    m_callStack.pop_back();
+                    m_registers = std::move(frame.registers);
+                    if (IsRegisterValid(frame.destRegister))
+                    {
+                        m_registers[static_cast<std::size_t>(frame.destRegister)] = m_returnValue;
+                    }
+                    ip = frame.returnIp;
+                    break;
+                }
                 cora::compiler::runtime::GetGarbageCollector().Collect();
                 return 0;
-            }
+            case OpCode::Print:
+                if (!IsRegisterValid(instruction.a))
+                {
+                    SetRuntimeError("VMachine: invalid print register");
+                    return 2;
+                }
+                if (m_output != nullptr)
+                {
+                    *m_output << m_registers[static_cast<std::size_t>(instruction.a)].AsString() << '\n';
+                }
+                ++ip;
+                break;
             case OpCode::Halt:
                 cora::compiler::runtime::GetGarbageCollector().Collect();
                 return 0;
@@ -189,9 +256,9 @@ namespace cora::vmachine
     {
         try
         {
-            BytecodeReader reader(bytecodeFile);
-            reader.Read();
-            return Run(reader.Instructions());
+            BytecodeReader reader;
+            reader.Read(bytecodeFile);
+            return Run(reader.GetProgram());
         }
         catch (const std::exception &error)
         {
@@ -200,7 +267,7 @@ namespace cora::vmachine
         }
     }
 
-    const cora::compiler::runtime::Value &VMachine::GetReturnValue() const
+    const cora::compiler::runtime::value &VMachine::GetReturnValue() const
     {
         return m_returnValue;
     }
@@ -215,96 +282,182 @@ namespace cora::vmachine
         m_output = out != nullptr ? out : &std::cout;
     }
 
-    std::string VMachine::LocalName(std::int32_t slot)
+    bool VMachine::BinaryOp(OpCode op, std::int32_t dest, std::int32_t left, std::int32_t right)
     {
-        return "$" + std::to_string(slot);
-    }
-
-    bool VMachine::PushLocal(std::int32_t slot)
-    {
-        cora::compiler::runtime::Variable *variable = m_scope.GetVariableValue(LocalName(slot));
-        if (variable == nullptr || variable->GetValue() == nullptr)
+        if (!IsRegisterValid(dest) || !IsRegisterValid(left) || !IsRegisterValid(right))
         {
-            SetRuntimeError("VMachine: undefined local slot " + std::to_string(slot));
+            SetRuntimeError("VMachine: invalid arithmetic register");
             return false;
         }
 
-        m_stack.push_back(*variable->GetValue());
-        return true;
-    }
+        const value &lhs = m_registers[static_cast<std::size_t>(left)];
+        const value &rhs = m_registers[static_cast<std::size_t>(right)];
 
-    bool VMachine::StoreLocal(std::int32_t slot, const cora::compiler::runtime::Value &value)
-    {
-        try
+        if (op == OpCode::Add && (lhs.IsString() || rhs.IsString()))
         {
-            m_scope.SetVariableValue(LocalName(slot), new cora::compiler::runtime::Value(value));
+            m_registers[static_cast<std::size_t>(dest)] = value(lhs.AsString() + rhs.AsString());
             return true;
         }
-        catch (const std::exception &error)
-        {
-            SetRuntimeError(error.what());
-            return false;
-        }
-    }
 
-    bool VMachine::BinaryNumeric(OpCode op)
-    {
-        if (m_stack.size() < 2)
-        {
-            SetRuntimeError("VMachine: stack underflow on arithmetic op");
-            return false;
-        }
-
-        const cora::compiler::runtime::Value rhs = m_stack.back();
-        m_stack.pop_back();
-        const cora::compiler::runtime::Value lhs = m_stack.back();
-        m_stack.pop_back();
-
-        double left = 0.0;
-        double right = 0.0;
-        try
-        {
-            left = lhs.AsNumber();
-            right = rhs.AsNumber();
-        }
-        catch (const std::exception &error)
-        {
-            SetRuntimeError(error.what());
-            return false;
-        }
-
-        if (op == OpCode::Div && right == 0.0)
-        {
-            SetRuntimeError("VMachine: division by zero");
-            return false;
-        }
-
+        const double leftValue = lhs.AsNumber();
+        const double rightValue = rhs.AsNumber();
         double result = 0.0;
+
         switch (op)
         {
         case OpCode::Add:
-            result = left + right;
-            break;
-        case OpCode::Mul:
-            result = left * right;
+            result = leftValue + rightValue;
             break;
         case OpCode::Sub:
-            result = left - right;
+            result = leftValue - rightValue;
+            break;
+        case OpCode::Mul:
+            result = leftValue * rightValue;
             break;
         case OpCode::Div:
-            result = left / right;
+            if (rightValue == 0.0)
+            {
+                SetRuntimeError("VMachine: division by zero");
+                return false;
+            }
+            result = leftValue / rightValue;
+            break;
+        case OpCode::Mod:
+            result = static_cast<double>(static_cast<long long>(leftValue) % static_cast<long long>(rightValue));
             break;
         default:
             SetRuntimeError("VMachine: unsupported arithmetic opcode");
             return false;
         }
 
-        cora::compiler::runtime::Value value(result);
-        if (op != OpCode::Div)
+        m_registers[static_cast<std::size_t>(dest)] = value(result);
+        return true;
+    }
+
+    bool VMachine::CompareOp(OpCode op, std::int32_t dest, std::int32_t left, std::int32_t right)
+    {
+        if (!IsRegisterValid(dest) || !IsRegisterValid(left) || !IsRegisterValid(right))
         {
-            value.SetValueKind(cora::compiler::runtime::ValueKind::Integer);
+            SetRuntimeError("VMachine: invalid comparison register");
+            return false;
         }
-        m_stack.push_back(value);
+
+        const value &lhs = m_registers[static_cast<std::size_t>(left)];
+        const value &rhs = m_registers[static_cast<std::size_t>(right)];
+
+        bool result = false;
+        if (lhs.IsString() || rhs.IsString())
+        {
+            const std::string leftValue = lhs.AsString();
+            const std::string rightValue = rhs.AsString();
+            switch (op)
+            {
+            case OpCode::Eq:
+                result = leftValue == rightValue;
+                break;
+            case OpCode::Ne:
+                result = leftValue != rightValue;
+                break;
+            default:
+                SetRuntimeError("VMachine: unsupported string comparison opcode");
+                return false;
+            }
+        }
+        else
+        {
+            const double leftValue = lhs.AsNumber();
+            const double rightValue = rhs.AsNumber();
+            switch (op)
+            {
+            case OpCode::Eq:
+                result = leftValue == rightValue;
+                break;
+            case OpCode::Ne:
+                result = leftValue != rightValue;
+                break;
+            case OpCode::Lt:
+                result = leftValue < rightValue;
+                break;
+            case OpCode::Le:
+                result = leftValue <= rightValue;
+                break;
+            case OpCode::Gt:
+                result = leftValue > rightValue;
+                break;
+            case OpCode::Ge:
+                result = leftValue >= rightValue;
+                break;
+            default:
+                SetRuntimeError("VMachine: unsupported comparison opcode");
+                return false;
+            }
+        }
+
+        m_registers[static_cast<std::size_t>(dest)] = value(result);
+        return true;
+    }
+
+    bool VMachine::UnaryOp(OpCode op, std::int32_t dest, std::int32_t source)
+    {
+        if (!IsRegisterValid(dest) || !IsRegisterValid(source))
+        {
+            SetRuntimeError("VMachine: invalid unary register");
+            return false;
+        }
+
+        const value &val = m_registers[static_cast<std::size_t>(source)];
+        switch (op)
+        {
+        case OpCode::Neg:
+            m_registers[static_cast<std::size_t>(dest)] = value(-val.AsNumber());
+            return true;
+        case OpCode::Not:
+            m_registers[static_cast<std::size_t>(dest)] = value(!val.AsBool());
+            return true;
+        default:
+            SetRuntimeError("VMachine: unsupported unary opcode");
+            return false;
+        }
+    }
+
+    bool VMachine::LoadGlobal(const BytecodeProgram &program, std::int32_t dest, std::int32_t nameIndex)
+    {
+        if (!IsRegisterValid(dest) || nameIndex < 0 || static_cast<std::size_t>(nameIndex) >= program.names.size())
+        {
+            SetRuntimeError("VMachine: invalid global load");
+            return false;
+        }
+
+        const std::string &name = program.names[static_cast<std::size_t>(nameIndex)];
+        cora::compiler::runtime::Variable *variable = m_globals.GetVariableValue(name);
+        if (variable == nullptr || variable->GetValue() == nullptr)
+        {
+            SetRuntimeError("VMachine: undefined global variable " + name);
+            return false;
+        }
+
+        m_registers[static_cast<std::size_t>(dest)] = *variable->GetValue();
+        return true;
+    }
+
+    bool VMachine::StoreGlobal(const BytecodeProgram &program, std::int32_t source, std::int32_t nameIndex)
+    {
+        if (!IsRegisterValid(source) || nameIndex < 0 || static_cast<std::size_t>(nameIndex) >= program.names.size())
+        {
+            SetRuntimeError("VMachine: invalid global store");
+            return false;
+        }
+
+        const std::string &name = program.names[static_cast<std::size_t>(nameIndex)];
+        try
+        {
+            m_globals.SetVariableValue(name, new value(m_registers[static_cast<std::size_t>(source)]));
+        }
+        catch (const std::exception &error)
+        {
+            SetRuntimeError(error.what());
+            return false;
+        }
         return true;
     }
 
@@ -313,9 +466,14 @@ namespace cora::vmachine
         m_lastError = message;
     }
 
+    bool VMachine::IsRegisterValid(std::int32_t index) const
+    {
+        return index >= 0 && static_cast<std::size_t>(index) < kRegisterCount;
+    }
+
     VMachine::~VMachine()
     {
-        cora::compiler::runtime::GetGarbageCollector().UnregisterRoot(&m_scope);
+        cora::compiler::runtime::GetGarbageCollector().UnregisterRoot(&m_globals);
     }
 
 } // namespace cora::vmachine

@@ -101,7 +101,7 @@ namespace cora::compiler::runtime
             {
                 for (const auto &field : obj->fields)
                 {
-                    MarkValue(field.second, reachable);
+                    Markvalue(field.second, reachable);
                 }
             }
         }
@@ -115,7 +115,7 @@ namespace cora::compiler::runtime
         m_BytesAllocated = 0;
     }
 
-    void GarbageCollector::MarkValue(const Value &value, std::unordered_set<void *> &marked)
+    void GarbageCollector::Markvalue(const value &value, std::unordered_set<void *> &marked)
     {
         if (value.IsObject())
         {
@@ -152,7 +152,7 @@ namespace cora::compiler::runtime
 
         for (const auto &field : obj->fields)
         {
-            MarkValue(field.second, marked);
+            Markvalue(field.second, marked);
         }
     }
 

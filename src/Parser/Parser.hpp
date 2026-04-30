@@ -105,6 +105,7 @@ namespace cora::parser
         std::string m_ModuleName;
         std::vector<std::string> m_ClassStack;
         std::vector<std::string> m_FunctionStack;
+        std::vector<std::string> m_NamespaceStack;
     };
 
 } // namespace cora::parser

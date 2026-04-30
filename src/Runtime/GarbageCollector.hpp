@@ -12,7 +12,7 @@
 namespace cora::compiler::runtime
 {
     class Object;
-    class Value;
+    class value;
     class Scope;
 
     class GarbageCollector
@@ -50,7 +50,7 @@ namespace cora::compiler::runtime
 
     private:
         void MarkReachable(const std::shared_ptr<Object> &obj, std::unordered_set<void *> &marked);
-        void MarkValue(const Value &value, std::unordered_set<void *> &marked);
+        void Markvalue(const value &value, std::unordered_set<void *> &marked);
         void Sweep();
 
     private:

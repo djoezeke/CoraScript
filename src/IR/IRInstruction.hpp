@@ -26,6 +26,8 @@ namespace cora::ir
     // Forward declarations
     struct User;
     struct Value;
+    struct Instruction;
+    struct PhiInstruction;
 
     struct Type
     {
@@ -54,7 +56,7 @@ namespace cora::ir
 
         bool is(Type type) const
         {
-            return id == type;
+            return id == type.id;
         };
         bool isInt() const { return id == ID::Int; };
         bool isVoid() const { return id == ID::Void; };
@@ -149,6 +151,8 @@ namespace cora::ir
         // "Replace All Uses With"
         void RAUW(Value *new_value);
 
+        virtual ~Value() = default;
+
     public:
         Kind kind;
         Type *type;
@@ -156,6 +160,17 @@ namespace cora::ir
 
         // Head of the intrusive linked list of Uses
         Use *use_list = nullptr;
+    };
+
+    struct ConstantValue : public Value
+    {
+    public:
+        ConstantValue(runtime::value value, std::string name = "")
+            : Value(Kind::Constant, std::move(name)), value(std::move(value))
+        {
+        }
+
+        runtime::value value;
     };
 
     struct BasicBlock : public Value
@@ -205,6 +220,18 @@ namespace cora::ir
                 phis.push_back(phi);
             }
         };
+    };
+
+    struct FunctionValue : public Value
+    {
+    public:
+        FunctionValue(std::string name, BasicBlock *entry, int arity)
+            : Value(Kind::Constant, std::move(name)), entry(entry), arity(arity)
+        {
+        }
+
+        BasicBlock *entry;
+        int arity;
     };
 
     /**
@@ -298,6 +325,12 @@ namespace cora::ir
             Sub,
             Div,
             Mul,
+            Eq,
+            Ne,
+            Lt,
+            Le,
+            Gt,
+            Ge,
             Br,
             Ret,
             Phi,
@@ -313,7 +346,7 @@ namespace cora::ir
 
     public:
         Opcode opcode;
-        struct BasicBlock *parent;
+        BasicBlock *parent;
     };
 
     // IMPLEMENTATION OF USE SETTING
@@ -322,10 +355,10 @@ namespace cora::ir
         if (value)
         { /* handle removing from old list if necessary */
         }
-        value = value;
-        user = use;
-        if (value)
-            value->addUse(*this);
+        this->value = value;
+        this->user = use;
+        if (this->value)
+            this->value->addUse(*this);
     };
 
     // PHI NODE: Specialized Instruction
@@ -453,7 +486,7 @@ namespace cora::ir
             {
                 this->type = Type::Void();
             }
-        }; 
+        };
     };
 
     // JUMP (Unconditional Branch)

@@ -149,7 +149,7 @@ int main(int argc, char **argv)
         }
         return rc;
     }
-    catch (const cora::compiler::error::Error &error)
+    catch (const cora::error::Error &error)
     {
         std::cerr << error.Format() << '\n';
         return 1;

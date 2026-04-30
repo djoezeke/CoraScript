@@ -95,7 +95,7 @@ namespace cora::bc
             BINARY_OP_MUL_STR,
             BINARY_OP_MUL_FLOAT,
 
-            BINARY_OP_MUL_INT,
+            BINARY_OP_DIV_INT,
             BINARY_OP_DIV_STR,
             BINARY_OP_DIV_FLOAT,
 
@@ -270,7 +270,7 @@ namespace cora::bc
 
         int reg_idx{-2};
         ArgType type;
-        runtime::Value value;
+        runtime::value value;
         std::string name;
     };
 

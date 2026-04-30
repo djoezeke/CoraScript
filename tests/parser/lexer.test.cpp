@@ -100,6 +100,8 @@ int main(int argc, char **argv)
         if (!args.file.empty())
         {
             lexer = cora::parser::Lexer(ReadFile(args.file));
+            lexer.SetFileName(args.sourceName);
+            lexer.SetModuleName(args.sourceName);
         }
         else
         {
