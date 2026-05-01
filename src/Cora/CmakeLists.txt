@@ -30,48 +30,46 @@ add_executable(corac ${CORAC_SOURCES})
 
 target_link_libraries(cora
 	PRIVATE
+		Cora::Modules
 		Cora::IR
+		Cora::VMachine
+		Cora::Bytecode
+		Cora::Semantic
+		Cora::Parser
+		Cora::Builtin
+		Cora::Runtime
 		Cora::AST
 		Cora::Basic
 		# Cora::JITCom
-		Cora::Parser
-		Cora::Runtime
-		Cora::Builtin
-		Cora::Semantic
-		Cora::VMachine
-		Cora::Bytecode
-
-		Cora::Modules
 )
 
 target_link_libraries(coravm
 	PRIVATE
+		Cora::Modules
 		Cora::IR
+		Cora::VMachine
+		Cora::Bytecode
+		Cora::Semantic
+		Cora::Parser
+		Cora::Builtin
+		Cora::Runtime
 		Cora::AST
 		Cora::Basic
 		# Cora::JITCom
-		Cora::Parser
-		Cora::Runtime
-		Cora::Builtin
-		Cora::Semantic
-		Cora::VMachine
-		Cora::Bytecode
-
-		Cora::Modules
 )
 
 target_link_libraries(corac
 	PRIVATE
 		Cora::IR
+		Cora::VMachine
+		Cora::Bytecode
+		Cora::Semantic
+		Cora::Parser
+		Cora::Builtin
+		Cora::Runtime
 		Cora::AST
 		Cora::Basic
 		# Cora::JITCom
-		Cora::Parser
-		Cora::Runtime
-		Cora::Builtin
-		Cora::Semantic
-		Cora::VMachine
-		Cora::Bytecode
 )
 
 # ===================================================================

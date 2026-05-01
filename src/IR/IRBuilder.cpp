@@ -72,6 +72,11 @@ namespace cora::ir
             EmitFuncDecl(funcDecl);
             return nullptr;
         }
+        if (auto *retStmt = dynamic_cast<ast::ReturnStmt *>(stmt))
+        {
+            Value *retValue = retStmt->value != nullptr ? EmitExpression(retStmt->value) : nullptr;
+            return MakeValue<ReturnInstruction>(m_currentBlock, retValue);
+        }
 
         return nullptr;
     }

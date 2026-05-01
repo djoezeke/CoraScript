@@ -1,5 +1,6 @@
 #include "VMachine.hpp"
 
+#include "../Builtin/Builtin.hpp"
 #include "../Runtime/Variable.hpp"
 #include "BytecodeReader.hpp"
 
@@ -23,6 +24,7 @@ namespace cora::vmachine
           m_globals(nullptr, cora::compiler::runtime::ScopeKind::Module),
           m_output(out != nullptr ? out : &std::cout)
     {
+        cora::compiler::builtin::Builtins(m_globals);
         cora::compiler::runtime::GetGarbageCollector().RegisterRoot(&m_globals);
     }
 

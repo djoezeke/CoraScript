@@ -41,7 +41,9 @@ set(LEXER_TEST_SOURCES
 
 # add a new target which is a test
 # example: cora_test(main-tests main.test.cpp ... Cora::Basic )
-function(cora_test target SOURCES DEPENDS)
+function(cora_test target SOURCES)
+
+    set(DEPENDS ${ARGN})
 
     # set a source group for the source files
     source_group("" FILES ${SOURCES})
@@ -84,7 +86,13 @@ function(cora_test target SOURCES DEPENDS)
     endif()
 
     # Add the test
-	add_test(NAME ${target} COMMAND ${target} )
+    if(${target} STREQUAL "lexer_test")
+        add_test(NAME ${target} COMMAND ${target} -c "let x = 1;")
+    elseif(${target} STREQUAL "parser_test")
+        add_test(NAME ${target} COMMAND ${target} -c "let x = 1;")
+    else()
+        add_test(NAME ${target} COMMAND ${target})
+    endif()
 
 endfunction()
 
@@ -92,7 +100,7 @@ endfunction()
 # Manually or Recursively add Tests
 #--------------------------------------------------------------------
 
-cora_test(lexer_test "${LEXER_TEST_SOURCES}" Cora::AST Cora::Basic Cora::Parser )
-cora_test(parser_test "${PARSER_TEST_DIR}/parser.test.cpp" Cora::AST Cora::Basic Cora::Parser )
+cora_test(lexer_test "${LEXER_TEST_SOURCES}" Cora::Parser Cora::AST Cora::Basic )
+cora_test(parser_test "${PARSER_TEST_DIR}/parser.test.cpp" Cora::Parser Cora::AST Cora::Basic )
 
 # ===================================================================

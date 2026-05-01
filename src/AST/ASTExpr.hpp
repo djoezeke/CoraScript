@@ -166,7 +166,7 @@ namespace cora::ast
     {
     public:
         PostfixUnaryExpr(parser::TokenType op, Expression *rhs)
-            : UnaryExpr(op, expr) { node_type = NodeType::PostfixUnaryExpr; };
+            : UnaryExpr(op, rhs) { node_type = NodeType::PostfixUnaryExpr; };
     };
 
     struct BinaryExpr : public Expression

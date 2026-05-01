@@ -350,7 +350,7 @@ namespace cora::ir
     };
 
     // IMPLEMENTATION OF USE SETTING
-    void Use::set(Value *value, User *use)
+    inline void Use::set(Value *value, User *use)
     {
         if (value)
         { /* handle removing from old list if necessary */

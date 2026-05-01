@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
+#include <utility>
 
 namespace cora::parser
 {
@@ -70,12 +71,46 @@ namespace cora::parser
         m_Tokens.clear();
         m_Position = 0;
 
+        std::string normalizedSource;
+        normalizedSource.reserve(m_Source.size());
+        for (std::size_t i = 0; i < m_Source.size();)
+        {
+            if (i + 1 < m_Source.size() && m_Source[i] == '/' && m_Source[i + 1] == '*')
+            {
+                i += 2;
+                while (i + 1 < m_Source.size() && !(m_Source[i] == '*' && m_Source[i + 1] == '/'))
+                {
+                    normalizedSource.push_back(m_Source[i] == '\n' ? '\n' : ' ');
+                    ++i;
+                }
+                if (i + 1 < m_Source.size())
+                {
+                    i += 2;
+                }
+                continue;
+            }
+            normalizedSource.push_back(m_Source[i]);
+            ++i;
+        }
+
         static const std::unordered_map<std::string, TokenType> keywords = {
             {"if", TokenType::If},
             {"elif", TokenType::Elif},
             {"else", TokenType::Else},
             {"while", TokenType::While},
             {"for", TokenType::For},
+            {"do", TokenType::Do},
+            {"func", TokenType::Func},
+            {"return", TokenType::Return},
+            {"class", TokenType::Class},
+            {"enum", TokenType::Enum},
+            {"struct", TokenType::Struct},
+            {"switch", TokenType::Switch},
+            {"match", TokenType::Match},
+            {"default", TokenType::Default},
+            {"try", TokenType::Try},
+            {"catch", TokenType::Catch},
+            {"this", TokenType::This},
             {"import", TokenType::Import},
             {"in", TokenType::In},
             {"range", TokenType::Range},
@@ -93,7 +128,7 @@ namespace cora::parser
             {"false", TokenType::False},
         };
 
-        std::istringstream stream(m_Source);
+        std::istringstream stream(normalizedSource);
         std::vector<int> indentStack;
         indentStack.push_back(0);
 
@@ -373,6 +408,12 @@ namespace cora::parser
                         RaiseLexError("Unexpected '}'", lineNo, column);
                     }
                     addToken(TokenType::RBrace, "}", 1);
+                    break;
+                case '[':
+                    addToken(TokenType::LBracket, "[", 1);
+                    break;
+                case ']':
+                    addToken(TokenType::RBracket, "]", 1);
                     break;
                 case ':':
                     addToken(TokenType::Colon, ":", 1);

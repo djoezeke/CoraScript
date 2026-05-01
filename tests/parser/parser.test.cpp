@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     {
         std::cerr << "Usage: parser [--print] <script-file>\n";
         std::cerr << "       parser [--print] <script-file>\n";
-        return 1;
+        return 0;
     }
 
     try
@@ -106,14 +106,14 @@ int main(int argc, char **argv)
         }
 
         cora::parser::Parser parser(lexer.Tokenize());
-        auto statements = parser.ParseProgram();
+        auto statements = parser.Parse();
 
         for (auto statement : statements)
         {
             std::cout << statement;
         };
 
-        return 1;
+        return 0;
     }
     catch (const cora::error::Error &error)
     {

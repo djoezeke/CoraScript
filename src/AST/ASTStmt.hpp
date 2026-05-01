@@ -154,6 +154,18 @@ namespace cora::ast
             : Statement() {};
     };
 
+    struct ReturnStmt : public Statement
+    {
+    public:
+        ReturnStmt(Expression *value)
+            : Statement(NodeType::ReturnStmt), value(value) {};
+
+        ~ReturnStmt() override;
+
+    public:
+        Expression *value{nullptr};
+    };
+
     struct ThrowStmt : public Statement
     {
     public:
