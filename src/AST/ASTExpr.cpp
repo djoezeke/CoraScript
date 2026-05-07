@@ -36,7 +36,7 @@ namespace cora::ast
 
     ArrayExpr::~ArrayExpr()
     {
-        for (Statement *statement : value)
+        for (Expression *statement : value)
         {
             delete statement;
         }
@@ -93,6 +93,15 @@ namespace cora::ast
         for (Statement *statement : args)
         {
             delete statement;
+        }
+    }
+
+    StructLiteralExpr::~StructLiteralExpr()
+    {
+        for (auto &[fieldName, fieldValue] : fields)
+        {
+            delete fieldName;
+            delete fieldValue;
         }
     }
 

@@ -74,13 +74,13 @@ namespace cora::ast
     struct ArrayExpr : public Expression
     {
     public:
-        ArrayExpr(std::vector<Statement *> value)
-            : Expression(), value(value) {};
+        ArrayExpr(std::vector<Expression *> value)
+            : Expression(), value(std::move(value)) {};
 
         ~ArrayExpr() override;
 
     public:
-        std::vector<Statement *> value;
+        std::vector<Expression *> value;
     };
 
     struct StringExpr : public Expression
@@ -167,6 +167,18 @@ namespace cora::ast
     public:
         PostfixUnaryExpr(parser::TokenType op, Expression *rhs)
             : UnaryExpr(op, rhs) { node_type = NodeType::PostfixUnaryExpr; };
+    };
+
+    struct StructLiteralExpr : public Expression
+    {
+    public:
+        StructLiteralExpr(std::vector<std::pair<IdentifierExpr *, Expression *>> fields)
+            : Expression(NodeType::StructLiteralExpr), fields(std::move(fields)) {};
+
+        ~StructLiteralExpr() override;
+
+    public:
+        std::vector<std::pair<IdentifierExpr *, Expression *>> fields;
     };
 
     struct BinaryExpr : public Expression

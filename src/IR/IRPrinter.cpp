@@ -21,9 +21,15 @@ namespace cora::ir
                     continue;
                 }
                 out << "  " << inst->name << "\n";
+                // Potentially add more detailed printing for specific instructions if needed
+                // For example:
+                // if (inst->opcode == Instruction::Opcode::GetField) {
+                //     out << "  " << inst->name << " <field_name>\n";
+                // }
             }
         }
         return out.str();
     }
 
 } // namespace cora::ir
+

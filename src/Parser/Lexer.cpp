@@ -117,6 +117,8 @@ namespace cora::parser
             {"break", TokenType::Break},
             {"continue", TokenType::Continue},
             {"pass", TokenType::Pass},
+            {"from", TokenType::From},
+            {"as", TokenType::As},
             {"let", TokenType::Let},
             {"const", TokenType::Const},
             {"and", TokenType::And},
@@ -126,6 +128,10 @@ namespace cora::parser
             {"none", TokenType::Null},
             {"true", TokenType::True},
             {"false", TokenType::False},
+            // Add new keywords for types
+            {"int", TokenType::Int},
+            {"str", TokenType::Str},
+            {"void", TokenType::Void},
         };
 
         std::istringstream stream(normalizedSource);
@@ -385,6 +391,16 @@ namespace cora::parser
                     if (two == "||")
                     {
                         addToken(TokenType::Or, two, 2);
+                        continue;
+                    }
+                    if (two == "->") // Added for '->'
+                    {
+                        addToken(TokenType::Arrow, two, 2);
+                        continue;
+                    }
+                    if (two == "::") // Added for '::' scope resolution
+                    {
+                        addToken(TokenType::ScopeResolution, two, 2); // Assuming TokenType::ScopeResolution exists
                         continue;
                     }
                 }

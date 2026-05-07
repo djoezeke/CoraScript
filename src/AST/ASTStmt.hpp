@@ -123,14 +123,15 @@ namespace cora::ast
     struct VarDeclStmt : public Statement
     {
     public:
-        VarDeclStmt(IdentifierExpr *name, Statement *value)
-            : Statement(), name(name), value(value) {};
+        VarDeclStmt(IdentifierExpr *name, Expression *value, IdentifierExpr *type = nullptr)
+            : Statement(NodeType::VarDeclaration), name(name), value(value), type(type) {};
 
         ~VarDeclStmt() override;
 
     public:
         IdentifierExpr *name{nullptr};
-        Statement *value{nullptr};
+        Expression *value{nullptr};
+        IdentifierExpr *type{nullptr};
     };
 
     struct PassStmt : public Statement
@@ -176,6 +177,86 @@ namespace cora::ast
 
     public:
         Expression *value;
+    };
+
+    struct ImportStmt : public Statement
+    {
+    public:
+        ImportStmt(IdentifierExpr *moduleName)
+            : Statement(NodeType::ImportStmt), moduleName(moduleName) {};
+
+        ~ImportStmt() override;
+
+    public:
+        IdentifierExpr *moduleName{nullptr};
+    };
+
+    struct ClassDecl : public Statement
+    {
+    public:
+        ClassDecl(IdentifierExpr *name, std::vector<FuncDeclStmt *> methods)
+            : Statement(NodeType::ClassDecl), name(name), methods(methods) {};
+
+        ~ClassDecl() override;
+
+    public:
+        IdentifierExpr *name{nullptr};
+        std::vector<FuncDeclStmt *> methods;
+        // Potentially add std::vector<VarDeclStmt*> members;
+    };
+
+    struct EnumDecl : public Statement
+    {
+    public:
+        EnumDecl(IdentifierExpr *name, std::vector<IdentifierExpr *> variants)
+            : Statement(NodeType::EnumDecl), name(name), variants(variants) {};
+
+        ~EnumDecl() override;
+
+    public:
+        IdentifierExpr *name{nullptr};
+        std::vector<IdentifierExpr *> variants;
+    };
+
+    struct StructDecl : public Statement
+    {
+    public:
+        StructDecl(IdentifierExpr *name, std::vector<VarDeclStmt *> fields)
+            : Statement(NodeType::StructDecl), name(name), fields(fields) {};
+
+        ~StructDecl() override;
+
+    public:
+        IdentifierExpr *name{nullptr};
+        std::vector<VarDeclStmt *> fields;
+    };
+
+    struct ForInStmt : public Statement
+    {
+    public:
+        ForInStmt(VarDeclStmt *variable, Expression *iterable, BlockStmt *block)
+            : Statement(NodeType::ForInStmt), variable(variable), iterable(iterable), block(block) {};
+
+        ~ForInStmt() override;
+
+    public:
+        VarDeclStmt *variable{nullptr};
+        Expression *iterable{nullptr};
+        BlockStmt *block{nullptr};
+    };
+
+    struct TryCatchStmt : public Statement
+    {
+    public:
+        TryCatchStmt(BlockStmt *tryBlock, IdentifierExpr *catchVar, BlockStmt *catchBlock)
+            : Statement(NodeType::TryCatchStmt), tryBlock(tryBlock), catchVar(catchVar), catchBlock(catchBlock) {};
+
+        ~TryCatchStmt() override;
+
+    public:
+        BlockStmt *tryBlock{nullptr};
+        IdentifierExpr *catchVar{nullptr}; // Optional: for 'catch (e)'
+        BlockStmt *catchBlock{nullptr};
     };
 
 } // namespace cora::ast

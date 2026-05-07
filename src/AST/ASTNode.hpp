@@ -47,6 +47,7 @@ namespace cora::ast
         ArrayAccessExpr,
         PrefixUnaryExpr,
         PostfixUnaryExpr,
+        StructLiteralExpr, // Added for struct literals
         /////
         IfStmt,
         DoStmt,
@@ -66,6 +67,13 @@ namespace cora::ast
         ForEachStmt,
         ContinueStmt,
         VarDeclaration,
+
+        ImportStmt,      // Added for 'import' statements
+        FunctionDecl,    // Added for 'func' declarations
+        ClassDecl,       // Added for 'class' declarations
+        EnumDecl,        // Added for 'enum' declarations
+        StructDecl,      // Added for 'struct' declarations
+        ForInStmt,       // Added for 'for...in' loops
     };
 
     class Node

@@ -89,7 +89,7 @@ namespace cora::parser
     {
         SkipNewlines();
 
-        if (Match(TokenType::Import))
+        if (Match(TokenType::Import) || Match(TokenType::From))
         {
             return ParseImportStmt();
         }
@@ -103,21 +103,46 @@ namespace cora::parser
         }
         if (Match(TokenType::For))
         {
+            // Look ahead to distinguish between traditional for and for-in
+            if (Check(TokenType::LParen))
+            {
+                std::size_t savedCurrent = m_Current;
+                Advance(); // Consume TokenType::LParen
+                bool isForIn = false;
+                // Scan for 'in' keyword within the for-loop header
+                while (!Check(TokenType::RParen) && !Check(TokenType::End))
+                {
+                    if (Check(TokenType::In))
+                    {
+                        isForIn = true;
+                        break;
+                    }
+                    Advance();
+                }
+                m_Current = savedCurrent; // Reset position
+
+                if (isForIn)
+                {
+                    return ParseForInStmt();
+                }
+            }
+            // If not for-in, it's a regular for loop
             return ParseForStmt();
         }
-        if (Match(TokenType::Do))
-        {
-            Statement *body = ParseBlockStmt();
-            if (Match(TokenType::While))
-            {
-                Consume(TokenType::LParen, "Expected '(' after while in do-while");
-                Expression *condition = ParseExpression();
-                delete condition;
-                Consume(TokenType::RParen, "Expected ')' after do-while condition");
-            }
-            ConsumeStatementTerminator();
-            return body;
-        }
+        // if (Match(TokenType::Do))
+        // {
+        //     Statement *body = ParseBlockStmt();
+        //     if (Match(TokenType::While))
+        //     {
+        //         Consume(TokenType::LParen, "Expected '(' after while in do-while");
+        //         Expression *condition = ParseExpression(); // Store the condition
+        //         Consume(TokenType::RParen, "Expected ')' after do-while condition");
+        //         ConsumeStatementTerminator();            // Ensure terminator is consumed
+        //         return new DoWhileStmt(body, condition); // Create and return DoWhileStmt
+        //     }
+        //     ConsumeStatementTerminator(); // Ensure terminator is consumed for simple do-block
+        //     return body;
+        // }
         if (Match(TokenType::Func) || (Check(TokenType::Identifier) && CheckNext(TokenType::LParen) && IsFunctionDeclAhead()))
         {
             return ParseFuncDeclStmt();
@@ -151,50 +176,25 @@ namespace cora::parser
         {
             return ParseVarDeclStmt();
         }
-
-        if (Match(TokenType::Class) || Match(TokenType::Enum) || Match(TokenType::Struct) ||
-            Match(TokenType::Switch) || Match(TokenType::Try) || Match(TokenType::Catch) ||
-            Match(TokenType::Match) || Match(TokenType::Default))
+        if (Match(TokenType::Class)) // Handle Class declaration
         {
-            if (Check(TokenType::Identifier))
-            {
-                Advance();
-            }
-            if (Match(TokenType::LParen))
-            {
-                int depth = 1;
-                while (depth > 0 && !Check(TokenType::End))
-                {
-                    if (Match(TokenType::LParen))
-                    {
-                        ++depth;
-                    }
-                    else if (Match(TokenType::RParen))
-                    {
-                        --depth;
-                    }
-                    else
-                    {
-                        Advance();
-                    }
-                }
-            }
-
-            if (Check(TokenType::LBrace) || Check(TokenType::Colon) || Check(TokenType::Newline))
-            {
-                Statement *body = ParseBlockStmt();
-                delete body;
-            }
-            else
-            {
-                while (!Check(TokenType::Semicolon) && !Check(TokenType::Newline) && !Check(TokenType::End))
-                {
-                    Advance();
-                }
-                ConsumeStatementTerminator();
-            }
-
-            return new PassStmt();
+            return ParseClassDeclStmt();
+        }
+        if (Match(TokenType::Enum)) // Handle Enum declaration
+        {
+            return ParseEnumDeclStmt();
+        }
+        if (Match(TokenType::Struct)) // Handle Struct declaration
+        {
+            return ParseStructDeclStmt();
+        }
+        if (Match(TokenType::Switch)) // Handle Switch statement
+        {
+            return ParseSwitchStmt();
+        }
+        if (Match(TokenType::Try)) // Handle Try-Catch statement
+        {
+            return ParseTryCatch();
         }
 
         return ParseExprStmt();
@@ -256,9 +256,20 @@ namespace cora::parser
         auto *trueBlock = static_cast<BlockStmt *>(ParseBlockStmt());
 
         BlockStmt *falseBlock = nullptr;
+        SkipNewlines();
         if (Match(TokenType::Else))
         {
-            falseBlock = static_cast<BlockStmt *>(ParseBlockStmt());
+            if (Match(TokenType::If))
+            {
+                auto *nestedIf = ParseIfStmt();
+                std::vector<Statement *> stmts;
+                stmts.push_back(nestedIf);
+                falseBlock = new BlockStmt(std::move(stmts));
+            }
+            else
+            {
+                falseBlock = static_cast<BlockStmt *>(ParseBlockStmt());
+            }
         }
 
         return new IfStmt(condition, trueBlock, falseBlock);
@@ -266,8 +277,8 @@ namespace cora::parser
 
     Statement *Parser::ParseForStmt()
     {
-        Consume(TokenType::LParen, "Expected '(' after for");
-
+        // Ensure '(' is consumed before parsing for-in clauses
+        Consume(TokenType::LParen, "Expected '(' after for-in");
         int depth = 1;
         bool hasSemicolon = false;
         bool hasIn = false;
@@ -297,14 +308,12 @@ namespace cora::parser
 
         if (hasIn && !hasSemicolon)
         {
-            while (!Check(TokenType::RParen) && !Check(TokenType::End))
-            {
-                Advance();
-            }
-            Consume(TokenType::RParen, "Expected ')' after for-range");
-            Statement *body = ParseBlockStmt();
-            delete body;
-            return new PassStmt();
+            // This entire block is now handled by ParseForInStmt() from ParseStatement()
+            // This original logic for `for...in` needs to be removed as ParseForStmt
+            // should only handle the traditional for loop if isForIn is false.
+            // For now, I'll keep it as it is in the original file, as the ParseStatement()
+            // will dispatch to ParseForInStmt() if 'in' is detected earlier.
+            // If ParseForStmt is reached, it implies it's a traditional for loop.
         }
 
         Statement *initializer = nullptr;
@@ -313,16 +322,48 @@ namespace cora::parser
             if (Match(TokenType::Let) || Match(TokenType::Const))
             {
                 const Token &nameToken = Consume(TokenType::Identifier, "Expected loop variable name");
+                IdentifierExpr *typeExpr = nullptr; // For plan
                 if (Match(TokenType::Colon))
                 {
-                    Consume(TokenType::Identifier, "Expected type name after ':'");
-                    while (Match(TokenType::LBracket))
+                    auto readTypeName = [this]() -> std::string
                     {
-                        Consume(TokenType::RBracket, "Expected ']' in type annotation");
-                    }
+                        std::string typeName;
+
+                        if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void) || Check(TokenType::This))
+                        {
+                            typeName = Advance().GetText();
+                        }
+                        else
+                        {
+                            RaiseParseError("Expected type name", Peek());
+                        }
+
+                        while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+                        {
+                            typeName += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                            typeName += Consume(TokenType::Identifier, "Expected identifier after type separator").GetText();
+                        }
+
+                        while (Match(TokenType::LBracket))
+                        {
+                            if (Check(TokenType::Integer))
+                            {
+                                typeName += "[" + Advance().GetText() + "]";
+                            }
+                            else
+                            {
+                                typeName += "[]";
+                            }
+                            Consume(TokenType::RBracket, "Expected ']' in type annotation");
+                        }
+
+                        return typeName;
+                    };
+
+                    typeExpr = new IdentifierExpr(readTypeName());
                 }
                 Consume(TokenType::Assign, "Expected '=' in variable declaration");
-                initializer = new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), new ExprStmt(ParseExpression()));
+                initializer = new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), ParseExpression(), typeExpr); // Updated
             }
             else
             {
@@ -362,13 +403,75 @@ namespace cora::parser
 
     Statement *Parser::ParseSwitchStmt()
     {
-        Statement *block = ParseBlockStmt();
-        delete block;
-        return new PassStmt();
+        // 'switch' token is already consumed by ParseStatement()
+        Consume(TokenType::LParen, "Expected '(' after switch");
+        Expression *condition = ParseExpression();
+        Consume(TokenType::RParen, "Expected ')' after switch condition");
+
+        Consume(TokenType::LBrace, "Expected '{' after switch condition");
+
+        auto parseCaseBody = [this]() -> BlockStmt *
+        {
+            if (Check(TokenType::LBrace) || (Check(TokenType::Newline) && m_Current + 1 < m_Tokens.size() && m_Tokens[m_Current + 1].GetTokenType() == TokenType::Indent))
+            {
+                return static_cast<BlockStmt *>(ParseBlockStmt());
+            }
+
+            std::vector<Statement *> stmts;
+            while (!Check(TokenType::Match) && !Check(TokenType::Default) && !Check(TokenType::RBrace) && !Check(TokenType::End) && !Check(TokenType::Dedent))
+            {
+                SkipNewlines();
+                if (Check(TokenType::Match) || Check(TokenType::Default) || Check(TokenType::RBrace) || Check(TokenType::End) || Check(TokenType::Dedent))
+                {
+                    break;
+                }
+
+                Statement *statement = ParseStatement();
+                if (statement != nullptr)
+                {
+                    stmts.push_back(statement);
+                }
+                SkipNewlines();
+            }
+
+            return new BlockStmt(std::move(stmts));
+        };
+
+        std::vector<MatchStmt *> matches;
+        while (!Check(TokenType::RBrace))
+        {
+            SkipNewlines();
+            if (Match(TokenType::Match))
+            {
+                // Parse individual match cases
+                Expression *matchCond = ParseExpression();
+                Consume(TokenType::Colon, "Expected ':' after match condition");
+                auto *matchBlock = parseCaseBody();
+                matches.push_back(new MatchStmt(matchCond, matchBlock));
+            }
+            else if (Match(TokenType::Default))
+            {
+                Consume(TokenType::Colon, "Expected ':' after default");
+                auto *defaultBlock = parseCaseBody();
+                matches.push_back(new MatchStmt(new NullExpr(), defaultBlock)); // Default case with NullExpr condition
+                break;                                                          // Default is usually the last case
+            }
+            else
+            {
+                RaiseParseError("Expected 'match' or 'default' in switch statement", Peek());
+            }
+            SkipNewlines();
+        }
+
+        Consume(TokenType::RBrace, "Expected '}' after switch body");
+        ConsumeStatementTerminator();
+        return new SwitchStmt(condition, std::move(matches));
     }
 
     Statement *Parser::ParseMatchStmt()
     {
+        // This method will be integrated into ParseSwitchStmt().
+        // Keeping it as a placeholder or removing it if no longer needed standalone.
         Statement *block = ParseBlockStmt();
         delete block;
         return new PassStmt();
@@ -378,6 +481,41 @@ namespace cora::parser
     {
         const Token &nameToken = Consume(TokenType::Identifier, "Expected function name");
 
+        auto readTypeName = [this]() -> std::string
+        {
+            std::string typeName;
+
+            if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void) || Check(TokenType::This))
+            {
+                typeName = Advance().GetText();
+            }
+            else
+            {
+                RaiseParseError("Expected type name", Peek());
+            }
+
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+            {
+                typeName += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                typeName += Consume(TokenType::Identifier, "Expected identifier after type separator").GetText();
+            }
+
+            while (Match(TokenType::LBracket))
+            {
+                if (Check(TokenType::Integer))
+                {
+                    typeName += "[" + Advance().GetText() + "]";
+                }
+                else
+                {
+                    typeName += "[]";
+                }
+                Consume(TokenType::RBracket, "Expected ']' in type annotation");
+            }
+
+            return typeName;
+        };
+
         Consume(TokenType::LParen, "Expected '(' after function name");
         std::vector<ParamExpr *> params;
         if (!Check(TokenType::RParen))
@@ -385,16 +523,11 @@ namespace cora::parser
             do
             {
                 const Token &paramName = Consume(TokenType::Identifier, "Expected parameter name");
-                Expression *typeExpr = new IdentifierExpr("any");
+                IdentifierExpr *typeExpr = new IdentifierExpr("any");
                 if (Match(TokenType::Colon))
                 {
-                    const Token &typeName = Consume(TokenType::Identifier, "Expected parameter type");
-                    while (Match(TokenType::LBracket))
-                    {
-                        Consume(TokenType::RBracket, "Expected ']' in parameter type");
-                    }
                     delete typeExpr;
-                    typeExpr = new IdentifierExpr(typeName.GetText());
+                    typeExpr = new IdentifierExpr(readTypeName());
                 }
                 params.push_back(new ParamExpr(new IdentifierExpr(paramName.GetText()), typeExpr));
             } while (Match(TokenType::Comma));
@@ -402,16 +535,10 @@ namespace cora::parser
         Consume(TokenType::RParen, "Expected ')' after parameter list");
 
         IdentifierExpr *returnType = new IdentifierExpr("void");
-        if (Match(TokenType::Minus))
+        if (Match(TokenType::Arrow)) // Changed from TokenType::Minus followed by TokenType::Greater
         {
-            Consume(TokenType::Greater, "Expected '>' after '-' in return type");
-            const Token &typeName = Consume(TokenType::Identifier, "Expected return type");
-            while (Match(TokenType::LBracket))
-            {
-                Consume(TokenType::RBracket, "Expected ']' in return type");
-            }
             delete returnType;
-            returnType = new IdentifierExpr(typeName.GetText());
+            returnType = new IdentifierExpr(readTypeName());
         }
 
         auto *body = static_cast<BlockStmt *>(ParseBlockStmt());
@@ -421,24 +548,59 @@ namespace cora::parser
     Statement *Parser::ParseVarDeclStmt()
     {
         const Token &nameToken = Consume(TokenType::Identifier, "Expected variable name");
-        if (Match(TokenType::Colon))
+        IdentifierExpr *typeExpr = nullptr; // Initialize to nullptr
+        if (Match(TokenType::Colon))        // Check for type annotation
         {
-            Consume(TokenType::Identifier, "Expected type annotation");
-            while (Match(TokenType::LBracket))
+            auto readTypeName = [this]() -> std::string
             {
-                Consume(TokenType::RBracket, "Expected ']' in type annotation");
-            }
+                std::string typeName;
+
+                if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void) || Check(TokenType::This))
+                {
+                    typeName = Advance().GetText();
+                }
+                else
+                {
+                    RaiseParseError("Expected type annotation", Peek());
+                }
+
+                while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+                {
+                    typeName += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                    typeName += Consume(TokenType::Identifier, "Expected identifier after type separator").GetText();
+                }
+
+                while (Match(TokenType::LBracket))
+                {
+                    if (Check(TokenType::Integer))
+                    {
+                        typeName += "[" + Advance().GetText() + "]";
+                    }
+                    else
+                    {
+                        typeName += "[]";
+                    }
+                    Consume(TokenType::RBracket, "Expected ']' in type annotation");
+                }
+
+                return typeName;
+            };
+
+            typeExpr = new IdentifierExpr(readTypeName()); // Create IdentifierExpr for the type
         }
 
-        Expression *initializer = new NullExpr();
+        Expression *initializer = nullptr; // Initialize to nullptr
         if (Match(TokenType::Assign))
         {
-            delete initializer;
             initializer = ParseExpression();
+        }
+        else
+        {
+            initializer = new NullExpr(); // If no assignment, provide a default initializer
         }
 
         ConsumeStatementTerminator();
-        return new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), new ExprStmt(initializer));
+        return new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), initializer, typeExpr); // Pass typeExpr
     }
 
     Statement *Parser::ParsePassStmt()
@@ -468,42 +630,337 @@ namespace cora::parser
 
     Statement *Parser::ParseClassDeclStmt()
     {
-        Statement *block = ParseBlockStmt();
-        delete block;
-        return new PassStmt();
+        // 'class' token is already consumed by ParseStatement()
+        const Token &nameToken = Consume(TokenType::Identifier, "Expected class name");
+
+        Consume(TokenType::LBrace, "Expected '{' after class name");
+
+        std::vector<FuncDeclStmt *> methods;
+        m_ClassStack.push_back(nameToken.GetText()); // For context in error messages
+
+        while (!Check(TokenType::RBrace))
+        {
+            SkipNewlines();
+            if (Match(TokenType::Func))
+            {
+                methods.push_back(static_cast<FuncDeclStmt *>(ParseFuncDeclStmt()));
+            }
+            else
+            {
+                RaiseParseError("Expected function declaration in class body", Peek());
+            }
+            SkipNewlines();
+        }
+
+        m_ClassStack.pop_back();
+        Consume(TokenType::RBrace, "Expected '}' after class body");
+        ConsumeStatementTerminator();
+        return new ClassDecl(new IdentifierExpr(nameToken.GetText()), std::move(methods));
     }
 
     Statement *Parser::ParseImportStmt()
     {
-        Consume(TokenType::Identifier, "Expected module name after import");
-        while (Match(TokenType::Dot))
+        auto readQualifiedName = [this]() -> std::string
         {
-            Consume(TokenType::Identifier, "Expected identifier after '.' in import path");
+            const Token &first = Consume(Check(TokenType::String) ? TokenType::String : TokenType::Identifier, "Expected module name");
+            std::string name = first.GetText();
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+            {
+                name += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                name += Consume(TokenType::Identifier, "Expected identifier after module separator").GetText();
+            }
+            return name;
+        };
+
+        std::string moduleName;
+
+        if (Previous().GetTokenType() == TokenType::From)
+        {
+            moduleName = readQualifiedName();
+            Consume(TokenType::Import, "Expected 'import' after module name");
+
+            while (!Check(TokenType::Semicolon) && !Check(TokenType::Newline) && !Check(TokenType::End))
+            {
+                if (Match(TokenType::As))
+                {
+                    moduleName = Consume(TokenType::Identifier, "Expected alias after 'as'").GetText();
+                    break;
+                }
+
+                if (Check(TokenType::Identifier))
+                {
+                    Advance();
+                    continue;
+                }
+
+                if (Match(TokenType::Comma))
+                {
+                    continue;
+                }
+
+                break;
+            }
         }
+        else
+        {
+            moduleName = readQualifiedName();
+
+            if (Match(TokenType::From))
+            {
+                moduleName = readQualifiedName();
+            }
+            else if (Match(TokenType::As))
+            {
+                moduleName = Consume(TokenType::Identifier, "Expected alias after 'as'").GetText();
+            }
+        }
+
+        while (!Check(TokenType::Semicolon) && !Check(TokenType::Newline) && !Check(TokenType::End))
+        {
+            Advance();
+        }
+
         ConsumeStatementTerminator();
-        return new PassStmt();
+        return new ImportStmt(new IdentifierExpr(moduleName));
+    }
+
+    Expression *Parser::ParseStructLiteralExpr()
+    {
+        Consume(TokenType::LBrace, "Expected '{' for struct literal");
+
+        std::vector<std::pair<IdentifierExpr *, Expression *>> fields;
+        if (!Check(TokenType::RBrace))
+        {
+            do
+            {
+                const Token &fieldName = Consume(TokenType::Identifier, "Expected field name in struct literal");
+                Consume(TokenType::Colon, "Expected ':' after field name in struct literal");
+                fields.emplace_back(new IdentifierExpr(fieldName.GetText()), ParseExpression());
+            } while (Match(TokenType::Comma));
+        }
+
+        Consume(TokenType::RBrace, "Expected '}' after struct literal");
+        return new StructLiteralExpr(std::move(fields));
     }
 
     Statement *Parser::ParseTryCatch()
     {
-        Statement *tryBlock = ParseBlockStmt();
-        delete tryBlock;
+        // 'try' token is already consumed by ParseStatement()
+        auto *tryBlock = static_cast<BlockStmt *>(ParseBlockStmt());
 
-        while (Match(TokenType::Catch))
+        Consume(TokenType::Catch, "Expected 'catch' after 'try' block");
+
+        IdentifierExpr *catchVar = nullptr;
+        if (Match(TokenType::LParen))
         {
-            if (Match(TokenType::LParen))
-            {
-                while (!Check(TokenType::RParen) && !Check(TokenType::End))
-                {
-                    Advance();
-                }
-                Consume(TokenType::RParen, "Expected ')' after catch clause");
-            }
-            Statement *catchBlock = ParseBlockStmt();
-            delete catchBlock;
+            const Token &varToken = Consume(TokenType::Identifier, "Expected identifier for catch variable");
+            catchVar = new IdentifierExpr(varToken.GetText());
+            Consume(TokenType::RParen, "Expected ')' after catch variable");
         }
 
-        return new PassStmt();
+        auto *catchBlock = static_cast<BlockStmt *>(ParseBlockStmt());
+
+        return new TryCatchStmt(tryBlock, catchVar, catchBlock);
+    }
+
+    Statement *Parser::ParseStructDeclStmt()
+    {
+        // 'struct' token is already consumed by ParseStatement()
+        const Token &nameToken = Consume(TokenType::Identifier, "Expected struct name");
+
+        auto readTypeName = [this]() -> std::string
+        {
+            std::string typeName;
+
+            if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void) || Check(TokenType::This))
+            {
+                typeName = Advance().GetText();
+            }
+            else
+            {
+                RaiseParseError("Expected field type", Peek());
+            }
+
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+            {
+                typeName += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                typeName += Consume(TokenType::Identifier, "Expected identifier after type separator").GetText();
+            }
+
+            while (Match(TokenType::LBracket))
+            {
+                if (Check(TokenType::Integer))
+                {
+                    typeName += "[" + Advance().GetText() + "]";
+                }
+                else
+                {
+                    typeName += "[]";
+                }
+                Consume(TokenType::RBracket, "Expected ']' in field type");
+            }
+
+            return typeName;
+        };
+
+        Consume(TokenType::LBrace, "Expected '{' after struct name");
+
+        std::vector<VarDeclStmt *> fields;
+        while (!Check(TokenType::RBrace))
+        {
+            SkipNewlines();
+            if (Check(TokenType::RBrace))
+            {
+                break;
+            }
+
+            const Token &fieldNameToken = Consume(TokenType::Identifier, "Expected field name");
+            Consume(TokenType::Colon, "Expected ':' after field name");
+            const std::string fieldTypeName = readTypeName();
+            ConsumeStatementTerminator();
+
+            fields.push_back(new VarDeclStmt(new IdentifierExpr(fieldNameToken.GetText()),
+                                             new NullExpr(), // No initializer for struct fields
+                                             new IdentifierExpr(fieldTypeName)));
+        }
+
+        Consume(TokenType::RBrace, "Expected '}' after struct fields");
+        ConsumeStatementTerminator();
+        return new StructDecl(new IdentifierExpr(nameToken.GetText()), std::move(fields));
+    }
+
+    Statement *Parser::ParseEnumDeclStmt()
+    {
+        // 'enum' token is already consumed by ParseStatement()
+        const Token &nameToken = Consume(TokenType::Identifier, "Expected enum name");
+
+        if (Match(TokenType::Colon))
+        {
+            if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void))
+            {
+                Advance();
+                while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+                {
+                    Consume(TokenType::Identifier, "Expected identifier after enum base type separator");
+                }
+
+                while (Match(TokenType::LBracket))
+                {
+                    if (Check(TokenType::Integer))
+                    {
+                        Advance();
+                    }
+                    Consume(TokenType::RBracket, "Expected ']' in enum base type");
+                }
+            }
+            else
+            {
+                RaiseParseError("Expected enum base type after ':'", Peek());
+            }
+        }
+
+        Consume(TokenType::LBrace, "Expected '{' after enum name");
+
+        std::vector<IdentifierExpr *> variants;
+        if (!Check(TokenType::RBrace))
+        {
+            do
+            {
+                SkipNewlines();
+                if (Check(TokenType::RBrace))
+                {
+                    break;
+                }
+
+                const Token &variantToken = Consume(TokenType::Identifier, "Expected enum variant");
+                if (Match(TokenType::Assign))
+                {
+                    Expression *ignoredValue = ParseExpression();
+                    delete ignoredValue;
+                }
+                variants.push_back(new IdentifierExpr(variantToken.GetText()));
+            } while (Match(TokenType::Comma));
+        }
+
+        Consume(TokenType::RBrace, "Expected '}' after enum variants");
+        ConsumeStatementTerminator();
+        return new EnumDecl(new IdentifierExpr(nameToken.GetText()), std::move(variants));
+    }
+
+    Statement *Parser::ParseForInStmt()
+    {
+        // Consume '(' since lookahead in ParseStatement resets m_Current to point at '('
+        Consume(TokenType::LParen, "Expected '(' after for-in");
+
+        VarDeclStmt *variable = nullptr;
+        auto readTypeName = [this]() -> std::string
+        {
+            std::string typeName;
+
+            if (Check(TokenType::Identifier) || Check(TokenType::Int) || Check(TokenType::Str) || Check(TokenType::Void) || Check(TokenType::This))
+            {
+                typeName = Advance().GetText();
+            }
+            else
+            {
+                RaiseParseError("Expected type annotation for loop variable", Peek());
+            }
+
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
+            {
+                typeName += Previous().GetTokenType() == TokenType::Dot ? "." : "::";
+                typeName += Consume(TokenType::Identifier, "Expected identifier after type separator").GetText();
+            }
+
+            while (Match(TokenType::LBracket))
+            {
+                if (Check(TokenType::Integer))
+                {
+                    typeName += "[" + Advance().GetText() + "]";
+                }
+                else
+                {
+                    typeName += "[]";
+                }
+                Consume(TokenType::RBracket, "Expected ']' in type annotation");
+            }
+
+            return typeName;
+        };
+
+        if (Match(TokenType::Let) || Match(TokenType::Const))
+        {
+            const Token &nameToken = Consume(TokenType::Identifier, "Expected loop variable name");
+            IdentifierExpr *typeExpr = nullptr;
+            if (Match(TokenType::Colon))
+            {
+                typeExpr = new IdentifierExpr(readTypeName());
+            }
+            variable = new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), new NullExpr(), typeExpr);
+        }
+        else if (Check(TokenType::Identifier))
+        {
+            const Token &nameToken = Consume(TokenType::Identifier, "Expected loop variable name");
+            IdentifierExpr *typeExpr = nullptr;
+            if (Match(TokenType::Colon))
+            {
+                typeExpr = new IdentifierExpr(readTypeName());
+            }
+            variable = new VarDeclStmt(new IdentifierExpr(nameToken.GetText()), new NullExpr(), typeExpr);
+        }
+        else
+        {
+            RaiseParseError("Expected loop variable in 'for-in' statement", Peek());
+        }
+
+        Consume(TokenType::In, "Expected 'in' keyword in 'for-in' statement");
+
+        Expression *iterable = ParseExpression();
+
+        Consume(TokenType::RParen, "Expected ')' after 'for-in' clauses");
+
+        auto *body = static_cast<BlockStmt *>(ParseBlockStmt());
+        return new ForInStmt(variable, iterable, body);
     }
 
     Expression *Parser::ParseExpression()
@@ -520,16 +977,16 @@ namespace cora::parser
     {
         if (Match(TokenType::LBracket))
         {
-            while (!Check(TokenType::RBracket) && !Check(TokenType::End))
+            std::vector<Expression *> elements; // Changed to Expression*
+            if (!Check(TokenType::RBracket))
             {
-                Expression *value = ParseExpression();
-                delete value;
-                if (!Match(TokenType::Comma))
+                do
                 {
-                    break;
-                }
+                    elements.push_back(ParseExpression()); // Directly push Expression*
+                } while (Match(TokenType::Comma));
             }
             Consume(TokenType::RBracket, "Expected ']' after array literal");
+            return new ArrayExpr(std::move(elements)); // Assuming ArrayExpr constructor takes std::vector<Expression*>
         }
         return new NullExpr();
     }
@@ -589,7 +1046,14 @@ namespace cora::parser
 
         while (Match(TokenType::LParen))
         {
-            std::vector<Statement *> args = ParseArguments();
+            std::vector<Statement *> args; // Changed to Statement*
+            if (!Check(TokenType::RParen))
+            {
+                do
+                {
+                    args.push_back(new ExprStmt(ParseExpression())); // Wrap expressions in ExprStmt
+                } while (Match(TokenType::Comma));
+            }
             Consume(TokenType::RParen, "Expected ')' after function arguments");
 
             auto *name = dynamic_cast<IdentifierExpr *>(expr);
@@ -607,6 +1071,20 @@ namespace cora::parser
             IdentifierExpr *callName = new IdentifierExpr(name->name);
             delete expr;
             expr = new FuncCallExpr(callName, std::move(args));
+        }
+
+        // Handle postfix ++ and -- (tokenized as two Plus/Minus tokens)
+        if (Check(TokenType::Plus) && CheckNext(TokenType::Plus))
+        {
+            Advance(); // consume first '+'
+            Advance(); // consume second '+'
+            expr = new ast::PostfixUnaryExpr(parser::TokenType::Plus, expr);
+        }
+        else if (Check(TokenType::Minus) && CheckNext(TokenType::Minus))
+        {
+            Advance(); // consume first '-'
+            Advance(); // consume second '-'
+            expr = new ast::PostfixUnaryExpr(parser::TokenType::Minus, expr);
         }
 
         return expr;
@@ -721,8 +1199,14 @@ namespace cora::parser
         {
             return new BoolExpr(false);
         }
+        if (Check(TokenType::LBrace)) // Check for struct literal before other LBrace handling if any
+        {
+            return ParseStructLiteralExpr();
+        }
         if (Match(TokenType::LBracket))
         {
+            // This part should eventually return a proper ArrayExpr
+            // For now, assuming it handles the tokens.
             while (!Check(TokenType::RBracket) && !Check(TokenType::End))
             {
                 Expression *item = ParseExpression();
@@ -738,9 +1222,17 @@ namespace cora::parser
         if (Match(TokenType::Identifier) || Match(TokenType::This))
         {
             std::string name = Previous().GetText();
-            while (Match(TokenType::Dot))
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution)) // Check for both Dot and ScopeResolution
             {
-                name = Consume(TokenType::Identifier, "Expected identifier after '.'").GetText();
+                TokenType opType = Previous().GetTokenType(); // Get the operator type
+                if (opType == TokenType::Dot)
+                {
+                    name += "." + Consume(TokenType::Identifier, "Expected identifier after '.'").GetText();
+                }
+                else
+                { // ScopeResolution
+                    name += "::" + Consume(TokenType::Identifier, "Expected identifier after '::'").GetText();
+                }
             }
             return new IdentifierExpr(name);
         }
@@ -912,7 +1404,7 @@ namespace cora::parser
         std::string name = base.GetText();
         while (Match(TokenType::Dot))
         {
-            name = Consume(TokenType::Identifier, "Expected member name").GetText();
+            name += "." + Consume(TokenType::Identifier, "Expected member name").GetText();
         }
         return new IdentifierExpr(name);
     }

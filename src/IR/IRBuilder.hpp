@@ -38,8 +38,15 @@ namespace cora::ir
         void EmitIf(ast::IfStmt *stmt);
         void EmitWhile(ast::WhileStmt *stmt);
         void EmitFor(ast::ForStmt *stmt);
+        void EmitForIn(ast::ForInStmt *stmt);
         void EmitVarDecl(ast::VarDeclStmt *stmt);
         void EmitFuncDecl(ast::FuncDeclStmt *stmt);
+        void EmitSwitch(ast::SwitchStmt *stmt);
+        void EmitImport(ast::ImportStmt *stmt);
+        void EmitClass(ast::ClassDecl *stmt);
+        void EmitStruct(ast::StructDecl *stmt);
+        void EmitEnum(ast::EnumDecl *stmt);
+        void EmitTryCatch(ast::TryCatchStmt *stmt);
 
         BasicBlock *CreateBlock(const std::string &name);
         Value *MakeConstant(runtime::value value, const std::string &name = "");

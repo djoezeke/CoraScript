@@ -9,6 +9,48 @@
 namespace cora::ir
 {
 
+    namespace
+    {
+        std::vector<std::string> SplitQualifiedName(const std::string &name)
+        {
+            std::vector<std::string> parts;
+            std::string current;
+            for (std::size_t i = 0; i < name.size(); ++i)
+            {
+                if (name[i] == '.' || (name[i] == ':' && i + 1 < name.size() && name[i + 1] == ':'))
+                {
+                    if (!current.empty())
+                    {
+                        parts.push_back(current);
+                        current.clear();
+                    }
+                    if (name[i] == ':')
+                    {
+                        ++i;
+                    }
+                    continue;
+                }
+
+                current.push_back(name[i]);
+            }
+
+            if (!current.empty())
+            {
+                parts.push_back(current);
+            }
+            return parts;
+        }
+
+        runtime::value ExtractLiteralValue(const Value *value)
+        {
+            if (const auto *constant = dynamic_cast<const ConstantValue *>(value))
+            {
+                return constant->value;
+            }
+            return runtime::value(nullptr);
+        }
+    } // namespace
+
     IRBuilder::IRBuilder() = default;
 
     BasicBlock *IRBuilder::Build(const std::deque<cora::ast::Statement *> &program)
@@ -72,10 +114,53 @@ namespace cora::ir
             EmitFuncDecl(funcDecl);
             return nullptr;
         }
+        if (auto *forInStmt = dynamic_cast<ast::ForInStmt *>(stmt))
+        {
+            EmitForIn(forInStmt);
+            return nullptr;
+        }
+        if (auto *switchStmt = dynamic_cast<ast::SwitchStmt *>(stmt))
+        {
+            EmitSwitch(switchStmt);
+            return nullptr;
+        }
+        if (auto *importStmt = dynamic_cast<ast::ImportStmt *>(stmt))
+        {
+            EmitImport(importStmt);
+            return nullptr;
+        }
+        if (auto *classDecl = dynamic_cast<ast::ClassDecl *>(stmt))
+        {
+            EmitClass(classDecl);
+            return nullptr;
+        }
+        if (auto *structDecl = dynamic_cast<ast::StructDecl *>(stmt))
+        {
+            EmitStruct(structDecl);
+            return nullptr;
+        }
+        if (auto *enumDecl = dynamic_cast<ast::EnumDecl *>(stmt))
+        {
+            EmitEnum(enumDecl);
+            return nullptr;
+        }
+        if (auto *tryCatch = dynamic_cast<ast::TryCatchStmt *>(stmt))
+        {
+            EmitTryCatch(tryCatch);
+            return nullptr;
+        }
         if (auto *retStmt = dynamic_cast<ast::ReturnStmt *>(stmt))
         {
             Value *retValue = retStmt->value != nullptr ? EmitExpression(retStmt->value) : nullptr;
-            return MakeValue<ReturnInstruction>(m_currentBlock, retValue);
+            // If retValue is null, it means a void return. The ReturnInstruction should reflect this.
+            if (retValue == nullptr)
+            {
+                return MakeValue<ReturnInstruction>(m_currentBlock, nullptr); // Explicitly pass nullptr for void return
+            }
+            else
+            {
+                return MakeValue<ReturnInstruction>(m_currentBlock, retValue);
+            }
         }
 
         return nullptr;
@@ -214,13 +299,10 @@ namespace cora::ir
 
         if (stmt->value != nullptr)
         {
-            if (auto *exprStmt = dynamic_cast<ast::ExprStmt *>(stmt->value))
+            Value *rhs = EmitExpression(stmt->value);
+            if (rhs != nullptr)
             {
-                Value *rhs = EmitExpression(exprStmt->expr);
-                if (rhs != nullptr)
-                {
-                    MakeValue<StoreInstruction>(rhs, slot, m_currentBlock);
-                }
+                MakeValue<StoreInstruction>(rhs, slot, m_currentBlock);
             }
         }
     }
@@ -260,6 +342,116 @@ namespace cora::ir
         m_currentBlock = savedBlock;
     }
 
+    void IRBuilder::EmitForIn(ast::ForInStmt *stmt)
+    {
+        if (stmt == nullptr || stmt->iterable == nullptr)
+        {
+            return;
+        }
+
+        Value *iterableVal = EmitExpression(stmt->iterable);
+        if (iterableVal == nullptr)
+        {
+            return;
+        }
+
+        BasicBlock *loopEntry = CreateBlock("forin.entry");
+        BasicBlock *loopBody = CreateBlock("forin.body");
+        BasicBlock *loopExit = CreateBlock("forin.exit");
+
+        MakeValue<BranchInstruction>(loopEntry, m_currentBlock);
+        m_currentBlock = loopEntry;
+
+        if (stmt->variable != nullptr)
+        {
+            Value *slot = MakeValue<AllocaInstruction>(Type::Pointer(Type::Int()), stmt->variable->name->name, m_currentBlock);
+            assignVariable(stmt->variable->name->name, slot);
+        }
+
+        if (stmt->block != nullptr)
+        {
+            EmitBlock(stmt->block);
+        }
+
+        MakeValue<BranchInstruction>(loopExit, m_currentBlock);
+        m_currentBlock = loopExit;
+    }
+
+    void IRBuilder::EmitSwitch(ast::SwitchStmt *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+
+        Value *cond = nullptr;
+        if (stmt->cond != nullptr)
+        {
+            cond = EmitExpression(stmt->cond);
+        }
+
+        BasicBlock *switchExit = CreateBlock("switch.exit");
+        BasicBlock *currentCase = nullptr;
+
+        for (const auto &match : stmt->matches)
+        {
+            if (match != nullptr && match->block != nullptr)
+            {
+                currentCase = CreateBlock("case");
+                m_currentBlock = currentCase;
+                EmitBlock(match->block);
+                MakeValue<BranchInstruction>(switchExit, m_currentBlock);
+            }
+        }
+
+        m_currentBlock = switchExit;
+    }
+
+    void IRBuilder::EmitImport(ast::ImportStmt *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+    }
+
+    void IRBuilder::EmitClass(ast::ClassDecl *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+    }
+
+    void IRBuilder::EmitStruct(ast::StructDecl *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+    }
+
+    void IRBuilder::EmitEnum(ast::EnumDecl *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+    }
+
+    void IRBuilder::EmitTryCatch(ast::TryCatchStmt *stmt)
+    {
+        if (stmt == nullptr)
+        {
+            return;
+        }
+
+        if (stmt->tryBlock != nullptr)
+        {
+            EmitBlock(stmt->tryBlock);
+        }
+    }
+
     Value *IRBuilder::EmitExpression(ast::Expression *expr)
     {
         if (expr == nullptr)
@@ -297,30 +489,110 @@ namespace cora::ir
             return EmitFuncCallExpr(call);
         }
 
+        // if (auto *arrayExpr = dynamic_cast<ast::ArrayExpr *>(expr))
+        // {
+        //     // Determine the element type. For simplicity, assume all elements are of the same type.
+        //     // Default to int if the array is empty or type cannot be determined.
+        //     Type *elementType = Type::Int();
+        //     if (!arrayExpr->value.empty())
+        //     {
+        //         // Try to determine type from the first element. This is a simplification.
+        //         // A robust compiler would infer type from all elements or require explicit type annotation.
+        //         Value *firstElementValue = EmitExpression(arrayExpr->value[0]);
+        //         if (firstElementValue && firstElementValue->type)
+        //         {
+        //             // If the element is a pointer type, use its pointee type. Otherwise, use its own type.
+        //             // This logic needs to be more robust. For now, assuming basic types.
+        //             if (firstElementValue->type->isPointer())
+        //             {
+        //                 elementType = firstElementValue->type->pointee;
+        //             }
+        //             else
+        //             {
+        //                 elementType = firstElementValue->type;
+        //             }
+        //         }
+        //     }
+
+        //     // Allocate memory for the array. The size would be arrayExpr->value.size() * sizeof(elementType).
+        //     // For now, we are not generating a fixed-size array IR instruction, but rather allocating space
+        //     // and then storing elements. This is a simplified approach.
+        //     // A proper implementation might use an 'array_alloc' instruction.
+        //     Value *arrayPtr = MakeValue<AllocaInstruction>(Type::Array(elementType), makeTempName("array"), m_currentBlock);
+
+        //     // Store each element into the allocated array
+        //     for (size_t i = 0; i < arrayExpr->value.size(); ++i)
+        //     {
+        //         Value *elementValue = EmitExpression(arrayExpr->value[i]);
+        //         if (elementValue == nullptr)
+        //         {
+        //             // Handle error or skip element
+        //             continue;
+        //         }
+        //         // TODO: Generate an IR instruction for array element access (e.g., getelementptr)
+        //         // and then a StoreInstruction. For now, we'll emit a placeholder store.
+        //         // This part is highly simplified and needs proper array indexing logic.
+        //         MakeValue<StoreInstruction>(elementValue, arrayPtr, m_currentBlock);
+        //     }
+        //     // For now, returning the pointer to the array.
+        //     // A more refined approach might return a Value representing the array itself.
+        //     return arrayPtr;
+        // }
+
         return nullptr;
     }
 
     Value *IRBuilder::EmitLiteral(ast::Expression *expr)
     {
+        if (expr == nullptr)
+        {
+            return nullptr;
+        }
+
         if (auto *literal = dynamic_cast<ast::IntegerExpr *>(expr))
         {
-            return MakeConstant(runtime::value(literal->value));
+            return MakeConstant(runtime::value(literal->value), makeTempName("int"));
         }
         if (auto *literal = dynamic_cast<ast::FloatExpr *>(expr))
         {
-            return MakeConstant(runtime::value(literal->value));
+            return MakeConstant(runtime::value(literal->value), makeTempName("float"));
         }
         if (auto *literal = dynamic_cast<ast::StringExpr *>(expr))
         {
-            return MakeConstant(runtime::value(literal->value));
+            return MakeConstant(runtime::value(literal->value), makeTempName("str"));
         }
         if (auto *literal = dynamic_cast<ast::BoolExpr *>(expr))
         {
-            return MakeConstant(runtime::value(literal->value));
+            return MakeConstant(runtime::value(literal->value), makeTempName("bool"));
         }
-        if (dynamic_cast<ast::NullExpr *>(expr))
+        if (dynamic_cast<ast::NullExpr *>(expr) != nullptr)
         {
-            return MakeConstant(runtime::value(nullptr));
+            return MakeConstant(runtime::value(nullptr), makeTempName("null"));
+        }
+
+        if (auto *arrayExpr = dynamic_cast<ast::ArrayExpr *>(expr))
+        {
+            runtime::value::array_type values;
+            values.reserve(arrayExpr->value.size());
+            for (ast::Expression *element : arrayExpr->value)
+            {
+                values.push_back(ExtractLiteralValue(EmitExpression(element)));
+            }
+            return MakeConstant(runtime::value(std::move(values)), makeTempName("arr"));
+        }
+
+        if (auto *structExpr = dynamic_cast<ast::StructLiteralExpr *>(expr))
+        {
+            auto object = std::make_shared<runtime::Object>("StructLiteral");
+            for (const auto &field : structExpr->fields)
+            {
+                if (field.first == nullptr)
+                {
+                    continue;
+                }
+                object->fields[field.first->name] = ExtractLiteralValue(EmitExpression(field.second));
+            }
+            return MakeConstant(runtime::value(std::move(object)), makeTempName("obj"));
         }
 
         return nullptr;
@@ -333,10 +605,44 @@ namespace cora::ir
             return nullptr;
         }
 
-        Value *value = lookupVariable(expr->name);
+        const std::vector<std::string> parts = SplitQualifiedName(expr->name);
+        if (parts.empty())
+        {
+            return nullptr;
+        }
+
+        Value *value = lookupVariable(parts.front());
         if (value == nullptr)
         {
             return nullptr;
+        }
+
+        if (parts.size() > 1)
+        {
+            runtime::value current = ExtractLiteralValue(value);
+            for (std::size_t i = 1; i < parts.size(); ++i)
+            {
+                if (!current.IsObject())
+                {
+                    return nullptr;
+                }
+
+                auto object = current.AsObject();
+                if (!object)
+                {
+                    return nullptr;
+                }
+
+                auto it = object->fields.find(parts[i]);
+                if (it == object->fields.end())
+                {
+                    return nullptr;
+                }
+
+                current = it->second;
+            }
+
+            return MakeConstant(std::move(current), makeTempName("load"));
         }
 
         if (!load)
@@ -344,7 +650,7 @@ namespace cora::ir
             return value;
         }
 
-        if (dynamic_cast<FunctionValue *>(value) != nullptr)
+        if (dynamic_cast<FunctionValue *>(value) != nullptr || dynamic_cast<ConstantValue *>(value) != nullptr)
         {
             return value;
         }
@@ -400,40 +706,52 @@ namespace cora::ir
         switch (expr->op)
         {
         case parser::TokenType::Plus:
+            // For now, assuming integer addition.
             opcode = Instruction::Opcode::Add;
+            // resultType = Type::Int(); // Assuming int + int -> int
             break;
         case parser::TokenType::Minus:
             opcode = Instruction::Opcode::Sub;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::Star:
             opcode = Instruction::Opcode::Mul;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::Slash:
             opcode = Instruction::Opcode::Div;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::Equal:
             opcode = Instruction::Opcode::Eq;
+            // resultType = Type::Int(); // Comparison results are often bool, but IR might use int
             break;
         case parser::TokenType::NotEqual:
             opcode = Instruction::Opcode::Ne;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::Less:
             opcode = Instruction::Opcode::Lt;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::LessEqual:
             opcode = Instruction::Opcode::Le;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::Greater:
             opcode = Instruction::Opcode::Gt;
+            // resultType = Type::Int();
             break;
         case parser::TokenType::GreaterEqual:
             opcode = Instruction::Opcode::Ge;
+            // resultType = Type::Int();
             break;
         default:
             opcode = Instruction::Opcode::Add;
             break;
         }
 
+        // Create a new instruction for the binary operation with the determined result type.
         return MakeValue<BinaryInstruction>(opcode, lhs, rhs, makeTempName(), m_currentBlock);
     }
 
@@ -444,6 +762,51 @@ namespace cora::ir
             return nullptr;
         }
 
+        // Handle postfix ++/-- expressed as PostfixUnaryExpr
+        if (auto *post = dynamic_cast<ast::PostfixUnaryExpr *>(expr))
+        {
+            // Only support identifier targets for now
+            auto *ident = dynamic_cast<ast::IdentifierExpr *>(post->expr);
+            if (ident == nullptr)
+            {
+                return nullptr;
+            }
+
+            // Get slot (lvalue)
+            Value *slot = EmitIdentifier(ident, false);
+            if (slot == nullptr)
+            {
+                // If variable not found, allocate one
+                slot = MakeValue<AllocaInstruction>(Type::Pointer(Type::Int()), ident->name, m_currentBlock);
+                assignVariable(ident->name, slot);
+            }
+
+            // Load current value
+            Value *cur = EmitIdentifier(ident, true);
+            if (cur == nullptr)
+            {
+                return nullptr;
+            }
+
+            // Create constant 1
+            Value *one = MakeConstant(runtime::value(1), makeTempName("int"));
+
+            Instruction::Opcode opcode = Instruction::Opcode::Add;
+            if (post->op == parser::TokenType::Minus)
+            {
+                opcode = Instruction::Opcode::Sub;
+            }
+
+            // newValue = cur + 1 (or cur - 1)
+            Value *newVal = MakeValue<BinaryInstruction>(opcode, cur, one, makeTempName(), m_currentBlock);
+
+            // store newVal into slot
+            MakeValue<StoreInstruction>(newVal, slot, m_currentBlock);
+
+            return newVal;
+        }
+
+        // Fallback for prefix unary ops
         Value *value = EmitExpression(expr->expr);
         if (value == nullptr)
         {

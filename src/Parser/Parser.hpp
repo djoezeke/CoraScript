@@ -56,11 +56,15 @@ namespace cora::parser
         Statement *ParseClassDeclStmt();
         Statement *ParseImportStmt();
         Statement *ParseTryCatch();
+        Statement *ParseEnumDeclStmt();      // Added
+        Statement *ParseStructDeclStmt();     // Added
+        Statement *ParseForInStmt(); // Added
 
         Expression *ParseExpression();
         Expression *ParseGroupExpr();
         Expression *ParseArrayExpr();
         Expression *ParseArrayIdExpr();
+        Expression *ParseStructLiteralExpr(); // Added
         Expression *ParseParamExpr();
         Expression *ParseUnaryExpr();
         Expression *PrefixUnaryExpr();

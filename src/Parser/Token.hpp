@@ -17,6 +17,10 @@ namespace cora::parser
 		String,
 		Float,
 		Bool,
+		Int,
+		Str,
+		Void,
+		ScopeResolution,
 
 		End,
 		Newline,
@@ -50,6 +54,8 @@ namespace cora::parser
 		Break,
 		Continue,
 		Pass,
+		From,
+		As,
 		Print,
 		And,
 		Or,
@@ -76,6 +82,7 @@ namespace cora::parser
 		LessEqual,
 		Greater,
 		GreaterEqual,
+		Arrow,
 	};
 
 	class Token
