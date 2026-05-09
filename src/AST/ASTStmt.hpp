@@ -209,7 +209,7 @@ namespace cora::ast
     {
     public:
         EnumDecl(IdentifierExpr *name, std::vector<IdentifierExpr *> variants)
-            : Statement(NodeType::EnumDecl), name(name), variants(variants) {};
+            : Statement(NodeType::EnumDecl), name(name), variants(std::move(variants)) {};
 
         ~EnumDecl() override;
 
@@ -222,7 +222,7 @@ namespace cora::ast
     {
     public:
         StructDecl(IdentifierExpr *name, std::vector<VarDeclStmt *> fields)
-            : Statement(NodeType::StructDecl), name(name), fields(fields) {};
+            : Statement(NodeType::StructDecl), name(name), fields(std::move(fields)) {};
 
         ~StructDecl() override;
 

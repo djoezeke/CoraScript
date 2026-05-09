@@ -362,13 +362,13 @@ namespace cora::ir
                 continue;
             }
             // Use Argument value instead of Alloca
-            auto *arg = MakeValue<Argument>(Type::Int(), (Function*)nullptr, static_cast<unsigned>(i));
+            auto *arg = MakeValue<Argument>(Type::Int(), (Function *)nullptr, static_cast<unsigned>(i));
             arg->name = param->name->name;
             assignVariable(param->name->name, arg);
         }
 
         EmitBlock(stmt->block);
-        
+
         // Ensure every function ends with a return if not already present
         if (m_currentBlock->insts.empty() || m_currentBlock->insts.back()->opcode != Instruction::Opcode::Ret)
         {
@@ -700,7 +700,7 @@ namespace cora::ir
             {
                 return MakeConstant(std::move(current), makeTempName("load"));
             }
-            
+
             // If not resolved at compile time, we should ideally emit GetMember instructions.
             // For now, let's at least return the base value if it's a global.
             // Actually, to make io.print(sum) work, we'll just return the qualified name as a global if not resolved.
@@ -963,56 +963,8 @@ namespace cora::ir
         {
             return nullptr;
         }
-
-        m_currentBlock = mergeBlock;
-        
-        // Since we don't have Phi instructions yet, we'll use an Alloca and Store
-        // to merge the results from the then and else branches.
-        // The result should be of a type that can hold any value. For now, assume int pointer for simplicity.
-        // A more robust solution would infer the type or use a generic type.
-        // We need to ensure that if a branch produces no value (e.g., a void expression),
-        // it doesn't cause a crash or incorrect assignment.
-        // For now, let's assume expressions return a valid Value*.
-        
-        // Determine the type for the result. If both branches produce values, find a common type.
-        // If one is null, use the other. If both are null, it's a void result (or error).
-        // For simplicity, let's assume `int` type for the result if either branch produces a non-null value.
-        // If both `thenValue` and `elseValue` are null, the ternary expression's result is effectively null.
-        
-        Value *resultSlot = nullptr;
-        if (thenValue != nullptr || elseValue != nullptr) {
-            // Allocate a slot for the result. We'll need to determine the correct type.
-            // For now, defaulting to Type::Int() as a placeholder.
-            resultSlot = MakeValue<AllocaInstruction>(Type::Int(), makeTempName("ternary_result"), m_currentBlock);
-
-            m_currentBlock = thenBlock;
-            if (thenValue != nullptr) {
-                MakeValue<StoreInstruction>(thenValue, resultSlot, m_currentBlock);
-            } else {
-                // If then branch has no value, store a default null value (or appropriate default)
-                // This part needs careful handling for type safety and default values.
-                // For now, storing nullptr if thenValue is null.
-                 MakeValue<StoreInstruction>(MakeConstant(runtime::value(nullptr), makeTempName("null")), resultSlot, m_currentBlock);
-            }
-            
-            m_currentBlock = elseBlock;
-            if (elseValue != nullptr) {
-                MakeValue<StoreInstruction>(elseValue, resultSlot, m_currentBlock);
-            } else {
-                // Store nullptr if elseValue is null.
-                 MakeValue<StoreInstruction>(MakeConstant(runtime::value(nullptr), makeTempName("null")), resultSlot, m_currentBlock);
-            }
-        }
-
-        m_currentBlock = mergeBlock;
-        
-        if (resultSlot != nullptr) {
-            return MakeValue<LoadInstruction>(resultSlot, makeTempName("load_ternary"), m_currentBlock);
-        } else {
-            // If neither branch produced a value, the ternary expression itself results in null.
-            return MakeConstant(runtime::value(nullptr), makeTempName("null"));
-        }
     }
+
     Value *IRBuilder::lookupVariable(const std::string &name) const
     {
         const auto found = m_variables.find(name);

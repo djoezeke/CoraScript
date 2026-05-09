@@ -33,14 +33,12 @@ target_link_libraries(cora
 		Cora::Modules
 		Cora::IR
 		Cora::VMachine
-		Cora::Bytecode
 		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime
 		Cora::AST
 		Cora::Basic
-		# Cora::JITCom
 )
 
 target_link_libraries(coravm
@@ -48,28 +46,24 @@ target_link_libraries(coravm
 		Cora::Modules
 		Cora::IR
 		Cora::VMachine
-		Cora::Bytecode
 		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime
 		Cora::AST
 		Cora::Basic
-		# Cora::JITCom
 )
 
 target_link_libraries(corac
 	PRIVATE
 		Cora::IR
 		Cora::VMachine
-		Cora::Bytecode
 		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime
 		Cora::AST
 		Cora::Basic
-		# Cora::JITCom
 )
 
 # ===================================================================

@@ -74,7 +74,7 @@ namespace cora::ast
         EnumDecl,        // Added for 'enum' declarations
         StructDecl,      // Added for 'struct' declarations
         ForInStmt,       // Added for 'for...in' loops
-    };
+        };
 
     class Node
     {

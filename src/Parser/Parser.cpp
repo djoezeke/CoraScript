@@ -1042,13 +1042,13 @@ namespace cora::parser
 
     Expression *Parser::ParseTernaryExpr()
     {
-        Expression *expr = ParseOr();
+        Expression *expr = ParseOr(); // Start with the lowest precedence binary operator
 
         if (Match(TokenType::Question))
         {
-            Expression *thenExpr = ParseExpression();
+            Expression *thenExpr = ParseExpression(); // Parse the expression after '?'
             Consume(TokenType::Colon, "Expected ':' in ternary expression");
-            Expression *elseExpr = ParseTernaryExpr();
+            Expression *elseExpr = ParseTernaryExpr(); // Recursively parse the else part
             return new ast::TernaryExpr(expr, thenExpr, elseExpr);
         }
 
@@ -1237,19 +1237,28 @@ namespace cora::parser
         if (Match(TokenType::Identifier) || Match(TokenType::This))
         {
             std::string name = Previous().GetText();
-            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution)) // Check for both Dot and ScopeResolution
+            Expression *currentExpr = new IdentifierExpr(name); // Start with IdentifierExpr
+
+            while (Match(TokenType::Dot) || Match(TokenType::ScopeResolution))
             {
                 TokenType opType = Previous().GetTokenType(); // Get the operator type
+                const Token &nextTok = Peek();                // Peek at the next token
+
                 if (opType == TokenType::Dot)
                 {
-                    name += "." + Consume(TokenType::Identifier, "Expected identifier after '.'").GetText();
+                    // Handle struct member access
+                    Consume(TokenType::Identifier, "Expected identifier after '.'");
+                    // currentExpr = new StructAccess(currentExpr, new IdentifierExpr(nextTok.GetText()));
                 }
-                else
-                { // ScopeResolution
-                    name += "::" + Consume(TokenType::Identifier, "Expected identifier after '::'").GetText();
+                else // ScopeResolution
+                {
+                    // Handle scope resolution (e.g., MyNamespace::MyClass)
+                    Consume(TokenType::Identifier, "Expected identifier after '::'");
+                    name += "::" + nextTok.GetText();       // Append to the name string for this case
+                    currentExpr = new IdentifierExpr(name); // Update to a new IdentifierExpr for scope resolution
                 }
             }
-            return new IdentifierExpr(name);
+            return currentExpr;
         }
         if (Match(TokenType::LParen))
         {
