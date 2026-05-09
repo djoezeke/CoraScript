@@ -43,7 +43,7 @@ namespace cora::ir
 
         runtime::value ExtractLiteralValue(const Value *value)
         {
-            if (const auto *constant = dynamic_cast<const ConstantValue *>(value))
+            if (const auto *constant = dynamic_cast<const Constant *>(value))
             {
                 return constant->value;
             }
@@ -352,7 +352,7 @@ namespace cora::ir
         m_currentBlock = funcEntry;
         m_variables.clear();
 
-        auto *func = new Function(name, Type::Int(), {}); // Placeholder function object if needed, but we mainly need Argument values
+        auto *func = new Function(name, Type::Int(), {}, funcEntry); // Placeholder function object if needed, but we mainly need Argument values
 
         for (size_t i = 0; i < stmt->params.size(); ++i)
         {
@@ -362,7 +362,7 @@ namespace cora::ir
                 continue;
             }
             // Use Argument value instead of Alloca
-            auto *arg = MakeValue<Argument>(Type::Int(), (Function *)nullptr, static_cast<unsigned>(i));
+            auto *arg = MakeValue<Argument>(Type::Int(), func, static_cast<unsigned>(i));
             arg->name = param->name->name;
             assignVariable(param->name->name, arg);
         }
@@ -375,8 +375,7 @@ namespace cora::ir
             MakeValue<ReturnInstruction>(m_currentBlock, nullptr);
         }
 
-        auto *funcValue = MakeValue<FunctionValue>(name, funcEntry, static_cast<int>(stmt->params.size()));
-        savedVars[name] = funcValue;
+        savedVars[name] = func;
 
         m_variables = std::move(savedVars);
         m_currentBlock = savedBlock;
@@ -664,7 +663,7 @@ namespace cora::ir
             // so we'll try to treat the whole thing as a global name or just the base.
             // Given the current VM, let's treat the base as global and we might need GetMember for the rest.
             // But if we don't have GetMember, let's just return a placeholder for the base.
-            value = MakeValue<ConstantValue>(runtime::value(nullptr), parts.front());
+            value = MakeValue<Constant>(runtime::value(nullptr), parts.front());
         }
 
         if (parts.size() > 1)
@@ -704,7 +703,7 @@ namespace cora::ir
             // If not resolved at compile time, we should ideally emit GetMember instructions.
             // For now, let's at least return the base value if it's a global.
             // Actually, to make io.print(sum) work, we'll just return the qualified name as a global if not resolved.
-            return MakeValue<ConstantValue>(runtime::value(nullptr), expr->name);
+            return MakeValue<Constant>(runtime::value(nullptr), expr->name);
         }
 
         if (!load)
@@ -712,7 +711,7 @@ namespace cora::ir
             return value;
         }
 
-        if (dynamic_cast<FunctionValue *>(value) != nullptr || dynamic_cast<ConstantValue *>(value) != nullptr || dynamic_cast<Argument *>(value) != nullptr)
+        if (dynamic_cast<Function *>(value) != nullptr || dynamic_cast<Constant *>(value) != nullptr || dynamic_cast<Argument *>(value) != nullptr)
         {
             return value;
         }
@@ -768,45 +767,34 @@ namespace cora::ir
         switch (expr->op)
         {
         case parser::TokenType::Plus:
-            // For now, assuming integer addition.
             opcode = Instruction::Opcode::Add;
-            // resultType = Type::Int(); // Assuming int + int -> int
             break;
         case parser::TokenType::Minus:
             opcode = Instruction::Opcode::Sub;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::Star:
             opcode = Instruction::Opcode::Mul;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::Slash:
             opcode = Instruction::Opcode::Div;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::Equal:
             opcode = Instruction::Opcode::Eq;
-            // resultType = Type::Int(); // Comparison results are often bool, but IR might use int
             break;
         case parser::TokenType::NotEqual:
             opcode = Instruction::Opcode::Ne;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::Less:
             opcode = Instruction::Opcode::Lt;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::LessEqual:
             opcode = Instruction::Opcode::Le;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::Greater:
             opcode = Instruction::Opcode::Gt;
-            // resultType = Type::Int();
             break;
         case parser::TokenType::GreaterEqual:
             opcode = Instruction::Opcode::Ge;
-            // resultType = Type::Int();
             break;
         default:
             opcode = Instruction::Opcode::Add;
@@ -929,7 +917,7 @@ namespace cora::ir
 
     Value *IRBuilder::MakeConstant(runtime::value value, const std::string &name)
     {
-        return MakeValue<ConstantValue>(std::move(value), name);
+        return MakeValue<Constant>(std::move(value), name);
     }
 
     void IRBuilder::Reset()
@@ -963,6 +951,7 @@ namespace cora::ir
         {
             return nullptr;
         }
+        return nullptr;
     }
 
     Value *IRBuilder::lookupVariable(const std::string &name) const

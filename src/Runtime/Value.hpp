@@ -606,6 +606,8 @@ namespace cora::compiler
             T *value_ptr();
             bool has_value();
 
+            std::string toString();
+
             void reset();
 
             /**

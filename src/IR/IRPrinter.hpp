@@ -2,6 +2,7 @@
 #define CORA_IR_IRPRINTER_H
 
 #include "IRInstruction.hpp"
+#include "IRValue.hpp"
 
 #include <string>
 #include <vector>

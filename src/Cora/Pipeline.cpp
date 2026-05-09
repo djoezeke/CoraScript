@@ -1,11 +1,9 @@
 #include "Pipeline.hpp"
 
 #include "../IR/IRBuilder.hpp"
-#include "../IR/IROptimizer.hpp"
 #include "../IR/IRPrinter.hpp"
 #include "../IR/IRVerifier.hpp"
 #include "../Parser/Parser.hpp"
-#include "../Semantic/Validator.hpp"
 #include "../VMachine/BytecodeEmitter.hpp"
 #include "../VMachine/BytecodeReader.hpp"
 #include "../VMachine/BytecodeWriter.hpp"
@@ -76,8 +74,6 @@ namespace cora::tooling
 
         if (options.optimize)
         {
-            cora::ir::IROptimizer optimizer;
-            optimizer.Optimize(blocks);
         }
 
         if (options.verify)

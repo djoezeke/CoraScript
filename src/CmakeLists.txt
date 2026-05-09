@@ -62,7 +62,6 @@ add_subdirectory(Cora)
 add_subdirectory(IR)
 add_subdirectory(Parser)
 add_subdirectory(Runtime)
-add_subdirectory(Semantic)
 add_subdirectory(VMachine)
 
 

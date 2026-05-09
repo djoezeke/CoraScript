@@ -33,7 +33,6 @@ set(CORA_CORA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Cora")
 set(CORA_IR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/IR")
 set(CORA_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Parser")
 set(CORA_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime")
-set(CORA_SEMANTIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Semantic")
 set(CORA_VMACHINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/VMachine")
 set(CORA_MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 
@@ -71,7 +70,6 @@ target_link_libraries(Modules
 		Cora::Parser
 		Cora::Runtime
 		Cora::Builtin
-		Cora::Semantic
 		Cora::VMachine
 )
 

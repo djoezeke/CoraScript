@@ -648,6 +648,10 @@ namespace cora::compiler
 
         //========== Utility ==========
 
+        std::string value::toString(){
+            return as_string();
+        };
+
         value value::clone() const { return value(*this); }
 
         std::string value::Repr() const

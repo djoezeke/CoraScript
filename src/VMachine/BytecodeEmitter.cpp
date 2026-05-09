@@ -30,7 +30,7 @@ namespace cora::vmachine
         BytecodeProgram program;
 
         std::unordered_map<const cora::ir::Value *, std::int32_t> valueToRegister;
-        std::unordered_map<const cora::ir::FunctionValue *, std::int32_t> functionConstants;
+        std::unordered_map<const cora::ir::Function *, std::int32_t> functionConstants;
         std::unordered_map<std::string, std::int32_t> nameToIndex;
         std::unordered_map<const cora::ir::BasicBlock *, std::size_t> blockToIp;
         std::vector<Fixup> fixups;
@@ -81,10 +81,10 @@ namespace cora::vmachine
                 return reg;
             }
 
-            if (emitGlobalLoad && (value->kind == cora::ir::Value::Kind::Constant || dynamic_cast<const cora::ir::ConstantValue *>(value)))
+            if (emitGlobalLoad && (value->kind == cora::ir::Value::Kind::Constant || dynamic_cast<const cora::ir::Constant *>(value)))
             {
                 const std::string name = ValueName(value);
-                if (!name.empty() && name[0] != '%' && !dynamic_cast<const cora::ir::FunctionValue *>(value))
+                if (!name.empty() && name[0] != '%' && !dynamic_cast<const cora::ir::Function *>(value))
                 {
                     const std::int32_t reg = allocateRegister();
                     const std::int32_t nameIndex = getNameIndex(name);
@@ -94,7 +94,7 @@ namespace cora::vmachine
                 }
             }
 
-            if (const auto *constant = dynamic_cast<const cora::ir::ConstantValue *>(value))
+            if (const auto *constant = dynamic_cast<const cora::ir::Constant *>(value))
             {
                 const std::int32_t reg = allocateRegister();
                 const std::int32_t index = static_cast<std::int32_t>(program.constants.size());
@@ -104,7 +104,7 @@ namespace cora::vmachine
                 return reg;
             }
 
-            if (const auto *function = dynamic_cast<const cora::ir::FunctionValue *>(value))
+            if (const auto *function = dynamic_cast<const cora::ir::Function *>(value))
             {
                 const std::int32_t reg = allocateRegister();
                 const std::int32_t index = static_cast<std::int32_t>(program.constants.size());
@@ -145,17 +145,22 @@ namespace cora::vmachine
                 {
                     const std::int32_t dest = getRegister(inst, false);
                     const cora::ir::Value *ptr = inst->getOperand(0);
-                    
-                    if (dynamic_cast<const cora::ir::AllocaInstruction*>(ptr)) {
+
+                    if (dynamic_cast<const cora::ir::AllocaInstruction *>(ptr))
+                    {
                         // Local variable
                         const std::int32_t src = getRegister(ptr, false);
-                        if (dest != src) {
+                        if (dest != src)
+                        {
                             program.code.push_back({OpCode::Move, dest, src, 0});
                         }
-                    } else {
+                    }
+                    else
+                    {
                         // Global variable
                         const std::string name = ValueName(ptr);
-                        if (!name.empty()) {
+                        if (!name.empty())
+                        {
                             const std::int32_t nameIndex = getNameIndex(name);
                             program.code.push_back({OpCode::LoadGlobal, dest, nameIndex, 0});
                         }
@@ -168,16 +173,21 @@ namespace cora::vmachine
                     const cora::ir::Value *ptr = inst->getOperand(1);
                     const std::int32_t source = getRegister(val, true);
 
-                    if (dynamic_cast<const cora::ir::AllocaInstruction*>(ptr)) {
+                    if (dynamic_cast<const cora::ir::AllocaInstruction *>(ptr))
+                    {
                         // Local variable
                         const std::int32_t dest = getRegister(ptr, false);
-                        if (dest != source) {
+                        if (dest != source)
+                        {
                             program.code.push_back({OpCode::Move, dest, source, 0});
                         }
-                    } else {
+                    }
+                    else
+                    {
                         // Global variable
                         const std::string name = ValueName(ptr);
-                        if (!name.empty()) {
+                        if (!name.empty())
+                        {
                             const std::int32_t nameIndex = getNameIndex(name);
                             program.code.push_back({OpCode::StoreGlobal, source, nameIndex, 0});
                         }
@@ -320,14 +330,14 @@ namespace cora::vmachine
             program.code[fixup.at].a = static_cast<std::int32_t>(found->second);
         }
 
-        for (const auto &entry : functionConstants)
+        for (const auto &function : functionConstants)
         {
-            const auto found = blockToIp.find(entry.first->entry);
+            const auto found = blockToIp.find(function.first->body);
             if (found == blockToIp.end())
             {
                 throw std::runtime_error("BytecodeEmitter: missing function entry block");
             }
-            program.constants[static_cast<std::size_t>(entry.second)] = cora::compiler::runtime::value(static_cast<std::int64_t>(found->second));
+            program.constants[static_cast<std::size_t>(function.second)] = cora::compiler::runtime::value(static_cast<std::int64_t>(found->second));
         }
 
         // To support functions properly, we should ideally emit them separately.

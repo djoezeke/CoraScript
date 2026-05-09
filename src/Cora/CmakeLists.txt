@@ -33,7 +33,6 @@ target_link_libraries(cora
 		Cora::Modules
 		Cora::IR
 		Cora::VMachine
-		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime
@@ -46,7 +45,6 @@ target_link_libraries(coravm
 		Cora::Modules
 		Cora::IR
 		Cora::VMachine
-		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime
@@ -58,7 +56,6 @@ target_link_libraries(corac
 	PRIVATE
 		Cora::IR
 		Cora::VMachine
-		Cora::Semantic
 		Cora::Parser
 		Cora::Builtin
 		Cora::Runtime

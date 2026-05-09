@@ -3,11 +3,27 @@
 
 /**
  * SSA IRepresentation (Intermediate Representation) Format.
+ *
+ * -  Memory Access
+ *      * alloca: Allocates memory on the stack.
+ *      * load: Reads a value from memory into a register.
+ *      * store: Writes a value from a register into memory.
+ *
+ * -  Control Flow
+ *      * call: Call a function.
+ *      * ret: Return a value from a function.
+ *      * br: Branch to a label (conditional or unconditional).
+ *
+ * -  Special Constants
+ *      * true:
+ *      * false:
+ *      * void:
  */
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -16,7 +32,7 @@
 
 #include <list>
 
-#include "../Runtime/Value.hpp"
+#include "IRValue.hpp"
 
 namespace cora::ir
 {
@@ -24,280 +40,16 @@ namespace cora::ir
     using namespace cora::compiler;
 
     // Forward declarations
+    struct Use;
+    struct Type;
     struct User;
     struct Value;
-    struct Instruction;
-    struct PhiInstruction;
-
-    struct Type
-    {
-        enum class ID
-        {
-            Int,
-            Void,
-            Label,
-            Float,
-            Pointer,
-        };
-
-    public:
-        Type(ID i) : id(i) {};
-
-        static Type *Int() { return new Type(ID::Int); };
-        static Type *Void() { return new Type(ID::Void); };
-        static Type *Float() { return new Type(ID::Float); };
-        static Type *Label() { return new Type(ID::Label); };
-        static Type *Pointer(Type *element)
-        {
-            Type *t = new Type(ID::Pointer);
-            t->pointee = element;
-            return t;
-        };
-
-        bool is(Type type) const
-        {
-            return id == type.id;
-        };
-        bool isInt() const { return id == ID::Int; };
-        bool isVoid() const { return id == ID::Void; };
-        bool isFloat() const { return id == ID::Float; };
-        bool isLabel() const { return id == ID::Label; };
-        bool isPointer() const { return id == ID::Pointer; };
-
-        bool operator==(Type *other) const
-        {
-            if (id != other->id)
-                return false;
-            if (id == ID::Pointer)
-                return pointee == other->pointee;
-            return true;
-        };
-
-        bool operator!=(Type *other) const
-        {
-            return !((this) == other);
-        };
-
-        bool operator==(const Type &other) const
-        {
-            if (id != other.id)
-                return false;
-            if (id == ID::Pointer)
-                return pointee == other.pointee;
-            return true;
-        };
-
-        bool operator!=(const Type &other) const
-        {
-            return !((*this) == other);
-        };
-
-    public:
-        ID id;
-        // Only used if id == Pointer
-        Type *pointee = nullptr;
-    };
-
-    /**
-     * @brief THE USE: The "glue" object.
-     * @note This allows O(1) removal of a user from a value's use-list.
-     */
-    struct Use
-    {
-    public:
-        void set(Value *value, User *use);
-
-    public:
-        Value *value = nullptr;
-        User *user = nullptr;
-
-        // Links in the circular list of a Value's users
-        Use *next = nullptr;
-        Use *prev = nullptr;
-    };
-
-    /**
-     * @brief The Value class.
-     */
-    struct Value
-    {
-    public:
-        enum class Kind
-        {
-            Constant,
-            Instruction,
-            Argument,
-            BasicBlock
-        };
-
-    public:
-        Value(Kind k, std::string name)
-            : kind(k), name(name), type(nullptr) {};
-
-        Value(Kind k, std::string name, Type *type)
-            : kind(k), name(name), type(type) {};
-
-        void addUse(Use &use)
-        {
-            use.next = use_list;
-            if (use_list)
-                use_list->prev = &use;
-            use_list = &use;
-        };
-
-        void killUse(Use &use) {
-        };
-
-        // "Replace All Uses With"
-        void RAUW(Value *new_value);
-
-        virtual ~Value() = default;
-
-    public:
-        Kind kind;
-        Type *type;
-        std::string name;
-
-        // Head of the intrusive linked list of Uses
-        Use *use_list = nullptr;
-    };
-
-    struct ConstantValue : public Value
-    {
-    public:
-        ConstantValue(runtime::value value, std::string name = "")
-            : Value(Kind::Constant, std::move(name)), value(std::move(value))
-        {
-        }
-
-        runtime::value value;
-    };
-
-    struct BasicBlock : public Value
-    {
-        std::vector<PhiInstruction *> phis;
-        std::vector<Instruction *> insts;
-        std::vector<BasicBlock *> preds;
-        std::vector<BasicBlock *> succs;
-
-        BasicBlock(std::string name)
-            : Value(Kind::BasicBlock, name) {};
-
-        static void edge(BasicBlock *from, BasicBlock *to)
-        {
-            from->succs.push_back(to);
-            to->preds.push_back(from);
-        };
-
-        void addSuccessor(BasicBlock *block)
-        {
-            if (block != nullptr)
-            {
-                succs.push_back(block);
-            }
-        };
-
-        void addPredecessor(BasicBlock *block)
-        {
-            if (block != nullptr)
-            {
-                preds.push_back(block);
-            }
-        };
-
-        void addInstruction(Instruction *inst)
-        {
-            if (inst != nullptr)
-            {
-                insts.push_back(inst);
-            }
-        };
-
-        void addPhiInstruction(PhiInstruction *phi)
-        {
-            if (phi != nullptr)
-            {
-                phis.push_back(phi);
-            }
-        };
-    };
-
-    struct FunctionValue : public Value
-    {
-    public:
-        FunctionValue(std::string name, BasicBlock *entry, int arity)
-            : Value(Kind::Constant, std::move(name)), entry(entry), arity(arity)
-        {
-        }
-
-        BasicBlock *entry;
-        int arity;
-    };
-
-    /**
-     * @brief A Value that consumes other Values.
-     */
-    struct User : public Value
-    {
-    public:
-        User(Kind k, std::string name, int num_ops)
-            : Value(k, name)
-        {
-            operands.resize(num_ops);
-            for (auto &use : operands)
-                use.user = this;
-        };
-
-        void setOperand(int i, Value *value)
-        {
-            operands[i].set(value, this);
-        };
-
-        Value *getOperand(int i) const
-        {
-            return operands[i].value;
-        };
-
-    public:
-        // The operands are stored as Use objects
-        std::vector<Use> operands;
-    };
-
-    // ARGUMENT: Represents a function parameter (e.g., i32 %0)
-    struct Argument : public Value
-    {
-        struct Function *parent;
-        unsigned argNo;
-
-        Argument(Type *t, Function *f, unsigned num)
-            : Value(Kind::Argument, std::to_string(num), t), parent(f), argNo(num) {};
-    };
-
-    // FUNCTION: A global value containing BasicBlocks and Arguments
-    struct Function : public Value
-    {
-
-        Function(std::string name, Type *retTy, std::vector<Type *> argTypes)
-            : Value(Kind::Constant, name, retTy), returnType(retTy)
-        {
-            for (size_t i = 0; i < argTypes.size(); ++i)
-            {
-                args.push_back(new Argument(argTypes[i], this, i));
-            }
-        };
-
-        void addBlock(BasicBlock *bb) { blocks.push_back(bb); };
-
-    public:
-        std::vector<BasicBlock *> blocks;
-        std::vector<Argument *> args;
-        Type *returnType;
-    };
+    struct BasicBlock;
 
     // A User with an Opcode.
     struct Instruction : public User
     {
-        enum class Opcode
+        enum class Opcode : uint8_t
         {
             /* Bitwise Operations. */
 
@@ -338,27 +90,15 @@ namespace cora::ir
         };
 
     public:
-        Instruction(Opcode op, std::string name, BasicBlock *block, int num_ops)
-            : User(Kind::Instruction, name, num_ops), opcode(op), parent(block)
-        {
-            parent->insts.push_back(this);
-        };
+        Instruction(Opcode op, std::string name, BasicBlock *block, int num_ops);
+
+        std::string opcodeString();
+
+        virtual std::string toString();
 
     public:
         Opcode opcode;
         BasicBlock *parent;
-    };
-
-    // IMPLEMENTATION OF USE SETTING
-    inline void Use::set(Value *value, User *use)
-    {
-        if (value)
-        { /* handle removing from old list if necessary */
-        }
-        this->value = value;
-        this->user = use;
-        if (this->value)
-            this->value->addUse(*this);
     };
 
     // PHI NODE: Specialized Instruction
@@ -366,16 +106,11 @@ namespace cora::ir
     {
     public:
         // Pairs of (Value, BasicBlock)
-        PhiInstruction(std::string name, BasicBlock *block)
-            : Instruction(Opcode::Phi, name, block, 0) {} // Phi grows dynamically
+        PhiInstruction(std::string name, BasicBlock *block);
 
-        void addIncoming(Value *value, BasicBlock *block)
-        {
-            Use use;
-            use.set(value, this);
-            operands.push_back(use);
-            // Additional logic to track which block matches which operand
-        };
+        void addIncoming(Value *value, BasicBlock *block);
+
+        std::string toString() override;
     };
 
     // Binary Operator (Add, Sub, Mul, etc.)
@@ -383,12 +118,8 @@ namespace cora::ir
     struct BinaryInstruction : public Instruction
     {
     public:
-        BinaryInstruction(Opcode op, Value *lhs, Value *rhs, std::string name, BasicBlock *block)
-            : Instruction(op, name, block, 2)
-        {
-            setOperand(0, lhs);
-            setOperand(1, rhs);
-        };
+        BinaryInstruction(Opcode op, Value *lhs, Value *rhs, std::string name, BasicBlock *block);
+        std::string toString() override;
     };
 
     // Unary Operator (Neg, Not)
@@ -396,11 +127,9 @@ namespace cora::ir
     struct UnaryInstruction : public Instruction
     {
     public:
-        UnaryInstruction(Opcode op, Value *value, std::string name, BasicBlock *block)
-            : Instruction(op, name, block, 1)
-        {
-            setOperand(0, value);
-        };
+        UnaryInstruction(Opcode op, Value *value, std::string name, BasicBlock *block);
+
+        std::string toString() override;
     };
 
     // Load Instruction (Memory -> Register)
@@ -408,11 +137,9 @@ namespace cora::ir
     struct LoadInstruction : public Instruction
     {
     public:
-        LoadInstruction(Value *ptr, std::string name, BasicBlock *block)
-            : Instruction(Opcode::Load, name, block, 1)
-        {
-            setOperand(0, ptr); // The source address
-        };
+        LoadInstruction(Value *ptr, std::string name, BasicBlock *block);
+
+        std::string toString() override;
     };
 
     // Store Instruction (Register -> Memory)
@@ -421,12 +148,9 @@ namespace cora::ir
     struct StoreInstruction : public Instruction
     {
     public:
-        StoreInstruction(Value *value, Value *ptr, BasicBlock *block)
-            : Instruction(Opcode::Store, "", block, 2)
-        {
-            setOperand(0, value); // Value to store
-            setOperand(1, ptr);   // Destination address
-        };
+        StoreInstruction(Value *value, Value *ptr, BasicBlock *block);
+
+        std::string toString() override;
     };
 
     // Call Instruction
@@ -434,15 +158,9 @@ namespace cora::ir
     struct CallInstruction : public Instruction
     {
     public:
-        CallInstruction(Value *func, std::vector<Value *> args, std::string name, BasicBlock *block)
-            : Instruction(Opcode::Call, name, block, args.size() + 1)
-        {
-            setOperand(0, func); // First operand is usually the function pointer
-            for (size_t i = 0; i < args.size(); ++i)
-            {
-                setOperand(i + 1, args[i]);
-            }
-        };
+        CallInstruction(Value *func, std::vector<Value *> args, std::string name, BasicBlock *block);
+
+        std::string toString() override;
     };
 
     // Branch Instruction (Terminator)
@@ -451,26 +169,12 @@ namespace cora::ir
     {
     public:
         // Unconditional
-        BranchInstruction(BasicBlock *dest, BasicBlock *block)
-            : Instruction(Opcode::Br, "", block, 1), is_conditional(false)
-        {
-            setOperand(0, dest);
-            block->addSuccessor(dest);
-            dest->addPredecessor(block);
-        };
+        BranchInstruction(BasicBlock *dest, BasicBlock *block);
 
         // Conditional
-        BranchInstruction(Value *cond, BasicBlock *ifTrue, BasicBlock *ifFalse, BasicBlock *block)
-            : Instruction(Opcode::Br, "", block, 3), is_conditional(true)
-        {
-            setOperand(0, cond);
-            setOperand(1, ifTrue);
-            setOperand(2, ifFalse);
-            block->addSuccessor(ifTrue);
-            block->addSuccessor(ifFalse);
-            ifTrue->addPredecessor(block);
-            ifFalse->addPredecessor(block);
-        };
+        BranchInstruction(Value *cond, BasicBlock *ifTrue, BasicBlock *ifFalse, BasicBlock *block);
+
+        std::string toString() override;
 
     public:
         bool is_conditional;
@@ -480,48 +184,27 @@ namespace cora::ir
     // Syntax: ret i32 %value  OR  ret void
     struct ReturnInstruction : public Instruction
     {
-        ReturnInstruction(BasicBlock *block, Value *value = nullptr)
-            : Instruction(Opcode::Ret, "ret", block, value ? 1 : 0)
-        {
-            if (value)
-            {
-                setOperand(0, value);
-                this->type = value->type;
-            }
-            else
-            {
-                this->type = Type::Void();
-            }
-        };
+        ReturnInstruction(BasicBlock *block, Value *value = nullptr);
+
+        std::string toString() override;
     };
 
     // JUMP (Unconditional Branch)
     // Syntax: br label %dest
     struct JumpInstruction : public Instruction
     {
-        JumpInstruction(BasicBlock *dest, BasicBlock *block)
-            : Instruction(Opcode::Jump, "", block, 1)
-        {
-            setOperand(0, dest);
+        JumpInstruction(BasicBlock *dest, BasicBlock *block);
 
-            // Link CFG
-            block->addSuccessor(dest);
-            dest->addPredecessor(block);
-            this->type = Type::Void();
-        };
+        std::string toString() override;
     };
 
     // ALLOCA: The "Variable" allocation on stack
     // Syntax: %x = alloca i32
     struct AllocaInstruction : public Instruction
     {
-        Type *type;
-        AllocaInstruction(Type *ty, std::string name, BasicBlock *block)
-            : Instruction(Opcode::Alloca, name, block, 0), type(ty)
-        {
-            // Result is a pointer to the type
-            this->type = Type::Pointer(ty);
-        };
+        AllocaInstruction(Type *ty, std::string name, BasicBlock *block);
+
+        std::string toString() override;
     };
 
 } // namespace cora::ir

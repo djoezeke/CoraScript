@@ -2,6 +2,7 @@
 #define CORA_IR_IRBUILDER_H
 
 #include "IRInstruction.hpp"
+#include "IRValue.hpp"
 
 #include "../AST/ASTExpr.hpp"
 #include "../AST/ASTStmt.hpp"
