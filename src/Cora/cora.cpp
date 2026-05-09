@@ -132,17 +132,21 @@ int main(int argc, char **argv)
                 throw std::runtime_error("No input source provided");
             }
 
+            // std::cerr << "Compiling to bytecode...\n";
             const cora::tooling::FrontendResult result = cora::tooling::CompileToBytecode(
                 args.source,
                 args.sourceName,
                 args.options,
                 &std::cout,
                 &std::cout);
+            // std::cerr << "Compilation finished.\n";
             program = result.program;
         }
 
+        // std::cerr << "Running interpreter...\n";
         cora::vmachine::Interpreter interpreter(&std::cout);
         const int rc = interpreter.Run(program);
+        // std::cerr << "Interpreter finished with code: " << rc << "\n";
         if (rc != 0)
         {
             std::cerr << interpreter.LastError() << '\n';

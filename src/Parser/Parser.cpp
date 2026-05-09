@@ -1023,7 +1023,7 @@ namespace cora::parser
 
     Expression *Parser::AssignExpr()
     {
-        Expression *expr = ParseOr();
+        Expression *expr = ParseTernaryExpr();
         if (Match(TokenType::Assign))
         {
             Expression *rhs = AssignExpr();
@@ -1037,6 +1037,21 @@ namespace cora::parser
             delete expr;
             return new ast::AssignExpr(lhs, rhs);
         }
+        return expr;
+    }
+
+    Expression *Parser::ParseTernaryExpr()
+    {
+        Expression *expr = ParseOr();
+
+        if (Match(TokenType::Question))
+        {
+            Expression *thenExpr = ParseExpression();
+            Consume(TokenType::Colon, "Expected ':' in ternary expression");
+            Expression *elseExpr = ParseTernaryExpr();
+            return new ast::TernaryExpr(expr, thenExpr, elseExpr);
+        }
+
         return expr;
     }
 

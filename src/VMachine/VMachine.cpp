@@ -146,6 +146,7 @@ namespace cora::vmachine
                     return 2;
                 }
                 const auto &calleeValue = m_registers[static_cast<std::size_t>(instruction.b)];
+                // std::cerr << "Calling reg " << instruction.b << ", value type: " << calleeValue.AsString() << "\n";
                 if (calleeValue.IsCallable())
                 {
                     std::vector<value> args;
@@ -431,14 +432,52 @@ namespace cora::vmachine
         }
 
         const std::string &name = program.names[static_cast<std::size_t>(nameIndex)];
-        cora::compiler::runtime::Variable *variable = m_globals.GetVariableValue(name);
+        
+        // Handle qualified names like io.print
+        std::vector<std::string> parts;
+        std::string part;
+        for (char c : name)
+        {
+            if (c == '.')
+            {
+                if (!part.empty()) parts.push_back(part);
+                part.clear();
+            }
+            else
+            {
+                part += c;
+            }
+        }
+        if (!part.empty()) parts.push_back(part);
+
+        if (parts.empty()) return false;
+
+        cora::compiler::runtime::Variable *variable = m_globals.GetVariableValue(parts[0]);
         if (variable == nullptr || variable->GetValue() == nullptr)
         {
-            SetRuntimeError("VMachine: undefined global variable " + name);
+            SetRuntimeError("VMachine: undefined global variable " + parts[0]);
             return false;
         }
 
-        m_registers[static_cast<std::size_t>(dest)] = *variable->GetValue();
+        value current = *variable->GetValue();
+        for (std::size_t i = 1; i < parts.size(); ++i)
+        {
+            if (!current.IsObject())
+            {
+                SetRuntimeError("VMachine: " + parts[i-1] + " is not an object");
+                return false;
+            }
+            auto obj = current.AsObject();
+            auto it = obj->fields.find(parts[i]);
+            if (it == obj->fields.end())
+            {
+                SetRuntimeError("VMachine: undefined member " + parts[i] + " in " + parts[i-1]);
+                return false;
+            }
+            current = it->second;
+        }
+
+        m_registers[static_cast<std::size_t>(dest)] = current;
         return true;
     }
 

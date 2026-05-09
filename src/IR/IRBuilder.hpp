@@ -47,12 +47,23 @@ namespace cora::ir
         void EmitStruct(ast::StructDecl *stmt);
         void EmitEnum(ast::EnumDecl *stmt);
         void EmitTryCatch(ast::TryCatchStmt *stmt);
+        Value *EmitTernaryExpr(ast::TernaryExpr *expr);
 
         BasicBlock *CreateBlock(const std::string &name);
         Value *MakeConstant(runtime::value value, const std::string &name = "");
         template <typename T, typename... Args>
         T *MakeValue(Args &&...args)
         {
+            if (m_currentBlock && !m_currentBlock->insts.empty())
+            {
+                Instruction::Opcode lastOp = m_currentBlock->insts.back()->opcode;
+                if (lastOp == Instruction::Opcode::Br || lastOp == Instruction::Opcode::Ret || lastOp == Instruction::Opcode::Jump)
+                {
+                    // Block already terminated.
+                    // To keep things simple, we create a dead block to soak up unreachable instructions.
+                    m_currentBlock = CreateBlock("dead");
+                }
+            }
             auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
             T *raw = ptr.get();
             m_ownedValues.push_back(std::move(ptr));
@@ -69,6 +80,8 @@ namespace cora::ir
         std::vector<BasicBlock *> m_blocks;
         std::vector<std::unique_ptr<Value>> m_ownedValues;
         std::unordered_map<std::string, Value *> m_variables;
+        std::vector<BasicBlock *> m_breakStack;
+        std::vector<BasicBlock *> m_continueStack;
         BasicBlock *m_entry{nullptr};
         BasicBlock *m_currentBlock{nullptr};
         std::size_t m_tempIndex{0};

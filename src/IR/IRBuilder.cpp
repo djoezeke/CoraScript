@@ -58,7 +58,6 @@ namespace cora::ir
         Reset();
 
         auto entry = std::make_unique<BasicBlock>("entry");
-        // entry->name = "entry";
         m_entry = entry.get();
         m_currentBlock = m_entry;
         m_blocks.push_back(m_entry);
@@ -69,6 +68,9 @@ namespace cora::ir
             EmitStatement(stmt);
         }
 
+        // The blocks are already in m_blocks because CreateBlock pushes them there.
+        // We just need to make sure they are in a sensible order.
+        // For now, the order of creation is fine.
         return m_entry;
     }
 
@@ -147,6 +149,22 @@ namespace cora::ir
         if (auto *tryCatch = dynamic_cast<ast::TryCatchStmt *>(stmt))
         {
             EmitTryCatch(tryCatch);
+            return nullptr;
+        }
+        if (dynamic_cast<ast::BreakStmt *>(stmt))
+        {
+            if (!m_breakStack.empty())
+            {
+                MakeValue<JumpInstruction>(m_breakStack.back(), m_currentBlock);
+            }
+            return nullptr;
+        }
+        if (dynamic_cast<ast::ContinueStmt *>(stmt))
+        {
+            if (!m_continueStack.empty())
+            {
+                MakeValue<JumpInstruction>(m_continueStack.back(), m_currentBlock);
+            }
             return nullptr;
         }
         if (auto *retStmt = dynamic_cast<ast::ReturnStmt *>(stmt))
@@ -240,9 +258,15 @@ namespace cora::ir
         }
         MakeValue<BranchInstruction>(condition, bodyBlock, exitBlock, m_currentBlock);
 
+        m_breakStack.push_back(exitBlock);
+        m_continueStack.push_back(condBlock);
+
         m_currentBlock = bodyBlock;
         EmitBlock(stmt->block);
         MakeValue<JumpInstruction>(condBlock, m_currentBlock);
+
+        m_continueStack.pop_back();
+        m_breakStack.pop_back();
 
         m_currentBlock = exitBlock;
     }
@@ -271,6 +295,9 @@ namespace cora::ir
         }
         MakeValue<BranchInstruction>(condition, bodyBlock, exitBlock, m_currentBlock);
 
+        m_breakStack.push_back(exitBlock);
+        m_continueStack.push_back(updateBlock);
+
         m_currentBlock = bodyBlock;
         EmitBlock(stmt->block);
         MakeValue<JumpInstruction>(updateBlock, m_currentBlock);
@@ -278,6 +305,9 @@ namespace cora::ir
         m_currentBlock = updateBlock;
         EmitStatement(stmt->update);
         MakeValue<JumpInstruction>(condBlock, m_currentBlock);
+
+        m_continueStack.pop_back();
+        m_breakStack.pop_back();
 
         m_currentBlock = exitBlock;
     }
@@ -322,18 +352,28 @@ namespace cora::ir
         m_currentBlock = funcEntry;
         m_variables.clear();
 
-        for (ast::ParamExpr *param : stmt->params)
+        auto *func = new Function(name, Type::Int(), {}); // Placeholder function object if needed, but we mainly need Argument values
+
+        for (size_t i = 0; i < stmt->params.size(); ++i)
         {
+            ast::ParamExpr *param = stmt->params[i];
             if (param == nullptr || param->name == nullptr)
             {
                 continue;
             }
-            Value *slot = MakeValue<AllocaInstruction>(Type::Pointer(Type::Int()), param->name->name, m_currentBlock);
-            assignVariable(param->name->name, slot);
+            // Use Argument value instead of Alloca
+            auto *arg = MakeValue<Argument>(Type::Int(), (Function*)nullptr, static_cast<unsigned>(i));
+            arg->name = param->name->name;
+            assignVariable(param->name->name, arg);
         }
 
         EmitBlock(stmt->block);
-        MakeValue<ReturnInstruction>(m_currentBlock, nullptr);
+        
+        // Ensure every function ends with a return if not already present
+        if (m_currentBlock->insts.empty() || m_currentBlock->insts.back()->opcode != Instruction::Opcode::Ret)
+        {
+            MakeValue<ReturnInstruction>(m_currentBlock, nullptr);
+        }
 
         auto *funcValue = MakeValue<FunctionValue>(name, funcEntry, static_cast<int>(stmt->params.size()));
         savedVars[name] = funcValue;
@@ -489,6 +529,11 @@ namespace cora::ir
             return EmitFuncCallExpr(call);
         }
 
+        if (auto *ternary = dynamic_cast<ast::TernaryExpr *>(expr))
+        {
+            return EmitTernaryExpr(ternary);
+        }
+
         // if (auto *arrayExpr = dynamic_cast<ast::ArrayExpr *>(expr))
         // {
         //     // Determine the element type. For simplicity, assume all elements are of the same type.
@@ -614,35 +659,52 @@ namespace cora::ir
         Value *value = lookupVariable(parts.front());
         if (value == nullptr)
         {
-            return nullptr;
+            // If not found in local variables, it might be a global.
+            // For qualified names like io.print, we currently don't have GetMember opcode,
+            // so we'll try to treat the whole thing as a global name or just the base.
+            // Given the current VM, let's treat the base as global and we might need GetMember for the rest.
+            // But if we don't have GetMember, let's just return a placeholder for the base.
+            value = MakeValue<ConstantValue>(runtime::value(nullptr), parts.front());
         }
 
         if (parts.size() > 1)
         {
             runtime::value current = ExtractLiteralValue(value);
+            bool resolvedAtCompileTime = true;
             for (std::size_t i = 1; i < parts.size(); ++i)
             {
                 if (!current.IsObject())
                 {
-                    return nullptr;
+                    resolvedAtCompileTime = false;
+                    break;
                 }
 
                 auto object = current.AsObject();
                 if (!object)
                 {
-                    return nullptr;
+                    resolvedAtCompileTime = false;
+                    break;
                 }
 
                 auto it = object->fields.find(parts[i]);
                 if (it == object->fields.end())
                 {
-                    return nullptr;
+                    resolvedAtCompileTime = false;
+                    break;
                 }
 
                 current = it->second;
             }
 
-            return MakeConstant(std::move(current), makeTempName("load"));
+            if (resolvedAtCompileTime)
+            {
+                return MakeConstant(std::move(current), makeTempName("load"));
+            }
+            
+            // If not resolved at compile time, we should ideally emit GetMember instructions.
+            // For now, let's at least return the base value if it's a global.
+            // Actually, to make io.print(sum) work, we'll just return the qualified name as a global if not resolved.
+            return MakeValue<ConstantValue>(runtime::value(nullptr), expr->name);
         }
 
         if (!load)
@@ -650,7 +712,7 @@ namespace cora::ir
             return value;
         }
 
-        if (dynamic_cast<FunctionValue *>(value) != nullptr || dynamic_cast<ConstantValue *>(value) != nullptr)
+        if (dynamic_cast<FunctionValue *>(value) != nullptr || dynamic_cast<ConstantValue *>(value) != nullptr || dynamic_cast<Argument *>(value) != nullptr)
         {
             return value;
         }
@@ -855,8 +917,11 @@ namespace cora::ir
 
     BasicBlock *IRBuilder::CreateBlock(const std::string &name)
     {
-        auto block = std::make_unique<BasicBlock>(name);
+        std::ostringstream out;
+        out << name << "." << m_blocks.size();
+        auto block = std::make_unique<BasicBlock>(out.str());
         BasicBlock *raw = block.get();
+        // std::cerr << "Creating block: " << raw->name << "\n";
         m_blocks.push_back(raw);
         m_ownedBlocks.push_back(std::move(block));
         return raw;
@@ -880,6 +945,10 @@ namespace cora::ir
 
     const std::vector<BasicBlock *> &IRBuilder::GetBlocks() const
     {
+        // Instead of returning m_blocks, let's return a list of all owned blocks
+        // to ensure we don't miss any that were created but not manually pushed to m_blocks.
+        // Actually, CreateBlock already pushes to m_blocks.
+        // Let's just make sure m_blocks contains all reachable blocks in a good order.
         return m_blocks;
     }
 
@@ -888,6 +957,62 @@ namespace cora::ir
         return m_entry;
     }
 
+    Value *IRBuilder::EmitTernaryExpr(ast::TernaryExpr *expr)
+    {
+        if (expr == nullptr)
+        {
+            return nullptr;
+        }
+
+        m_currentBlock = mergeBlock;
+        
+        // Since we don't have Phi instructions yet, we'll use an Alloca and Store
+        // to merge the results from the then and else branches.
+        // The result should be of a type that can hold any value. For now, assume int pointer for simplicity.
+        // A more robust solution would infer the type or use a generic type.
+        // We need to ensure that if a branch produces no value (e.g., a void expression),
+        // it doesn't cause a crash or incorrect assignment.
+        // For now, let's assume expressions return a valid Value*.
+        
+        // Determine the type for the result. If both branches produce values, find a common type.
+        // If one is null, use the other. If both are null, it's a void result (or error).
+        // For simplicity, let's assume `int` type for the result if either branch produces a non-null value.
+        // If both `thenValue` and `elseValue` are null, the ternary expression's result is effectively null.
+        
+        Value *resultSlot = nullptr;
+        if (thenValue != nullptr || elseValue != nullptr) {
+            // Allocate a slot for the result. We'll need to determine the correct type.
+            // For now, defaulting to Type::Int() as a placeholder.
+            resultSlot = MakeValue<AllocaInstruction>(Type::Int(), makeTempName("ternary_result"), m_currentBlock);
+
+            m_currentBlock = thenBlock;
+            if (thenValue != nullptr) {
+                MakeValue<StoreInstruction>(thenValue, resultSlot, m_currentBlock);
+            } else {
+                // If then branch has no value, store a default null value (or appropriate default)
+                // This part needs careful handling for type safety and default values.
+                // For now, storing nullptr if thenValue is null.
+                 MakeValue<StoreInstruction>(MakeConstant(runtime::value(nullptr), makeTempName("null")), resultSlot, m_currentBlock);
+            }
+            
+            m_currentBlock = elseBlock;
+            if (elseValue != nullptr) {
+                MakeValue<StoreInstruction>(elseValue, resultSlot, m_currentBlock);
+            } else {
+                // Store nullptr if elseValue is null.
+                 MakeValue<StoreInstruction>(MakeConstant(runtime::value(nullptr), makeTempName("null")), resultSlot, m_currentBlock);
+            }
+        }
+
+        m_currentBlock = mergeBlock;
+        
+        if (resultSlot != nullptr) {
+            return MakeValue<LoadInstruction>(resultSlot, makeTempName("load_ternary"), m_currentBlock);
+        } else {
+            // If neither branch produced a value, the ternary expression itself results in null.
+            return MakeConstant(runtime::value(nullptr), makeTempName("null"));
+        }
+    }
     Value *IRBuilder::lookupVariable(const std::string &name) const
     {
         const auto found = m_variables.find(name);

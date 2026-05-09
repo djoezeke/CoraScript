@@ -454,7 +454,9 @@ namespace cora::ir
         BranchInstruction(BasicBlock *dest, BasicBlock *block)
             : Instruction(Opcode::Br, "", block, 1), is_conditional(false)
         {
-            setOperand(0, (Value *)dest);
+            setOperand(0, dest);
+            block->addSuccessor(dest);
+            dest->addPredecessor(block);
         };
 
         // Conditional
@@ -462,8 +464,12 @@ namespace cora::ir
             : Instruction(Opcode::Br, "", block, 3), is_conditional(true)
         {
             setOperand(0, cond);
-            setOperand(1, (Value *)ifTrue);
-            setOperand(2, (Value *)ifFalse);
+            setOperand(1, ifTrue);
+            setOperand(2, ifFalse);
+            block->addSuccessor(ifTrue);
+            block->addSuccessor(ifFalse);
+            ifTrue->addPredecessor(block);
+            ifFalse->addPredecessor(block);
         };
 
     public:
@@ -494,13 +500,13 @@ namespace cora::ir
     struct JumpInstruction : public Instruction
     {
         JumpInstruction(BasicBlock *dest, BasicBlock *block)
-            : Instruction(Opcode::Br, "", block, 1)
+            : Instruction(Opcode::Jump, "", block, 1)
         {
-            setOperand(0, (Value *)dest);
+            setOperand(0, dest);
 
             // Link CFG
-            block->succs.push_back(dest);
-            dest->preds.push_back(block);
+            block->addSuccessor(dest);
+            dest->addPredecessor(block);
             this->type = Type::Void();
         };
     };

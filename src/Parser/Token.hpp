@@ -83,6 +83,7 @@ namespace cora::parser
 		Greater,
 		GreaterEqual,
 		Arrow,
+		Question,
 	};
 
 	class Token

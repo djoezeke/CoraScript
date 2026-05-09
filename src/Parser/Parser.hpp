@@ -71,6 +71,7 @@ namespace cora::parser
         Expression *PostfixUnaryExpr();
         Expression *ParseBinaryExpr();
         Expression *AssignExpr();
+        Expression *ParseTernaryExpr();
         Expression *ParseFuncCallExpr();
 
         Expression *ParseOr();

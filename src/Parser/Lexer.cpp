@@ -470,6 +470,9 @@ namespace cora::parser
                 case '!':
                     addToken(TokenType::Not, "!", 1);
                     break;
+                case '?':
+                    addToken(TokenType::Question, "?", 1);
+                    break;
                 default:
                     RaiseLexError("Unexpected character '" + std::string(1, ch) + "'", lineNo, column);
                 }
