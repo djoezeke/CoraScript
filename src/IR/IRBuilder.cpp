@@ -8,48 +8,46 @@
 
 namespace cora::ir
 {
-
-    namespace
+    // Moved out of anonymous namespace
+    std::vector<std::string> SplitQualifiedName(const std::string &name)
     {
-        std::vector<std::string> SplitQualifiedName(const std::string &name)
+        std::vector<std::string> parts;
+        std::string current;
+        for (std::size_t i = 0; i < name.size(); ++i)
         {
-            std::vector<std::string> parts;
-            std::string current;
-            for (std::size_t i = 0; i < name.size(); ++i)
+            if (name[i] == '.' || (name[i] == ':' && i + 1 < name.size() && name[i + 1] == ':'))
             {
-                if (name[i] == '.' || (name[i] == ':' && i + 1 < name.size() && name[i + 1] == ':'))
+                if (!current.empty())
                 {
-                    if (!current.empty())
-                    {
-                        parts.push_back(current);
-                        current.clear();
-                    }
-                    if (name[i] == ':')
-                    {
-                        ++i;
-                    }
-                    continue;
+                    parts.push_back(current);
+                    current.clear();
                 }
-
-                current.push_back(name[i]);
+                if (name[i] == ':')
+                {
+                    ++i;
+                }
+                continue;
             }
 
-            if (!current.empty())
-            {
-                parts.push_back(current);
-            }
-            return parts;
+            current.push_back(name[i]);
         }
 
-        runtime::value ExtractLiteralValue(const Value *value)
+        if (!current.empty())
         {
-            if (const auto *constant = dynamic_cast<const Constant *>(value))
-            {
-                return constant->value;
-            }
-            return runtime::value(nullptr);
+            parts.push_back(current);
         }
-    } // namespace
+        return parts;
+    }
+
+    // Moved out of anonymous namespace
+    runtime::value ExtractLiteralValue(const Value *value)
+    {
+        if (const auto *constant = dynamic_cast<const Constant *>(value))
+        {
+            return constant->value;
+        }
+        return runtime::value(nullptr);
+    }
 
     IRBuilder::IRBuilder() = default;
 
@@ -72,6 +70,38 @@ namespace cora::ir
         // We just need to make sure they are in a sensible order.
         // For now, the order of creation is fine.
         return m_entry;
+    }
+
+    void IRBuilder::processFunctionParameters(ast::FuncDeclStmt *stmt, Function *func)
+    {
+        for (size_t i = 0; i < stmt->params.size(); ++i)
+        {
+            ast::ParamExpr *param = stmt->params[i];
+            if (param == nullptr || param->name == nullptr)
+            {
+                continue;
+            }
+            auto *arg = MakeValue<Argument>(Type::Int(), func, static_cast<unsigned>(i));
+            arg->name = param->name->name;
+            assignVariable(param->name->name, arg);
+            func->args.push_back(arg); // Add argument to function's argument list
+        }
+    }
+
+    std::tuple<BasicBlock *, BasicBlock *, BasicBlock *> IRBuilder::createIfElseBlocks(ast::IfStmt *stmt)
+    {
+        BasicBlock *thenBlock = CreateBlock("if.then");
+        BasicBlock *elseBlock = stmt->false_block != nullptr ? CreateBlock("if.else") : nullptr;
+        BasicBlock *mergeBlock = CreateBlock("if.merge");
+        return std::make_tuple(thenBlock, elseBlock, mergeBlock);
+    }
+
+    std::tuple<BasicBlock *, BasicBlock *, BasicBlock *> IRBuilder::createLoopBlocks(const std::string &prefix)
+    {
+        BasicBlock *condBlock = CreateBlock(prefix + ".cond");
+        BasicBlock *bodyBlock = CreateBlock(prefix + ".body");
+        BasicBlock *exitBlock = CreateBlock(prefix + ".exit");
+        return std::make_tuple(condBlock, bodyBlock, exitBlock);
     }
 
     Instruction *IRBuilder::EmitStatement(ast::Statement *stmt)
@@ -210,9 +240,8 @@ namespace cora::ir
             condition = MakeConstant(runtime::value(true));
         }
 
-        BasicBlock *thenBlock = CreateBlock("if.then");
-        BasicBlock *elseBlock = stmt->false_block != nullptr ? CreateBlock("if.else") : nullptr;
-        BasicBlock *mergeBlock = CreateBlock("if.merge");
+        BasicBlock *thenBlock, *elseBlock, *mergeBlock;
+        std::tie(thenBlock, elseBlock, mergeBlock) = createIfElseBlocks(stmt);
 
         if (elseBlock)
         {
@@ -244,9 +273,8 @@ namespace cora::ir
             return;
         }
 
-        BasicBlock *condBlock = CreateBlock("while.cond");
-        BasicBlock *bodyBlock = CreateBlock("while.body");
-        BasicBlock *exitBlock = CreateBlock("while.exit");
+        BasicBlock *condBlock, *bodyBlock, *exitBlock;
+        std::tie(condBlock, bodyBlock, exitBlock) = createLoopBlocks("while");
 
         MakeValue<JumpInstruction>(condBlock, m_currentBlock);
 
@@ -280,10 +308,9 @@ namespace cora::ir
 
         EmitStatement(stmt->init);
 
-        BasicBlock *condBlock = CreateBlock("for.cond");
-        BasicBlock *bodyBlock = CreateBlock("for.body");
+        BasicBlock *condBlock, *bodyBlock, *exitBlock;
+        std::tie(condBlock, bodyBlock, exitBlock) = createLoopBlocks("for");
         BasicBlock *updateBlock = CreateBlock("for.update");
-        BasicBlock *exitBlock = CreateBlock("for.exit");
 
         MakeValue<JumpInstruction>(condBlock, m_currentBlock);
 
@@ -352,20 +379,16 @@ namespace cora::ir
         m_currentBlock = funcEntry;
         m_variables.clear();
 
-        auto *func = new Function(name, Type::Int(), {}, funcEntry); // Placeholder function object if needed, but we mainly need Argument values
-
-        for (size_t i = 0; i < stmt->params.size(); ++i)
+        std::vector<Type *> paramTypes; // Collect parameter types
+        for (ast::ParamExpr *param : stmt->params)
         {
-            ast::ParamExpr *param = stmt->params[i];
-            if (param == nullptr || param->name == nullptr)
-            {
-                continue;
-            }
-            // Use Argument value instead of Alloca
-            auto *arg = MakeValue<Argument>(Type::Int(), func, static_cast<unsigned>(i));
-            arg->name = param->name->name;
-            assignVariable(param->name->name, arg);
+            // Assuming all parameters are int for now, or infer type if available
+            paramTypes.push_back(Type::Int());
         }
+
+        auto *func = MakeValue<Function>(name, Type::Int(), paramTypes, funcEntry);
+
+        processFunctionParameters(stmt, func);
 
         EmitBlock(stmt->block);
 

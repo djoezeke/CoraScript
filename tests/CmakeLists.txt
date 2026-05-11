@@ -103,4 +103,12 @@ endfunction()
 cora_test(lexer_test "${LEXER_TEST_SOURCES}" Cora::Parser Cora::AST Cora::Basic )
 cora_test(parser_test "${PARSER_TEST_DIR}/parser.test.cpp" Cora::Parser Cora::AST Cora::Basic )
 
+# set(IR_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ir")
+# cora_test(ir_block_test "${IR_TEST_DIR}/block.test.cpp" Cora::IR Cora::Basic)
+# cora_test(ast_ir_test "${IR_TEST_DIR}/ast_ir.test.cpp" Cora::IR Cora::AST Cora::Parser Cora::Basic)
+
+# set(BYTECODE_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bytecode")
+# cora_test(bytecode_block_test "${BYTECODE_TEST_DIR}/block.test.cpp" Cora::VMachine Cora::IR Cora::Basic)
+# cora_test(ir_bc_test "${BYTECODE_TEST_DIR}/ir_bc.test.cpp" Cora::VMachine Cora::IR Cora::Basic)
+
 # ===================================================================

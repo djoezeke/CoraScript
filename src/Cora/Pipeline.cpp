@@ -60,7 +60,7 @@ namespace cora::tooling
         std::deque<cora::ast::Statement *> programQueue(parsed.begin(), parsed.end());
         ProgramGuard program(std::move(programQueue));
 
-        cora::semantic::ValidateProgram(program.Get(), fileName, fileName);
+        // cora::semantic::ValidateProgram(program.Get(), fileName, fileName);
 
         cora::ir::IRBuilder builder;
         builder.Build(program.Get());

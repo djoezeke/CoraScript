@@ -27,6 +27,13 @@ namespace cora::ir
         BasicBlock *GetEntryBlock() const;
 
     private:
+        // Helper for function declaration parameter processing
+        void processFunctionParameters(ast::FuncDeclStmt *stmt, Function *func);
+        // Helper for creating if-else related basic blocks
+        std::tuple<BasicBlock *, BasicBlock *, BasicBlock *> createIfElseBlocks(ast::IfStmt *stmt);
+        // Helper for creating loop related basic blocks
+        std::tuple<BasicBlock *, BasicBlock *, BasicBlock *> createLoopBlocks(const std::string &prefix);
+
         Instruction *EmitStatement(ast::Statement *stmt);
         Value *EmitExpression(ast::Expression *expr);
         Value *EmitBinaryExpr(ast::BinaryExpr *expr);
@@ -76,7 +83,6 @@ namespace cora::ir
         void assignVariable(const std::string &name, Value *value);
         std::string makeTempName(const std::string &prefix = "t");
 
-    private:
         std::vector<std::unique_ptr<BasicBlock>> m_ownedBlocks;
         std::vector<BasicBlock *> m_blocks;
         std::vector<std::unique_ptr<Value>> m_ownedValues;
