@@ -1,5 +1,4 @@
 
-#include "Cora/Basic/Error.hpp"
 #include "Pipeline.hpp"
 
 #include <filesystem>
@@ -138,11 +137,6 @@ int main(int argc, char **argv)
         }
 
         return 0;
-    }
-    catch (const cora::error::Error &error)
-    {
-        std::cerr << error.Format() << '\n';
-        return 1;
     }
     catch (const std::runtime_error &error)
     {

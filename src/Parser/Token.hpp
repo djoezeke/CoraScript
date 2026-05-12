@@ -1,7 +1,7 @@
 #ifndef CORA_PARSER_TOKEN_H
 #define CORA_PARSER_TOKEN_H
 
-#include "Cora/Basic/Location.hpp"
+#include "Cora/SourceLocation.hpp"
 
 #include <ostream>
 #include <string>
@@ -134,23 +134,23 @@ namespace cora::parser
 		/**
 		 * @brief Get the start position of the node
 		 *
-		 * @return Position
+		 * @return SourceLocation
 		 */
-		basic::SourceLocation GetStartPosition() const noexcept;
+		SourceLocation GetStartPosition() const noexcept;
 
 		/**
 		 * @brief Get the end position of the node
 		 *
-		 * @return Position
+		 * @return SourceLocation
 		 */
-		basic::SourceLocation GetEndPosition() const noexcept;
+		SourceLocation GetEndPosition() const noexcept;
 
 		/**
 		 * @brief Get the source range of the node
 		 *
-		 * @return basic::SourceRange
+		 * @return SourceRange
 		 */
-		basic::SourceRange GetSourceRange() const;
+		SourceRange GetSourceRange() const;
 
 		void SetText(std::string text);
 
@@ -166,25 +166,25 @@ namespace cora::parser
 		 *
 		 * @param start
 		 */
-		void SetStartPosition(basic::SourceLocation start) noexcept;
+		void SetStartPosition(SourceLocation start) noexcept;
 
 		/**
 		 * @brief Set the Node end position
 		 *
 		 * @param end
 		 */
-		void SetEndPosition(basic::SourceLocation end) noexcept;
+		void SetEndPosition(SourceLocation end) noexcept;
 
 		/**
 		 * @brief Set the Node source range.
 		 *
 		 * @param range
 		 */
-		void SetSourceRange(basic::SourceRange range) noexcept;
+		void SetSourceRange(SourceRange range) noexcept;
 
 	private:
 		TokenType m_Type;
-		basic::SourceRange m_Range;
+		SourceRange m_Range;
 		std::string m_TokenText;
 	};
 

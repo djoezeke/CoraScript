@@ -5,15 +5,15 @@
 namespace cora::parser
 {
 
-    Parser::Parser()
-        : m_Tokens({}), m_Current(0) {};
+    Parser::Parser(SourceManager &sm, DiagnosticEngine &de)
+        : m_SourceManager(sm), m_DiagnosticEngine(de), m_Tokens({}), m_Current(0) {};
 
-    Parser::Parser(const std::vector<Token> &tokens)
-        : m_Tokens(tokens), m_Current(0) {};
+    Parser::Parser(SourceManager &sm, DiagnosticEngine &de, const std::vector<Token> &tokens)
+        : m_SourceManager(sm), m_DiagnosticEngine(de), m_Tokens(tokens), m_Current(0) {};
 
-    void Parser::SetFileName(std::string fileName)
+    void Parser::SetFileID(uint32_t fileID)
     {
-        m_FileName = fileName.empty() ? "<memory>" : std::move(fileName);
+        m_FileID = fileID;
     }
 
     void Parser::SetModuleName(std::string moduleName)
@@ -46,8 +46,8 @@ namespace cora::parser
 
     std::vector<ast::Statement *> Parser::Parse(const std::string &source)
     {
-        Lexer lexer(source);
-        lexer.SetFileName(m_FileName);
+        uint32_t fileID = m_SourceManager.addFile("<memory>", source);
+        Lexer lexer(m_SourceManager, m_DiagnosticEngine, fileID);
         lexer.SetModuleName(m_ModuleName);
         m_Tokens = lexer.Tokenize();
         m_Current = 0;
@@ -1433,28 +1433,10 @@ namespace cora::parser
         return new IdentifierExpr(name);
     }
 
-    error::DiagnosticContext Parser::MakeContext(const Token &token) const
+    void Parser::RaiseParseError(const std::string &message, const Token &token) const
     {
-        error::DiagnosticContext context;
-        context.fileName = m_FileName;
-        context.moduleName = m_ModuleName;
-        context.namespaceName = CurrentNamespacePath();
-        if (!m_ClassStack.empty())
-        {
-            context.className = m_ClassStack.back();
-        }
-        if (!m_FunctionStack.empty())
-        {
-            context.functionName = m_FunctionStack.back();
-        }
-        context.line = token.GetStartPosition().Line();
-        context.column = token.GetStartPosition().Column();
-        return context;
-    }
-
-    [[noreturn]] void Parser::RaiseParseError(const std::string &message, const Token &token) const
-    {
-        throw error::ParsingError(message, MakeContext(token));
+        m_DiagnosticEngine.report(ErrorDiagnostic(ErrorCode::E0004, message, token.GetStartPosition()));
+        throw std::runtime_error(message);
     }
 
     std::string Parser::CurrentNamespacePath() const

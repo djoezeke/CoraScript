@@ -1,10 +1,8 @@
-#include "Cora/Basic/Error.hpp"
-
-#include "Cora/Basic/Location.hpp"
-
 #include "Lexer.hpp"
-
 #include "Token.hpp"
+#include "Cora/SourceManager.hpp"
+#include "Cora/DiagnosticEngine.hpp"
+#include "Cora/DiagnosticEmitter.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -87,8 +85,8 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: lexer [--print-ir] <script-file>\n";
-        std::cerr << "       lexer [--print-ir] <script-file>\n";
+        std::cerr << "Usage: lexer [--print] <script-file>\n";
+        std::cerr << "       lexer [--print] -c \"<source>\"\n";
         return 1;
     }
 
@@ -96,20 +94,18 @@ int main(int argc, char **argv)
     {
         const Args args = ParseArgs(argc, argv);
 
-        cora::parser::Lexer lexer(args.source);
-        if (!args.file.empty())
+        cora::SourceManager sm;
+        cora::DiagnosticEngine de;
+        de.addEmitter(std::make_unique<cora::ConsoleEmitter>(sm));
+
+        if (args.source.empty())
         {
-            lexer = cora::parser::Lexer(ReadFile(args.file));
-            lexer.SetFileName(args.sourceName);
-            lexer.SetModuleName(args.sourceName);
+            throw std::runtime_error("No input source provided");
         }
-        else
-        {
-            if (args.source.empty())
-            {
-                throw std::runtime_error("No input source provided");
-            }
-        }
+
+        uint32_t fileID = sm.addFile(args.sourceName, args.source);
+        cora::parser::Lexer lexer(sm, de, fileID);
+        lexer.SetModuleName(args.sourceName);
 
         auto tokens = lexer.Tokenize();
 
@@ -120,11 +116,6 @@ int main(int argc, char **argv)
         };
 
         return 0;
-    }
-    catch (const cora::error::Error &error)
-    {
-        std::cerr << error.Format() << '\n';
-        return 1;
     }
     catch (const std::runtime_error &error)
     {

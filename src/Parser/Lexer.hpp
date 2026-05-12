@@ -2,6 +2,8 @@
 #define CORA_PARSER_LEXER_H
 
 #include "Token.hpp"
+#include "Cora/SourceManager.hpp"
+#include "Cora/DiagnosticEngine.hpp"
 
 #include <string>
 #include <vector>
@@ -13,13 +15,12 @@ namespace cora::parser
     class Lexer
     {
     public:
-        Lexer();
-        explicit Lexer(std::string source);
+        Lexer(SourceManager &sm, DiagnosticEngine &de);
+        Lexer(SourceManager &sm, DiagnosticEngine &de, uint32_t fileID);
 
-        std::vector<Token> Lex(const std::string &source);
         std::vector<Token> Tokenize();
 
-        void SetFileName(std::string fileName);
+        void SetFileID(uint32_t fileID);
         void SetModuleName(std::string moduleName);
 
         Token NextToken();
@@ -32,15 +33,16 @@ namespace cora::parser
         static int CountIndent(const std::string &line);
 
         void BuildTokens();
-        void PushToken(TokenType type, const std::string &text, unsigned int line, unsigned int column);
-        [[noreturn]] void RaiseLexError(const std::string &message, unsigned int line, unsigned int column) const;
+        void PushToken(TokenType type, const std::string &text, uint32_t offset, uint32_t line, uint32_t column);
+        void RaiseLexError(ErrorCode id, const std::string &message, uint32_t offset) const;
 
     private:
-        std::string m_Source;
+        SourceManager &m_SourceManager;
+        DiagnosticEngine &m_DiagnosticEngine;
+        uint32_t m_FileID{0};
         std::vector<Token> m_Tokens;
         std::size_t m_Position{0};
         Token m_Prev;
-        std::string m_FileName{"<memory>"};
         std::string m_ModuleName;
     };
 

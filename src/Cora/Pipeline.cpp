@@ -52,11 +52,27 @@ namespace cora::tooling
                                      std::ostream *irOut,
                                      std::ostream *bytecodeOut)
     {
-        cora::parser::Parser parser;
-        parser.SetFileName(fileName);
+        cora::SourceManager sm;
+        cora::DiagnosticEngine de;
+        de.addEmitter(std::make_unique<cora::ConsoleEmitter>(sm));
+
+        uint32_t fileID = sm.addFile(fileName, source);
+
+        cora::parser::Parser parser(sm, de);
+        parser.SetFileID(fileID);
         parser.SetModuleName(fileName);
 
-        std::vector<cora::ast::Statement *> parsed = parser.Parse(source);
+        std::vector<cora::ast::Statement *> parsed;
+        try
+        {
+            parsed = parser.Parse();
+        }
+        catch (const std::exception &e)
+        {
+            // Error already reported via DiagnosticEngine
+            return {};
+        }
+
         std::deque<cora::ast::Statement *> programQueue(parsed.begin(), parsed.end());
         ProgramGuard program(std::move(programQueue));
 

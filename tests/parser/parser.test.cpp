@@ -1,6 +1,7 @@
-#include "Cora/Basic/Error.hpp"
-
 #include "Parser.hpp"
+#include "Cora/SourceManager.hpp"
+#include "Cora/DiagnosticEngine.hpp"
+#include "Cora/DiagnosticEmitter.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -84,28 +85,28 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         std::cerr << "Usage: parser [--print] <script-file>\n";
-        std::cerr << "       parser [--print] <script-file>\n";
-        return 0;
+        std::cerr << "       parser [--print] -c \"<source>\"\n";
+        return 1;
     }
 
     try
     {
         const Args args = ParseArgs(argc, argv);
 
-        cora::parser::Lexer lexer(args.source);
-        if (!args.file.empty())
+        cora::SourceManager sm;
+        cora::DiagnosticEngine de;
+        de.addEmitter(std::make_unique<cora::ConsoleEmitter>(sm));
+
+        if (args.source.empty())
         {
-            lexer = cora::parser::Lexer(ReadFile(args.file));
-        }
-        else
-        {
-            if (args.source.empty())
-            {
-                throw std::runtime_error("No input source provided");
-            }
+            throw std::runtime_error("No input source provided");
         }
 
-        cora::parser::Parser parser(lexer.Tokenize());
+        uint32_t fileID = sm.addFile(args.sourceName, args.source);
+        cora::parser::Lexer lexer(sm, de, fileID);
+        auto tokens = lexer.Tokenize();
+
+        cora::parser::Parser parser(sm, de, tokens);
         auto statements = parser.Parse();
 
         for (auto statement : statements)
@@ -114,11 +115,6 @@ int main(int argc, char **argv)
         };
 
         return 0;
-    }
-    catch (const cora::error::Error &error)
-    {
-        std::cerr << error.Format() << '\n';
-        return 1;
     }
     catch (const std::runtime_error &error)
     {

@@ -7,11 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "Cora/Basic/Location.hpp"
+#include "Cora/SourceLocation.hpp"
 
 namespace cora::ast
 {
-    using namespace cora::basic;
 
     using ModuleList = std::deque<class Module *>;
     using StatementList = std::deque<class Statement *>;
@@ -68,13 +67,13 @@ namespace cora::ast
         ContinueStmt,
         VarDeclaration,
 
-        ImportStmt,      // Added for 'import' statements
-        FunctionDecl,    // Added for 'func' declarations
-        ClassDecl,       // Added for 'class' declarations
-        EnumDecl,        // Added for 'enum' declarations
-        StructDecl,      // Added for 'struct' declarations
-        ForInStmt,       // Added for 'for...in' loops
-        };
+        ImportStmt,   // Added for 'import' statements
+        FunctionDecl, // Added for 'func' declarations
+        ClassDecl,    // Added for 'class' declarations
+        EnumDecl,     // Added for 'enum' declarations
+        StructDecl,   // Added for 'struct' declarations
+        ForInStmt,    // Added for 'for...in' loops
+    };
 
     class Node
     {

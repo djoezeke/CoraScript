@@ -9,8 +9,7 @@
 
 set(CORA_BASIC_SOURCES 
 
-    "${CORA_BASIC_DIR}/Error.cpp"
-    "${CORA_BASIC_DIR}/Location.cpp"
+    "${CORA_BASIC_DIR}/PrettyPrinter.cpp"
 )
 
 #--------------------------------------------------------------------

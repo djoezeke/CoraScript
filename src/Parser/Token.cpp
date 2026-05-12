@@ -5,16 +5,16 @@
 namespace cora::parser
 {
     Token::Token()
-        : m_Type(TokenType::End), m_Range(basic::SourceRange()), m_TokenText() {}
+        : m_Type(TokenType::End), m_Range(), m_TokenText() {}
 
     Token::Token(TokenType tokentype, unsigned int line, unsigned int column)
         : m_Type(tokentype),
-          m_Range(basic::SourceRange(basic::SourceLocation(line, column))),
+          m_Range({ {0, 0, line, column}, {0, 0, line, column} }),
           m_TokenText() {}
 
     Token::Token(TokenType tokentype, std::string tokentext, unsigned int line, unsigned int column)
         : m_Type(tokentype),
-          m_Range(basic::SourceRange(basic::SourceLocation(line, column), basic::SourceLocation(line, column + static_cast<unsigned int>(tokentext.size())))),
+          m_Range({ {0, 0, line, column}, {0, 0, line, column + static_cast<unsigned int>(tokentext.size())} }),
           m_TokenText(std::move(tokentext)) {}
 
     std::string Token::Repr() { return GetText(); }
@@ -46,21 +46,21 @@ namespace cora::parser
 
     unsigned int Token::GetLenght() const { return static_cast<unsigned int>(m_TokenText.size()); }
 
-    basic::SourceLocation Token::GetStartPosition() const noexcept { return m_Range.GetStart(); }
+    SourceLocation Token::GetStartPosition() const noexcept { return m_Range.start; }
 
-    basic::SourceLocation Token::GetEndPosition() const noexcept { return m_Range.GetEnd(); }
+    SourceLocation Token::GetEndPosition() const noexcept { return m_Range.end; }
 
-    basic::SourceRange Token::GetSourceRange() const { return m_Range; }
+    SourceRange Token::GetSourceRange() const { return m_Range; }
 
     void Token::SetText(std::string text) { m_TokenText = std::move(text); }
 
     void Token::SetTokenType(TokenType tokentype) noexcept { m_Type = tokentype; }
 
-    void Token::SetStartPosition(basic::SourceLocation start) noexcept { m_Range.SetStart(start); }
+    void Token::SetStartPosition(SourceLocation start) noexcept { m_Range.start = start; }
 
-    void Token::SetEndPosition(basic::SourceLocation end) noexcept { m_Range.SetEnd(end); }
+    void Token::SetEndPosition(SourceLocation end) noexcept { m_Range.end = end; }
 
-    void Token::SetSourceRange(basic::SourceRange range) noexcept { m_Range = std::move(range); }
+    void Token::SetSourceRange(SourceRange range) noexcept { m_Range = std::move(range); }
 
     std::ostream &operator<<(std::ostream &ostream, Token token)
     {

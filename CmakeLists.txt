@@ -25,6 +25,11 @@ option(CORA_BUILD_CORAC "Build corac executable" OFF)
 option(CORA_BUILD_CORAVM "Build coravm executable" ON)
 option(CORA_CORASCRIPT_WITH_MODULES "Link Corascript with external modules library when available" ON)
 option(CORA_BUILD_TESTS "Enable CTest-based project tests" ON)
+option(CORA_WITH_IO_MODULE "Enable IO module" ON)
+
+if(CORA_WITH_IO_MODULE)
+    add_definitions(-DCORA_WITH_IO_MODULE)
+endif()
 
 set(CORA_AST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/AST")
 set(CORA_BASIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Basic")

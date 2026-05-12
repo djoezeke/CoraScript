@@ -3,11 +3,12 @@
 
 #include "Lexer.hpp"
 #include "Token.hpp"
+#include "Cora/SourceManager.hpp"
+#include "Cora/DiagnosticEngine.hpp"
 
 #include "../AST/ASTExpr.hpp"
 #include "../AST/ASTNode.hpp"
 #include "../AST/ASTStmt.hpp"
-#include "Cora/Basic/Error.hpp"
 
 #include <optional>
 #include <string>
@@ -24,14 +25,14 @@ namespace cora::parser
         using Expression = ast::Expression;
 
     public:
-        Parser();
+        Parser(SourceManager &sm, DiagnosticEngine &de);
 
-        Parser(const std::vector<Token> &tokens);
+        Parser(SourceManager &sm, DiagnosticEngine &de, const std::vector<Token> &tokens);
 
         std::vector<Statement *> Parse();
         std::vector<Statement *> Parse(const std::string &source);
 
-        void SetFileName(std::string fileName);
+        void SetFileID(uint32_t fileID);
         void SetModuleName(std::string moduleName);
 
     private:
@@ -56,15 +57,15 @@ namespace cora::parser
         Statement *ParseClassDeclStmt();
         Statement *ParseImportStmt();
         Statement *ParseTryCatch();
-        Statement *ParseEnumDeclStmt();      // Added
-        Statement *ParseStructDeclStmt();     // Added
-        Statement *ParseForInStmt(); // Added
+        Statement *ParseEnumDeclStmt();      
+        Statement *ParseStructDeclStmt();     
+        Statement *ParseForInStmt(); 
 
         Expression *ParseExpression();
         Expression *ParseGroupExpr();
         Expression *ParseArrayExpr();
         Expression *ParseArrayIdExpr();
-        Expression *ParseStructLiteralExpr(); // Added
+        Expression *ParseStructLiteralExpr(); 
         Expression *ParseParamExpr();
         Expression *ParseUnaryExpr();
         Expression *PrefixUnaryExpr();
@@ -97,16 +98,16 @@ namespace cora::parser
         bool IsNomalAssignmentAhead() const;
         bool IsMemberAssignmentAhead() const;
         Expression *ParseAssignmentTarget();
-        error::DiagnosticContext MakeContext(const Token &token) const;
-        [[noreturn]] void RaiseParseError(const std::string &message, const Token &token) const;
+        void RaiseParseError(const std::string &message, const Token &token) const;
         std::string CurrentNamespacePath() const;
         constexpr int OperatorPriority(TokenType op);
 
     private:
-        Lexer m_Lexer;
+        SourceManager &m_SourceManager;
+        DiagnosticEngine &m_DiagnosticEngine;
+        uint32_t m_FileID{0};
         std::vector<Token> m_Tokens;
         std::size_t m_Current{0};
-        std::string m_FileName{"<memory>"};
         std::string m_ModuleName;
         std::vector<std::string> m_ClassStack;
         std::vector<std::string> m_FunctionStack;

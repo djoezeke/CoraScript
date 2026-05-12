@@ -5,48 +5,14 @@
 #include <iostream>
 #include <sstream>
 
+#ifdef CORA_WITH_IO_MODULE
+extern std::shared_ptr<cora::compiler::runtime::Object> CoraGetIOModuleObject();
+#endif
+
 namespace cora::compiler
 {
     namespace builtin
     {
-        static std::shared_ptr<runtime::Object> MakeIOModuleObject()
-        {
-            auto object = MakeObject("io");
-
-            auto print = std::make_shared<runtime::Function>("print", [](const std::vector<runtime::value> &arguments) -> runtime::value
-                                                             {
-                                                                bool first = true;
-                                                                for (const auto &argument : arguments)
-                                                                {
-                                                                    if (!first)
-                                                                    {
-                                                                        std::cout << ' ';
-                                                                    }
-                                                                    std::cout << argument.AsString();
-                                                                    first = false;
-                                                                }
-                                                                return runtime::value(nullptr); });
-
-            auto println = std::make_shared<runtime::Function>("println", [](const std::vector<runtime::value> &arguments) -> runtime::value
-                                                               {
-                                                                  bool first = true;
-                                                                  for (const auto &argument : arguments)
-                                                                  {
-                                                                      if (!first)
-                                                                      {
-                                                                          std::cout << ' ';
-                                                                      }
-                                                                      std::cout << argument.AsString();
-                                                                      first = false;
-                                                                  }
-                                                                  std::cout << '\n';
-                                                                  return runtime::value(nullptr); });
-
-            object->fields["print"] = runtime::value(std::static_pointer_cast<runtime::Callable>(print));
-            object->fields["println"] = runtime::value(std::static_pointer_cast<runtime::Callable>(println));
-            return object;
-        }
-
         std::shared_ptr<runtime::Object> MakeObject(const std::string &className)
         {
             return std::make_shared<runtime::Object>(className.empty() ? "Object" : className);
@@ -280,10 +246,12 @@ namespace cora::compiler
                                  }
                                  return runtime::value(FormatValue(arguments.front())); });
 
-            if (auto module = MakeIOModuleObject())
+#ifdef CORA_WITH_IO_MODULE
+            if (auto module = CoraGetIOModuleObject())
             {
                 RegisterModule(scope, "io", module, true);
             }
+#endif
         }
 
     } // namespace builtin

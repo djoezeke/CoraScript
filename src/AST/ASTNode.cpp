@@ -7,16 +7,16 @@
 namespace cora::ast
 {
     Node::Node(NodeType nodetype)
-        : node_type(nodetype), m_Range(SourceRange()) {}
+        : node_type(nodetype), m_Range() {}
 
     Node::Node(NodeType nodetype, SourceRange sourcerange)
         : node_type(nodetype), m_Range(std::move(sourcerange)) {}
 
     Node::Node(NodeType nodetype, SourceLocation location)
-        : node_type(nodetype), m_Range(SourceRange(location)) {}
+        : node_type(nodetype), m_Range({location, location}) {}
 
     Node::Node(NodeType nodetype, SourceLocation start, SourceLocation end)
-        : node_type(nodetype), m_Range(SourceRange(start, end)) {}
+        : node_type(nodetype), m_Range({start, end}) {}
 
     NodeType Node::GetNodeType()
     {
@@ -48,12 +48,12 @@ namespace cora::ast
 
     SourceLocation Node::GetStartPosition() const noexcept
     {
-        return m_Range.GetStart();
+        return m_Range.start;
     }
 
     SourceLocation Node::GetEndPosition() const noexcept
     {
-        return m_Range.GetEnd();
+        return m_Range.end;
     }
 
     SourceRange Node::GetSourceRange() const
@@ -68,12 +68,12 @@ namespace cora::ast
 
     void Node::SetStartPosition(SourceLocation start) noexcept
     {
-        m_Range.SetStart(start);
+        m_Range.start = start;
     }
 
     void Node::SetEndPosition(SourceLocation end) noexcept
     {
-        m_Range.SetEnd(end);
+        m_Range.end = end;
     }
 
     void Node::SetSourceRange(SourceRange range) noexcept
