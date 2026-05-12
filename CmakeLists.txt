@@ -40,44 +40,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-
-set(CORA_MODULES_SOURCES 
-
-    "${CORA_MODULES_DIR}/io.cpp"
-)
-
-#--------------------------------------------------------------------
-# Build Modules Library.
-#--------------------------------------------------------------------
-
-add_library(Modules STATIC ${CORA_MODULES_SOURCES})
-
-add_library(Cora::Modules ALIAS Modules)
-
-target_include_directories(Modules
-	PUBLIC
-		${CMAKE_CURRENT_SOURCE_DIR}
-        ${PROJECT_SOURCE_DIR}/include
-		${CORA_RUNTIME_DIR}
-		${CORA_BUILTIN_DIR}
-)
-
-target_link_libraries(Modules
-	PRIVATE
-		Cora::IR
-		Cora::AST
-		Cora::Basic
-		Cora::Parser
-		Cora::Runtime
-		Cora::Builtin
-		Cora::VMachine
-)
-
 #--------------------------------------------------------------------
 # Add project source directories.
 #--------------------------------------------------------------------
 
 add_subdirectory(src)
+add_subdirectory(modules)
 
 if(CORA_BUILD_TESTS)
         include(CTest)

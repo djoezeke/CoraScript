@@ -5,6 +5,7 @@
 #include "BytecodeReader.hpp"
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 
 namespace cora::vmachine
@@ -248,6 +249,22 @@ namespace cora::vmachine
             case OpCode::Halt:
                 cora::compiler::runtime::GetGarbageCollector().Collect();
                 return 0;
+            case OpCode::Import:
+                if (!IsRegisterValid(instruction.b))
+                {
+                    SetRuntimeError("VMachine: invalid import register");
+                    return 2;
+                }
+                {
+                    const std::string name = m_registers[static_cast<std::size_t>(instruction.b)].AsString();
+                    if (!LoadPlugin(name))
+                    {
+                        SetRuntimeError("VMachine: failed to load module " + name);
+                        return 2;
+                    }
+                }
+                ++ip;
+                break;
             }
         }
 
@@ -285,231 +302,61 @@ namespace cora::vmachine
         m_output = out != nullptr ? out : &std::cout;
     }
 
-    bool VMachine::BinaryOp(OpCode op, std::int32_t dest, std::int32_t left, std::int32_t right)
+    bool VMachine::LoadPlugin(const std::string &name)
     {
-        if (!IsRegisterValid(dest) || !IsRegisterValid(left) || !IsRegisterValid(right))
+        std::string libName = name;
+#if defined(CORA_OS_WINDOWS)
+        libName += ".dll";
+#elif defined(CORA_OS_LINUX)
+        libName = "lib" + name + ".so";
+#endif
+
+        std::vector<std::string> searchPaths = {".", "./plugins", "./lib", "plugins", "lib"};
+        std::string foundPath;
+        for (const auto &path : searchPaths)
         {
-            SetRuntimeError("VMachine: invalid arithmetic register");
-            return false;
-        }
-
-        const value &lhs = m_registers[static_cast<std::size_t>(left)];
-        const value &rhs = m_registers[static_cast<std::size_t>(right)];
-
-        if (op == OpCode::Add && (lhs.IsString() || rhs.IsString()))
-        {
-            m_registers[static_cast<std::size_t>(dest)] = value(lhs.AsString() + rhs.AsString());
-            return true;
-        }
-
-        const double leftValue = lhs.AsNumber();
-        const double rightValue = rhs.AsNumber();
-        double result = 0.0;
-
-        switch (op)
-        {
-        case OpCode::Add:
-            result = leftValue + rightValue;
-            break;
-        case OpCode::Sub:
-            result = leftValue - rightValue;
-            break;
-        case OpCode::Mul:
-            result = leftValue * rightValue;
-            break;
-        case OpCode::Div:
-            if (rightValue == 0.0)
+            std::string fullPath = path + "/" + libName;
+            std::ifstream f(fullPath);
+            if (f.good())
             {
-                SetRuntimeError("VMachine: division by zero");
-                return false;
-            }
-            result = leftValue / rightValue;
-            break;
-        case OpCode::Mod:
-            result = static_cast<double>(static_cast<long long>(leftValue) % static_cast<long long>(rightValue));
-            break;
-        default:
-            SetRuntimeError("VMachine: unsupported arithmetic opcode");
-            return false;
-        }
-
-        m_registers[static_cast<std::size_t>(dest)] = value(result);
-        return true;
-    }
-
-    bool VMachine::CompareOp(OpCode op, std::int32_t dest, std::int32_t left, std::int32_t right)
-    {
-        if (!IsRegisterValid(dest) || !IsRegisterValid(left) || !IsRegisterValid(right))
-        {
-            SetRuntimeError("VMachine: invalid comparison register");
-            return false;
-        }
-
-        const value &lhs = m_registers[static_cast<std::size_t>(left)];
-        const value &rhs = m_registers[static_cast<std::size_t>(right)];
-
-        bool result = false;
-        if (lhs.IsString() || rhs.IsString())
-        {
-            const std::string leftValue = lhs.AsString();
-            const std::string rightValue = rhs.AsString();
-            switch (op)
-            {
-            case OpCode::Eq:
-                result = leftValue == rightValue;
+                foundPath = fullPath;
                 break;
-            case OpCode::Ne:
-                result = leftValue != rightValue;
-                break;
-            default:
-                SetRuntimeError("VMachine: unsupported string comparison opcode");
-                return false;
-            }
-        }
-        else
-        {
-            const double leftValue = lhs.AsNumber();
-            const double rightValue = rhs.AsNumber();
-            switch (op)
-            {
-            case OpCode::Eq:
-                result = leftValue == rightValue;
-                break;
-            case OpCode::Ne:
-                result = leftValue != rightValue;
-                break;
-            case OpCode::Lt:
-                result = leftValue < rightValue;
-                break;
-            case OpCode::Le:
-                result = leftValue <= rightValue;
-                break;
-            case OpCode::Gt:
-                result = leftValue > rightValue;
-                break;
-            case OpCode::Ge:
-                result = leftValue >= rightValue;
-                break;
-            default:
-                SetRuntimeError("VMachine: unsupported comparison opcode");
-                return false;
             }
         }
 
-        m_registers[static_cast<std::size_t>(dest)] = value(result);
-        return true;
-    }
-
-    bool VMachine::UnaryOp(OpCode op, std::int32_t dest, std::int32_t source)
-    {
-        if (!IsRegisterValid(dest) || !IsRegisterValid(source))
+        if (foundPath.empty())
         {
-            SetRuntimeError("VMachine: invalid unary register");
-            return false;
-        }
-
-        const value &val = m_registers[static_cast<std::size_t>(source)];
-        switch (op)
-        {
-        case OpCode::Neg:
-            m_registers[static_cast<std::size_t>(dest)] = value(-val.AsNumber());
-            return true;
-        case OpCode::Not:
-            m_registers[static_cast<std::size_t>(dest)] = value(!val.AsBool());
-            return true;
-        default:
-            SetRuntimeError("VMachine: unsupported unary opcode");
-            return false;
-        }
-    }
-
-    bool VMachine::LoadGlobal(const BytecodeProgram &program, std::int32_t dest, std::int32_t nameIndex)
-    {
-        if (!IsRegisterValid(dest) || nameIndex < 0 || static_cast<std::size_t>(nameIndex) >= program.names.size())
-        {
-            SetRuntimeError("VMachine: invalid global load");
-            return false;
-        }
-
-        const std::string &name = program.names[static_cast<std::size_t>(nameIndex)];
-        
-        // Handle qualified names like io.print
-        std::vector<std::string> parts;
-        std::string part;
-        for (char c : name)
-        {
-            if (c == '.')
+            // Try without prefix/suffix just in case it's a full path
+            std::ifstream f(name);
+            if (f.good())
             {
-                if (!part.empty()) parts.push_back(part);
-                part.clear();
+                foundPath = name;
             }
             else
             {
-                part += c;
-            }
-        }
-        if (!part.empty()) parts.push_back(part);
-
-        if (parts.empty()) return false;
-
-        cora::compiler::runtime::Variable *variable = m_globals.GetVariableValue(parts[0]);
-        if (variable == nullptr || variable->GetValue() == nullptr)
-        {
-            SetRuntimeError("VMachine: undefined global variable " + parts[0]);
-            return false;
-        }
-
-        value current = *variable->GetValue();
-        for (std::size_t i = 1; i < parts.size(); ++i)
-        {
-            if (!current.IsObject())
-            {
-                SetRuntimeError("VMachine: " + parts[i-1] + " is not an object");
                 return false;
             }
-            auto obj = current.AsObject();
-            auto it = obj->fields.find(parts[i]);
-            if (it == obj->fields.end())
-            {
-                SetRuntimeError("VMachine: undefined member " + parts[i] + " in " + parts[i-1]);
-                return false;
-            }
-            current = it->second;
         }
 
-        m_registers[static_cast<std::size_t>(dest)] = current;
-        return true;
-    }
-
-    bool VMachine::StoreGlobal(const BytecodeProgram &program, std::int32_t source, std::int32_t nameIndex)
-    {
-        if (!IsRegisterValid(source) || nameIndex < 0 || static_cast<std::size_t>(nameIndex) >= program.names.size())
-        {
-            SetRuntimeError("VMachine: invalid global store");
-            return false;
-        }
-
-        const std::string &name = program.names[static_cast<std::size_t>(nameIndex)];
         try
         {
-            m_globals.SetVariableValue(name, new value(m_registers[static_cast<std::size_t>(source)]));
+            SharedLibrary lib(foundPath);
+            typedef void (*InitFunc)(cora::compiler::runtime::Scope &);
+            std::string initName = "CoraInit_" + name;
+            auto init = lib.Get<InitFunc>(initName);
+            if (init)
+            {
+                init(m_globals);
+                m_loadedPlugins.push_back(std::move(lib));
+                return true;
+            }
         }
-        catch (const std::exception &error)
+        catch (...)
         {
-            SetRuntimeError(error.what());
             return false;
         }
-        return true;
-    }
 
-    void VMachine::SetRuntimeError(const std::string &message)
-    {
-        m_lastError = message;
-    }
-
-    bool VMachine::IsRegisterValid(std::int32_t index) const
-    {
-        return index >= 0 && static_cast<std::size_t>(index) < kRegisterCount;
+        return false;
     }
 
     VMachine::~VMachine()

@@ -309,6 +309,12 @@ namespace cora::vmachine
                 case cora::ir::Instruction::Opcode::Phi:
                     getRegister(inst, false);
                     break;
+                case cora::ir::Instruction::Opcode::Import:
+                {
+                    const std::int32_t nameReg = getRegister(inst->getOperand(0), true);
+                    m_program.code.push_back({OpCode::Import, 0, nameReg, 0});
+                    break;
+                }
                 }
             }
         }

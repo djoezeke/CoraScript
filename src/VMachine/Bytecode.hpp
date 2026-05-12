@@ -35,7 +35,8 @@ namespace cora::vmachine
         Call,
         Return,
         Print,
-        Halt
+        Halt,
+        Import
     };
 
     struct Instruction
@@ -107,6 +108,8 @@ namespace cora::vmachine
             return "PRINT";
         case OpCode::Halt:
             return "HALT";
+        case OpCode::Import:
+            return "IMPORT";
         }
         return "UNKNOWN";
     }

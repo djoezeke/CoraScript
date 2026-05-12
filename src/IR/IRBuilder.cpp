@@ -471,10 +471,13 @@ namespace cora::ir
 
     void IRBuilder::EmitImport(ast::ImportStmt *stmt)
     {
-        if (stmt == nullptr)
+        if (stmt == nullptr || stmt->moduleName == nullptr)
         {
             return;
         }
+
+        ir::Value *moduleName = EmitExpression(stmt->moduleName);
+        new ir::ImportInstruction(moduleName, m_currentBlock);
     }
 
     void IRBuilder::EmitClass(ast::ClassDecl *stmt)

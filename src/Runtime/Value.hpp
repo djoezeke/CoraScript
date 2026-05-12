@@ -231,6 +231,11 @@ namespace cora::compiler
              */
             using callable_type = std::shared_ptr<Callable>;
 
+            /**
+             * @brief A type for a raw pointer value.
+             */
+            using pointer_type = void *;
+
             /* @} types */
 
         public:
@@ -332,6 +337,11 @@ namespace cora::compiler
             value(const char *value);
 
             /**
+             * @brief Construct a raw pointer value.
+             */
+            value(void *value);
+
+            /**
              * @brief Copy constructor.
              */
             value(const value &other);
@@ -353,12 +363,14 @@ namespace cora::compiler
             bool IsArray() const;
             bool IsObject() const;
             bool IsCallable() const;
+            bool IsPointer() const;
 
             double AsNumber() const;
             std::string AsString() const;
             bool AsBool() const;
             object_type AsObject() const;
             callable_type AsCallable() const;
+            pointer_type AsPointer() const;
 
             virtual std::string Repr() const;
 
@@ -421,6 +433,12 @@ namespace cora::compiler
              */
             bool is_callable() const;
 
+            /**
+             * @brief Check whether this value is a raw pointer.
+             * @return true if value is a raw pointer else false.
+             */
+            bool is_pointer() const;
+
             //========== Type Conversions ==========
 
             /**
@@ -475,6 +493,13 @@ namespace cora::compiler
             floating_type &as_floating();
 
             /**
+             * @brief Get value as a raw pointer type .
+             * @return The converted raw pointer value.
+             * @throws cast_error if conversion fails.
+             */
+            pointer_type &as_pointer();
+
+            /**
              * @brief Get value as an array type .
              * @return The converted array value (const).
              * @throws cast_error if conversion fails.
@@ -515,6 +540,13 @@ namespace cora::compiler
              * @throws cast_error if conversion fails.
              */
             const floating_type &as_floating() const;
+
+            /**
+             * @brief Get value as a raw pointer type .
+             * @return The converted raw pointer value (const).
+             * @throws cast_error if conversion fails.
+             */
+            const pointer_type &as_pointer() const;
 
             //========== Assignment ==========
 
@@ -574,6 +606,11 @@ namespace cora::compiler
              */
             reference operator=(floating_type value);
 
+            /**
+             * @brief Assign a raw pointer value.
+             */
+            reference operator=(void *value);
+
             //========== Comparison ==========
 
             bool operator<(const value &other) const;
@@ -618,7 +655,7 @@ namespace cora::compiler
             virtual ~value() = default;
 
         private:
-            using data_type = std::variant<std::monostate, null_type, boolean_type, integer_type, floating_type, string_type, object_type, array_type, callable_type>;
+            using data_type = std::variant<std::monostate, null_type, boolean_type, integer_type, floating_type, string_type, object_type, array_type, callable_type, pointer_type>;
 
             value_type m_type;
             ValueKind m_kind{ValueKind::Undefined};

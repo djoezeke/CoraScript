@@ -14,6 +14,27 @@ namespace cora::vmachine
         Load(m_path);
     }
 
+    SharedLibrary::SharedLibrary(SharedLibrary &&other) noexcept
+        : m_handle(other.m_handle), m_path(std::move(other.m_path)), m_loaded(other.m_loaded)
+    {
+        other.m_handle = nullptr;
+        other.m_loaded = false;
+    }
+
+    SharedLibrary &SharedLibrary::operator=(SharedLibrary &&other) noexcept
+    {
+        if (this != &other)
+        {
+            Unload();
+            m_handle = other.m_handle;
+            m_path = std::move(other.m_path);
+            m_loaded = other.m_loaded;
+            other.m_handle = nullptr;
+            other.m_loaded = false;
+        }
+        return *this;
+    }
+
     SharedLibrary::~SharedLibrary()
     {
         Unload();

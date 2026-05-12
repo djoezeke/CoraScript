@@ -286,6 +286,13 @@ namespace cora::compiler
             SetType(value_type::string);
         }
 
+        value::value(void *value)
+            : m_value(static_cast<pointer_type>(value))
+        {
+            SetType(value_type::null);
+            m_kind = ValueKind::Pointer;
+        }
+
         value::value(const value &other) = default;
 
         value::value(value &&other) = default;
@@ -387,7 +394,7 @@ namespace cora::compiler
 
         void value::SetValueKind(ValueKind kind) { m_kind = kind; }
 
-        bool value::IsNull() const { return is_null(); }
+        bool value::IsNull() const { return is_null() && m_kind != ValueKind::Pointer; }
         bool value::IsBool() const { return is_boolean(); }
         bool value::IsString() const { return is_string(); }
         bool value::IsInteger() const { return is_integer(); }
@@ -396,6 +403,7 @@ namespace cora::compiler
         bool value::IsArray() const { return is_array(); }
         bool value::IsObject() const { return is_object(); }
         bool value::IsCallable() const { return is_callable(); }
+        bool value::IsPointer() const { return m_kind == ValueKind::Pointer; }
 
         double value::AsNumber() const
         {
@@ -418,6 +426,12 @@ namespace cora::compiler
 
         std::string value::AsString() const
         {
+            if (IsPointer())
+            {
+                std::ostringstream out;
+                out << "<pointer " << AsPointer() << ">";
+                return out.str();
+            }
             switch (m_type)
             {
             case value_type::string:
@@ -449,6 +463,7 @@ namespace cora::compiler
 
         bool value::AsBool() const
         {
+            if (IsPointer()) return AsPointer() != nullptr;
             switch (m_type)
             {
             case value_type::boolean:
@@ -487,6 +502,15 @@ namespace cora::compiler
             return std::get<callable_type>(m_value);
         }
 
+        value::pointer_type value::AsPointer() const
+        {
+            if (!IsPointer())
+            {
+                throw std::runtime_error("Expected pointer value");
+            }
+            return std::get<pointer_type>(m_value);
+        }
+
         //========== Type Information ==========
 
         value::value_type value::type() const
@@ -512,6 +536,8 @@ namespace cora::compiler
         bool value::is_floating() const { return type() == value_type::floating; };
 
         bool value::is_callable() const { return type() == value_type::callable; };
+
+        bool value::is_pointer() const { return IsPointer(); }
 
         //========== Type Conversions ==========
 
@@ -570,6 +596,13 @@ namespace cora::compiler
             return std::get<floating_type>(m_value);
         }
 
+        value::pointer_type &value::as_pointer()
+        {
+            if (!is_pointer())
+                throw(std::runtime_error("Cannot access as pointer"));
+            return std::get<pointer_type>(m_value);
+        }
+
         const value::array_type &value::as_array() const
         {
             if (!is_array())
@@ -610,6 +643,13 @@ namespace cora::compiler
             if (!is_floating())
                 throw(std::runtime_error("Cannot access as floating"));
             return std::get<floating_type>(m_value);
+        }
+
+        const value::pointer_type &value::as_pointer() const
+        {
+            if (!is_pointer())
+                throw(std::runtime_error("Cannot access as pointer"));
+            return std::get<pointer_type>(m_value);
         }
 
         //========== Comparison ==========

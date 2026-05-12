@@ -87,6 +87,7 @@ namespace cora::ir
             Ret,
             Phi,
             Jump,
+            Import,
         };
 
     public:
@@ -109,6 +110,15 @@ namespace cora::ir
         PhiInstruction(std::string name, BasicBlock *block);
 
         void addIncoming(Value *value, BasicBlock *block);
+
+        std::string toString() override;
+    };
+
+    // Import Instruction
+    struct ImportInstruction : public Instruction
+    {
+    public:
+        ImportInstruction(Value *moduleName, BasicBlock *block);
 
         std::string toString() override;
     };

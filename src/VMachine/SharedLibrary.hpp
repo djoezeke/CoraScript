@@ -25,6 +25,10 @@ namespace cora::vmachine
 
         SharedLibrary &operator=(const SharedLibrary &) = delete;
 
+        SharedLibrary(SharedLibrary &&other) noexcept;
+
+        SharedLibrary &operator=(SharedLibrary &&other) noexcept;
+
         explicit SharedLibrary(std::string path);
 
         void Load(const std::string &path);

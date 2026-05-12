@@ -22,6 +22,8 @@ namespace cora::ir
         {
         case Opcode::Add:
             return std::string("add");
+        case Opcode::Import:
+            return std::string("import");
         default:
             std::ostringstream out;
             out << std::string("(opcode ") << std::to_string(static_cast<uint8_t>(opcode)) << ")\n";
@@ -275,5 +277,21 @@ namespace cora::ir
 
         return out.str();
     };
+
+    //-----------------------------------------------------------------------------
+    // [Class] ImportInstruction
+    //-----------------------------------------------------------------------------
+
+    ImportInstruction::ImportInstruction(Value *moduleName, BasicBlock *block)
+        : Instruction(Opcode::Import, "", block, 1)
+    {
+        setOperand(0, moduleName);
+        this->type = Type::Void();
+    };
+
+    std::string ImportInstruction::toString()
+    {
+        return "import " + getOperand(0)->toString() + "\n";
+    }
 
 } // namespace cora::ir

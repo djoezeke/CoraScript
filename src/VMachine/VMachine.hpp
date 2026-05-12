@@ -5,6 +5,7 @@
 #include "../Runtime/Scope.hpp"
 #include "../Runtime/Value.hpp"
 #include "Bytecode.hpp"
+#include "SharedLibrary.hpp"
 
 #include <iosfwd>
 #include <string>
@@ -25,6 +26,8 @@ namespace cora::vmachine
         std::string LastError() const;
 
         void SetOutput(std::ostream *out);
+
+        bool LoadPlugin(const std::string &name);
 
         ~VMachine();
 
@@ -53,6 +56,7 @@ namespace cora::vmachine
         cora::compiler::runtime::value m_returnValue;
         std::ostream *m_output;
         std::string m_lastError;
+        std::vector<SharedLibrary> m_loadedPlugins;
     };
 
 }

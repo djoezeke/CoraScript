@@ -30,7 +30,6 @@ add_executable(corac ${CORAC_SOURCES})
 
 target_link_libraries(cora
 	PRIVATE
-		Cora::Modules
 		Cora::IR
 		Cora::VMachine
 		Cora::Parser
@@ -42,7 +41,6 @@ target_link_libraries(cora
 
 target_link_libraries(coravm
 	PRIVATE
-		Cora::Modules
 		Cora::IR
 		Cora::VMachine
 		Cora::Parser
