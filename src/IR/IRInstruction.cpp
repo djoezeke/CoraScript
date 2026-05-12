@@ -23,7 +23,9 @@ namespace cora::ir
         case Opcode::Add:
             return std::string("add");
         default:
-            return std::string("(opcode ") + std::to_string((uint8_t)opcode) + ")\n";
+            std::ostringstream out;
+            out << std::string("(opcode ") << std::to_string(static_cast<uint8_t>(opcode)) << ")\n";
+            return out.str();
         }
     };
 
@@ -99,13 +101,9 @@ namespace cora::ir
     {
         std::ostringstream out;
 
-        out << "store " << type->toString() << " ";
-        out << getOperand(0)->toString() << ", ";
-        out << getOperand(1)->toString() << "\n";
+        out << "load " << type->toString() << "\n";
 
         return out.str();
-
-        return std::string("load");
     };
 
     //-----------------------------------------------------------------------------
@@ -227,10 +225,10 @@ namespace cora::ir
 
         out << name << " " << type->toString();
 
-        if (getOperand(0))
-        {
-            out << " " << getOperand(0)->toString();
-        }
+        // if (getOperand(0) != nullptr)
+        // {
+        //     out << " " << getOperand(0)->toString();
+        // }
 
         out << "\n";
 

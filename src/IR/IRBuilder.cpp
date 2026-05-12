@@ -742,36 +742,6 @@ namespace cora::ir
         return MakeValue<LoadInstruction>(value, makeTempName("load"), m_currentBlock);
     }
 
-    Value *IRBuilder::EmitAssignExpr(ast::AssignExpr *expr)
-    {
-        if (expr == nullptr)
-        {
-            return nullptr;
-        }
-
-        auto *identifier = dynamic_cast<ast::IdentifierExpr *>(expr->left);
-        if (identifier == nullptr)
-        {
-            return nullptr;
-        }
-
-        Value *slot = EmitIdentifier(identifier, false);
-        if (slot == nullptr)
-        {
-            slot = MakeValue<AllocaInstruction>(Type::Pointer(Type::Int()), identifier->name, m_currentBlock);
-            assignVariable(identifier->name, slot);
-        }
-
-        Value *rhs = EmitExpression(expr->right);
-        if (rhs == nullptr)
-        {
-            return nullptr;
-        }
-
-        MakeValue<StoreInstruction>(rhs, slot, m_currentBlock);
-        return rhs;
-    }
-
     Value *IRBuilder::EmitBinaryExpr(ast::BinaryExpr *expr)
     {
         if (expr == nullptr)
@@ -923,7 +893,24 @@ namespace cora::ir
             }
         }
 
-        return MakeValue<CallInstruction>(callee, args, makeTempName("call"), m_currentBlock);
+        // Create the CallInstruction.
+        auto *callInst = MakeValue<CallInstruction>(callee, args, makeTempName("call"), m_currentBlock);
+
+        // FIX: Set the return type of the CallInstruction.
+        // If the callee is a Function object, use its returnType.
+        if (auto *func = dynamic_cast<Function *>(callee))
+        {
+            callInst->type = func->returnType;
+        }
+        else
+        {
+            // If the callee is not a Function object directly, its type might represent a function type.
+            // This requires more robust type system integration.
+            // For now, to prevent a null dereference in Type::toString(), we default to Type::Void().
+            callInst->type = Type::Void();
+        }
+
+        return callInst;
     }
 
     BasicBlock *IRBuilder::CreateBlock(const std::string &name)
@@ -932,7 +919,7 @@ namespace cora::ir
         out << name << "." << m_blocks.size();
         auto block = std::make_unique<BasicBlock>(out.str());
         BasicBlock *raw = block.get();
-        // std::cerr << "Creating block: " << raw->name << "\n";
+        // std::cerr << "Creating block: " << raw->name << "";
         m_blocks.push_back(raw);
         m_ownedBlocks.push_back(std::move(block));
         return raw;
@@ -1000,5 +987,35 @@ namespace cora::ir
     };
 
     IRBuilder::~IRBuilder() {};
+
+    Value *IRBuilder::EmitAssignExpr(ast::AssignExpr *expr)
+    {
+        if (expr == nullptr)
+        {
+            return nullptr;
+        }
+
+        auto *identifier = dynamic_cast<ast::IdentifierExpr *>(expr->left);
+        if (identifier == nullptr)
+        {
+            return nullptr;
+        }
+
+        Value *slot = EmitIdentifier(identifier, false);
+        if (slot == nullptr)
+        {
+            slot = MakeValue<AllocaInstruction>(Type::Pointer(Type::Int()), identifier->name, m_currentBlock);
+            assignVariable(identifier->name, slot);
+        }
+
+        Value *rhs = EmitExpression(expr->right);
+        if (rhs == nullptr)
+        {
+            return nullptr;
+        }
+
+        MakeValue<StoreInstruction>(rhs, slot, m_currentBlock);
+        return rhs;
+    }
 
 } // namespace cora::ir

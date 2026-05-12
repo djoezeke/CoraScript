@@ -189,12 +189,12 @@ namespace cora::ir
     struct Function : public Value
     {
 
-        Function(std::string name, Type *retTy, std::vector<Type *> argTypes,  BasicBlock *body);
+        Function(std::string name, Type *retTy, std::vector<Type *> argTypes, BasicBlock *body);
 
         std::string toString() override;
 
     public:
-        BasicBlock * body;
+        BasicBlock *body;
         std::vector<Argument *> args;
         Type *returnType;
     };

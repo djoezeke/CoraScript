@@ -25,20 +25,22 @@ namespace cora::ir
 
     std::string Type::toString()
     {
-        switch (id)
-        {
-        case ID::Int:
-            return "int";
-        case ID::Void:
-            return "void";
-        case ID::Float:
-            return "float";
-        case ID::Label:
-            return "label";
-        case ID::Pointer:
-            return pointee->toString() + "*";
-        }
-        return "void";
+        // switch (id)
+        // {
+        // case ID::Int:
+        //     return std::string("int");
+        // case ID::Void:
+        //     return std::string("void");
+        // case ID::Float:
+        //     return std::string("float");
+        // case ID::Label:
+        //     return std::string("label");
+        // case ID::Pointer:
+        //     return pointee->toString() + std::string("*");
+        // default:
+        //     return std::string("void");
+        // }
+        return std::string("void");
     }
 
     bool Type::is(Type type) const

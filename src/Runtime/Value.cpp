@@ -561,7 +561,7 @@ namespace cora::compiler
             if (!is_boolean())
                 throw(std::runtime_error("Cannot access as boolean"));
             return std::get<boolean_type>(m_value);
-        }
+        };
 
         value::floating_type &value::as_floating()
         {
@@ -648,8 +648,9 @@ namespace cora::compiler
 
         //========== Utility ==========
 
-        std::string value::toString(){
-            return as_string();
+        std::string value::toString()
+        {
+            return std::string("<str>");
         };
 
         value value::clone() const { return value(*this); }
