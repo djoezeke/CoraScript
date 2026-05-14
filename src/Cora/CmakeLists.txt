@@ -1,0 +1,66 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+set(CORA_CLI_COMMON_SOURCES
+	"${CORA_CORA_DIR}/Pipeline.cpp"
+)
+
+set(CORA_SOURCES 
+	"${CORA_CORA_DIR}/cora.cpp"
+	${CORA_CLI_COMMON_SOURCES}
+)
+
+set(CORAC_SOURCES
+	"${CORA_CORA_DIR}/corac.cpp"
+	${CORA_CLI_COMMON_SOURCES}
+)
+
+set(CORAVM_SOURCES
+	"${CORA_CORA_DIR}/coravm.cpp"
+	${CORA_CLI_COMMON_SOURCES}
+)
+
+add_executable(cora ${CORA_SOURCES})
+add_executable(Corascript ALIAS cora)
+add_executable(coravm ${CORAVM_SOURCES})
+add_executable(corac ${CORAC_SOURCES})
+
+
+target_link_libraries(cora
+	PRIVATE
+		Cora::IR
+		Cora::VMachine
+		Cora::Parser
+		Cora::Builtin
+		Cora::Modules
+		Cora::Runtime
+		Cora::AST
+		Cora::Basic
+)
+
+target_link_libraries(coravm
+	PRIVATE
+		Cora::IR
+		Cora::VMachine
+		Cora::Parser
+		Cora::Builtin
+		Cora::Modules
+		Cora::Runtime
+		Cora::AST
+		Cora::Basic
+)
+
+target_link_libraries(corac
+	PRIVATE
+		Cora::IR
+		Cora::VMachine
+		Cora::Parser
+		Cora::Builtin
+		Cora::Runtime
+		Cora::AST
+		Cora::Basic
+)
+
+# ===================================================================

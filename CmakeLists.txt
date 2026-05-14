@@ -20,16 +20,26 @@ project(CoraScript
 # Configure variables for the project.   
 #--------------------------------------------------------------------
 
-option(CORA_BUILD_COMPILER "Build Compiler library" ON)
-option(CORA_BUILD_MODULES "Build external modules library" ON)
-option(CORA_BUILD_CORASCRIPT "Build Corascript executable" ON)
-option(CORA_BUILD_CORASCRIPTEN "Build CoraScripten executable" OFF)
+option(CORA_BUILD_CORA "Build cora executable" ON)
+option(CORA_BUILD_CORAC "Build corac executable" OFF)
+option(CORA_BUILD_CORAVM "Build coravm executable" ON)
 option(CORA_CORASCRIPT_WITH_MODULES "Link Corascript with external modules library when available" ON)
 option(CORA_BUILD_TESTS "Enable CTest-based project tests" ON)
+option(CORA_WITH_IO_MODULE "Enable IO module" ON)
 
-set(MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules")
-set(COMPILER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Compiler")
-set(CORASCRIPT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/CoraScript")
+if(CORA_WITH_IO_MODULE)
+    add_definitions(-DCORA_WITH_IO_MODULE)
+endif()
+
+set(CORA_AST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/AST")
+set(CORA_BASIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Basic")
+set(CORA_BUILTIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Builtin")
+set(CORA_CORA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Cora")
+set(CORA_IR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/IR")
+set(CORA_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Parser")
+set(CORA_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime")
+set(CORA_VMACHINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/VMachine")
+set(CORA_MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +50,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #--------------------------------------------------------------------
 
 add_subdirectory(src)
+add_subdirectory(modules)
 
 if(CORA_BUILD_TESTS)
         include(CTest)

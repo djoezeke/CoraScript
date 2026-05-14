@@ -1,0 +1,25 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(CORA_IR_SOURCES 
+
+    "${CORA_IR_DIR}/IRValue.cpp"
+	"${CORA_IR_DIR}/IRBuilder.cpp"
+	"${CORA_IR_DIR}/IRPrinter.cpp"
+    "${CORA_IR_DIR}/IRVerifier.cpp"
+    "${CORA_IR_DIR}/IRInstruction.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build IR Generation Library.
+#--------------------------------------------------------------------
+
+cora_library(IR SOURCES ${CORA_IR_SOURCES} STATIC)
+
+# ===================================================================

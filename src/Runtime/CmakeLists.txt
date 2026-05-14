@@ -1,0 +1,24 @@
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Configs   
+#--------------------------------------------------------------------
+
+set(CORA_RUNTIME_SOURCES 
+
+    "${CORA_RUNTIME_DIR}/GarbageCollector.cpp"
+    "${CORA_RUNTIME_DIR}/Scope.cpp"
+    "${CORA_RUNTIME_DIR}/Value.cpp"
+    "${CORA_RUNTIME_DIR}/Variable.cpp"
+)
+
+#--------------------------------------------------------------------
+# Build Runtime Library.
+#--------------------------------------------------------------------
+
+cora_library(Runtime SOURCES ${CORA_RUNTIME_SOURCES} STATIC)
+
+# ===================================================================

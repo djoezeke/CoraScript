@@ -3,28 +3,66 @@
 # Distributed under the terms of the MIT license.
 # ===================================================================
 
+
+#--------------------------------------------------------------------
+# Library Functions
+#--------------------------------------------------------------------
+
+# add a new target which is a Cora library
+# example: cora_library(Parser
+#                       SOURCES parser.cpp  ...
+#                       [STATIC]) 
+macro(cora_library module)
+
+    # parse the arguments
+    cmake_parse_arguments(THIS "STATIC" "DEPENDENCIES" "SOURCES" ${ARGN})
+    if(NOT "${THIS_UNPARSED_ARGUMENTS}" STREQUAL "")
+        message(FATAL_ERROR "Extra unparsed arguments when calling cora_library: ${THIS_UNPARSED_ARGUMENTS}")
+    endif()
+
+    # create the target
+    string(TOLOWER cora-${module} target)
+    if(THIS_STATIC)
+        add_library(${target} STATIC ${THIS_SOURCES})
+    else()
+        add_library(${target} ${THIS_SOURCES})
+    endif()
+    add_library(Cora::${module} ALIAS ${target})
+
+    # enable C++17 support
+    target_compile_features(${target} PUBLIC cxx_std_17)
+
+    # set the target's folder (for IDEs that support it, e.g. Visual Studio)
+    set_target_properties(${target} PROPERTIES FOLDER "Cora")
+
+    # add <project>/include as public include directory
+    target_include_directories(${target}
+                               PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+                               PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+    # define CORA_STATIC if the build type is not set to 'shared'
+    if(NOT BUILD_SHARED_LIBS)
+        target_compile_definitions(${target} PUBLIC "CORA_STATIC")
+    endif()
+
+    # Enable support for UTF-8 characters in source code
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /utf-8)
+    endif()
+endmacro()
+
 #--------------------------------------------------------------------
 # Add project subdirectories.
 #--------------------------------------------------------------------
 
-# Build
-if(CORA_BUILD_COMPILER)
-    add_subdirectory(Compiler)
-endif()
+add_subdirectory(AST)
+add_subdirectory(Basic)
+add_subdirectory(Builtin)
+add_subdirectory(Cora)
+add_subdirectory(IR)
+add_subdirectory(Parser)
+add_subdirectory(Runtime)
+add_subdirectory(VMachine)
 
-# Build
-if(CORA_BUILD_MODULES)
-    add_subdirectory(Modules)
-endif()
-
-# Build
-if(CORA_BUILD_CORASCRIPT)
-    add_subdirectory(CoraScript)
-endif()
-
-# Build    
-if(CORA_BUILD_CORASCRIPTEN)
-    add_subdirectory(CoraScripten)
-endif()
 
 # ===================================================================

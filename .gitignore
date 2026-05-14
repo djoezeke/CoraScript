@@ -88,3 +88,6 @@ mkdocs_material.egg-info
 # Cora Artifacts
 sample/
 /*.cora
+
+CLAUDE.md
+GEMINI.md

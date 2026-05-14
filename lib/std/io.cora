@@ -1,3 +1,30 @@
-# Standard io module
 
-import _io
+// This ``io.cora`` file provides a Cora wrapper for C++ I/O operations using the FFI `_io` library.
+
+import _io 
+
+class File {
+    func init() {
+        self.handle = _io.File()
+    }
+
+    func open(path, mode) {
+        return self.handle.open(path, mode)
+    }
+
+    func write(text) {
+        self.handle.write(text)
+    }
+
+    func read() {
+        return self.handle.read_all()
+    }
+
+    func close() {
+        self.handle.close()
+    }
+}
+
+func print(text) {
+    _io.print(text)
+}

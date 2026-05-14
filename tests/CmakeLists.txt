@@ -1,6 +1,114 @@
-if(BUILD_TESTING AND TARGET Corascript)
-	add_test(
-		NAME io_module_script
-		COMMAND Corascript ${PROJECT_SOURCE_DIR}/tests/io_module.cora
-	)
-endif()
+# ===================================================================
+# Copyright © 2025 Sackey Ezekiel Etrue
+# Distributed under the terms of the MIT license.
+# ===================================================================
+
+#--------------------------------------------------------------------
+# Basic Test Configures   
+#--------------------------------------------------------------------
+
+set(PARSER_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/parser")
+
+set(CORA_TEST_INCLUDE_DIR 
+
+	"${CORA_AST_DIR}"
+	"${CORA_BASIC_DIR}"
+	"${CORA_BUILTIN_DIR}"
+	"${CORA_CORA_DIR}"
+	"${CORA_IRGEN_DIR}"
+	"${CORA_JITCOM_DIR}"
+	"${CORA_PARSER_DIR}"
+	"${CORA_RUNTIME_DIR}"
+	"${CORA_SEMANTIC_DIR}"
+	"${CORA_VMACHINE_DIR}"
+	"${CORA_MODULES_DIR}"
+
+)
+
+set(LEXER_TEST_SOURCES
+
+    "${PARSER_TEST_DIR}/lexer.test.cpp"
+	"${CORA_BASIC_DIR}/Location.cpp"
+	"${CORA_BASIC_DIR}/Error.cpp"
+	"${CORA_PARSER_DIR}/Token.cpp"
+	"${CORA_PARSER_DIR}/Lexer.cpp"
+
+)
+
+#--------------------------------------------------------------------
+# Test Functions
+#--------------------------------------------------------------------
+
+# add a new target which is a test
+# example: cora_test(main-tests main.test.cpp ... Cora::Basic )
+function(cora_test target SOURCES)
+
+    set(DEPENDS ${ARGN})
+
+    # set a source group for the source files
+    source_group("" FILES ${SOURCES})
+
+    # create the target
+    add_executable(${target} ${SOURCES})
+
+    target_include_directories(${target} PRIVATE ${CORA_TEST_INCLUDE_DIR})
+
+    # set the target's folder (for IDEs that support it, e.g. Visual Studio)
+    set_target_properties(${target} PROPERTIES FOLDER "Tests")
+
+    set_target_properties(${target} PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} # set the Visual Studio startup path for debugging
+        VS_DEBUGGER_COMMAND_ARGUMENTS "-b" # Break into debugger
+
+        XCODE_GENERATE_SCHEME ON # Required to set arguments
+        XCODE_SCHEME_ARGUMENTS "-b" # Break into debugger
+    )
+
+    # link the target to its dependencies
+    target_link_libraries(${target} PRIVATE ${DEPENDS})
+
+    # If coverage is enabled for MSVC and we are linking statically, use /WHOLEARCHIVE
+    # to make sure the linker doesn't discard unused code sections before coverage can be measured
+    if(MYTOML_ENABLE_COVERAGE AND MSVC AND NOT BUILD_SHARED_LIBS)
+        foreach(DEPENDENCY ${DEPENDS})
+            target_link_options(${target} PRIVATE $<$<CONFIG:DEBUG>:/WHOLEARCHIVE:$<TARGET_LINKER_FILE:${DEPENDENCY}>>)
+        endforeach()
+    endif()
+
+    # Delay test registration when cross compiling to avoid running crosscompiled app on host OS
+    if(CMAKE_CROSSCOMPILING)
+        set(CMAKE_CATCH_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+    endif()
+
+    # Enable support for UTF-8 characters in source code
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /utf-8)
+    endif()
+
+    # Add the test
+    if(${target} STREQUAL "lexer_test")
+        add_test(NAME ${target} COMMAND ${target} -c "let x = 1;")
+    elseif(${target} STREQUAL "parser_test")
+        add_test(NAME ${target} COMMAND ${target} -c "let x = 1;")
+    else()
+        add_test(NAME ${target} COMMAND ${target})
+    endif()
+
+endfunction()
+
+#--------------------------------------------------------------------
+# Manually or Recursively add Tests
+#--------------------------------------------------------------------
+
+# cora_test(lexer_test "${LEXER_TEST_SOURCES}" Cora::Parser Cora::AST Cora::Basic )
+# cora_test(parser_test "${PARSER_TEST_DIR}/parser.test.cpp" Cora::Parser Cora::AST Cora::Basic )
+
+# set(IR_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ir")
+# cora_test(ir_block_test "${IR_TEST_DIR}/block.test.cpp" Cora::IR Cora::Basic)
+# cora_test(ast_ir_test "${IR_TEST_DIR}/ast_ir.test.cpp" Cora::IR Cora::AST Cora::Parser Cora::Basic)
+
+# set(BYTECODE_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bytecode")
+# cora_test(bytecode_block_test "${BYTECODE_TEST_DIR}/block.test.cpp" Cora::VMachine Cora::IR Cora::Basic)
+# cora_test(ir_bc_test "${BYTECODE_TEST_DIR}/ir_bc.test.cpp" Cora::VMachine Cora::IR Cora::Basic)
+
+# ===================================================================
