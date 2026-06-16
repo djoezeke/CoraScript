@@ -1,0 +1,4 @@
+#ifndef JUNE_JUNE_IRCODE_H
+#define JUNE_JUNE_IRCODE_H
+
+#endif // JUNE_JUNE_IRCODE_H

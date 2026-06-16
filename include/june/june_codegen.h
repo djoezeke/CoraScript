@@ -1,0 +1,4 @@
+#ifndef JUNE_JUNE_CODEGEN_H
+#define JUNE_JUNE_CODEGEN_H
+
+#endif // JUNE_JUNE_CODEGEN_H

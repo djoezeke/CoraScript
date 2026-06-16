@@ -1,0 +1,4 @@
+#ifndef JUNE_JUNE_VALUE_H
+#define JUNE_JUNE_VALUE_H
+
+#endif // JUNE_JUNE_VALUE_H
